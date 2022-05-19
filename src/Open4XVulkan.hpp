@@ -49,11 +49,13 @@ private:
   void createGraphicsPipeline();
   void createFramebuffers();
   void createCommandPool();
+  void createVertexBuffer();
   void createCommandBuffers();
   void recordCommandBuffer(VkCommandBuffer, uint32_t);
   void createSyncObjects();
   void cleanupSwapChain();
   void recreateSwapChain();
+  uint32_t findMemoryType(uint32_t, VkMemoryPropertyFlags);
 
 
   VkInstance instance;
@@ -78,6 +80,8 @@ private:
   std::vector<VkSemaphore> renderFinishedSemaphores;
   std::vector<VkFence> inFlightFences;
   uint32_t currentFrame = 0;
+  VkBuffer vertexBuffer;
+  VkDeviceMemory vertexBufferMemory;
 
 };
 
