@@ -11,7 +11,9 @@ public:
   void mainLoop();
 
 private:
-  Open4XVulkan renderer;
+  void drawFrame();
+
+  Open4XVulkan *renderer;
 };
 
 #endif // OPEN4XGAME_H_

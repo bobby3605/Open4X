@@ -8,12 +8,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
   }
 }
 
-Open4XGame::Open4XGame() { glfwSetKeyCallback(renderer.window, key_callback); }
+Open4XGame::Open4XGame() {
+  renderer = new Open4XVulkan();
+  glfwSetKeyCallback(renderer->window, key_callback); }
 
-Open4XGame::~Open4XGame() {}
+Open4XGame::~Open4XGame() {
+}
 
 void Open4XGame::mainLoop() {
-  while (!glfwWindowShouldClose(renderer.window)) {
+  while (!glfwWindowShouldClose(renderer->window)) {
     glfwPollEvents();
+    renderer->drawFrame();
   }
+
+  delete renderer;
+
 }

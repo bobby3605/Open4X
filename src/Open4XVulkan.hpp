@@ -1,6 +1,8 @@
 #ifndef OPEN4XVULKAN_H_
 #define OPEN4XVULKAN_H_
 
+#include <cstdint>
+#include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -26,6 +28,8 @@ public:
   Open4XVulkan();
   ~Open4XVulkan();
   GLFWwindow *window;
+  void drawFrame();
+  bool framebufferResized = false;
 
 private:
   void initWindow();
@@ -40,6 +44,17 @@ private:
   void createInstance();
   void createSwapChain();
   void createImageViews();
+  VkShaderModule createShaderModule(const std::vector<char>&);
+  void createRenderPass();
+  void createGraphicsPipeline();
+  void createFramebuffers();
+  void createCommandPool();
+  void createCommandBuffers();
+  void recordCommandBuffer(VkCommandBuffer, uint32_t);
+  void createSyncObjects();
+  void cleanupSwapChain();
+  void recreateSwapChain();
+
 
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
@@ -53,6 +68,17 @@ private:
   VkFormat swapChainImageFormat;
   VkExtent2D swapChainExtent;
   std::vector<VkImageView> swapChainImageViews;
+  VkRenderPass renderPass;
+  VkPipelineLayout pipelineLayout;
+  VkPipeline graphicsPipeline;
+  std::vector<VkFramebuffer> swapChainFramebuffers;
+  VkCommandPool commandPool;
+  std::vector<VkCommandBuffer> commandBuffers;
+  std::vector<VkSemaphore> imageAvailableSemaphores;
+  std::vector<VkSemaphore> renderFinishedSemaphores;
+  std::vector<VkFence> inFlightFences;
+  uint32_t currentFrame = 0;
+
 };
 
 #endif // OPEN4XVULKAN_H_
