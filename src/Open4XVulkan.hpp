@@ -1,5 +1,6 @@
 #ifndef OPEN4XVULKAN_H_
 #define OPEN4XVULKAN_H_
+#include "Renderer.hpp"
 
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
@@ -23,11 +24,10 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-class Open4XVulkan {
+class Open4XVulkan : public Renderer {
 public:
   Open4XVulkan();
   ~Open4XVulkan();
-  GLFWwindow *window;
   void drawFrame();
   bool framebufferResized = false;
 

@@ -1,6 +1,7 @@
 #ifndef OPEN4XGAME_H_
 #define OPEN4XGAME_H_
 #include "Open4XVulkan.hpp"
+#include "Renderer.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -11,9 +12,7 @@ public:
   void mainLoop();
 
 private:
-  void drawFrame();
-
-  Open4XVulkan *renderer;
+  Renderer *renderer;
 };
 
 #endif // OPEN4XGAME_H_

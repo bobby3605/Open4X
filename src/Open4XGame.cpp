@@ -10,7 +10,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 Open4XGame::Open4XGame() {
   renderer = new Open4XVulkan();
-  glfwSetKeyCallback(renderer->window, key_callback); }
+  glfwSetKeyCallback(renderer->window, key_callback);
+}
 
 Open4XGame::~Open4XGame() {
 }
