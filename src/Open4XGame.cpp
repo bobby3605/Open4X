@@ -1,5 +1,5 @@
 #include "Open4XGame.hpp"
-#include "Open4XVulkan.hpp"
+#include "Vulkan/Open4XVulkan.hpp"
 #include <GLFW/glfw3.h>
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -13,8 +13,7 @@ Open4XGame::Open4XGame() {
   glfwSetKeyCallback(renderer->window, key_callback);
 }
 
-Open4XGame::~Open4XGame() {
-}
+Open4XGame::~Open4XGame() {}
 
 void Open4XGame::mainLoop() {
   while (!glfwWindowShouldClose(renderer->window)) {
@@ -23,5 +22,4 @@ void Open4XGame::mainLoop() {
   }
 
   delete renderer;
-
 }

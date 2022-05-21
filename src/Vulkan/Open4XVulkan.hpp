@@ -1,6 +1,6 @@
 #ifndef OPEN4XVULKAN_H_
 #define OPEN4XVULKAN_H_
-#include "Renderer.hpp"
+#include "../Renderer.hpp"
 
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
@@ -10,6 +10,19 @@
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.h>
+
+const uint32_t WIDTH = 800;
+const uint32_t HEIGHT = 600;
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
+const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
+const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -44,7 +57,7 @@ private:
   void createInstance();
   void createSwapChain();
   void createImageViews();
-  VkShaderModule createShaderModule(const std::vector<char>&);
+  VkShaderModule createShaderModule(const std::vector<char> &);
   void createRenderPass();
   void createGraphicsPipeline();
   void createFramebuffers();
@@ -56,7 +69,7 @@ private:
   void cleanupSwapChain();
   void recreateSwapChain();
   uint32_t findMemoryType(uint32_t, VkMemoryPropertyFlags);
-
+  void DestroyDebugUtilsMessengerEXT(VkInstance, VkDebugUtilsMessengerEXT, const VkAllocationCallbacks *);
 
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
@@ -82,7 +95,6 @@ private:
   uint32_t currentFrame = 0;
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
-
 };
 
 #endif // OPEN4XVULKAN_H_
