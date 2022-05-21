@@ -45,6 +45,7 @@ void Open4XVulkan::initVulkan() {
   createFramebuffers();
   createCommandPool();
   createVertexBuffer();
+  createIndexBuffer();
   createCommandBuffers();
   createSyncObjects();
 }
@@ -53,6 +54,9 @@ Open4XVulkan::~Open4XVulkan() {
   vkDeviceWaitIdle(device);
 
   cleanupSwapChain();
+
+  vkDestroyBuffer(device, indexBuffer, nullptr);
+  vkFreeMemory(device, indexBufferMemory, nullptr);
 
   vkDestroyBuffer(device, vertexBuffer, nullptr);
   vkFreeMemory(device, vertexBufferMemory, nullptr);
