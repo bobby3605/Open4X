@@ -30,6 +30,8 @@ void Open4XVulkan::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
 
   vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                          &descriptorSets[currentFrame], 0, nullptr);
   vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
   vkCmdEndRenderPass(commandBuffer);
 

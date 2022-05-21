@@ -6,6 +6,8 @@
 #include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#include <glm/glm.hpp>
 #include <iostream>
 #include <optional>
 #include <vector>
@@ -44,6 +46,12 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+struct UniformBufferObject {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 proj;
+};
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -94,6 +102,11 @@ private:
   void createBuffer(VkDeviceSize, VkBufferUsageFlags, VkMemoryPropertyFlags, VkBuffer &, VkDeviceMemory &);
   void copyBuffer(VkBuffer, VkBuffer, VkDeviceSize);
   void createIndexBuffer();
+  void createDescriptorSetLayout();
+  void createUniformBuffers();
+  void updateUniformBuffer(uint32_t);
+  void createDescriptorPool();
+  void createDescriptorSets();
 
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
@@ -108,6 +121,7 @@ private:
   VkExtent2D swapChainExtent;
   std::vector<VkImageView> swapChainImageViews;
   VkRenderPass renderPass;
+  VkDescriptorSetLayout descriptorSetLayout;
   VkPipelineLayout pipelineLayout;
   VkPipeline graphicsPipeline;
   std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -121,6 +135,10 @@ private:
   VkDeviceMemory vertexBufferMemory;
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
+  std::vector<VkBuffer> uniformBuffers;
+  std::vector<VkDeviceMemory> uniformBuffersMemory;
+  VkDescriptorPool descriptorPool;
+  std::vector<VkDescriptorSet> descriptorSets;
 };
 
 #endif // OPEN4XVULKAN_H_
