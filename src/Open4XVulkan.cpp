@@ -1,9 +1,12 @@
 #include "Open4XVulkan.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -11,10 +14,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
-#include <fstream>
 #include <vulkan/vulkan_core.h>
-#include <glm/glm.hpp>
-#include <array>
 
 // TODO
 // Split this into multiple files
@@ -60,21 +60,17 @@ struct Vertex {
 
     return attributeDescriptions;
   }
-
 };
 
 const std::vector<Vertex> vertices = {
-    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-};
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 /*
 ** initWindow
 */
 
-static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-  auto app = reinterpret_cast<Open4XVulkan*>(glfwGetWindowUserPointer(window));
+static void framebufferResizeCallback(GLFWwindow *window, int width, int height) {
+  auto app = reinterpret_cast<Open4XVulkan *>(glfwGetWindowUserPointer(window));
   app->framebufferResized = true;
 }
 
@@ -581,30 +577,28 @@ void Open4XVulkan::createRenderPass() {
   if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
     throw std::runtime_error("failed to create render pass");
   }
-
 }
 
-static std::vector<char> readFile(const std::string& filename) {
+static std::vector<char> readFile(const std::string &filename) {
   std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
     throw std::runtime_error("failed to open file");
   }
 
-  size_t fileSize = (size_t) file.tellg();
+  size_t fileSize = (size_t)file.tellg();
   std::vector<char> buffer(fileSize);
   file.seekg(0);
   file.read(buffer.data(), fileSize);
   file.close();
   return buffer;
-
 }
 
-VkShaderModule Open4XVulkan::createShaderModule(const std::vector<char>& code) {
+VkShaderModule Open4XVulkan::createShaderModule(const std::vector<char> &code) {
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size();
-  createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+  createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
   VkShaderModule shaderModule;
   if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
     throw std::runtime_error("failed to create shader module");
@@ -651,8 +645,8 @@ void Open4XVulkan::createGraphicsPipeline() {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float) swapChainExtent.width;
-  viewport.height = (float) swapChainExtent.height;
+  viewport.width = (float)swapChainExtent.width;
+  viewport.height = (float)swapChainExtent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
@@ -692,10 +686,7 @@ void Open4XVulkan::createGraphicsPipeline() {
 
   VkPipelineColorBlendAttachmentState colorBlendAttachment{};
   colorBlendAttachment.colorWriteMask =
-    VK_COLOR_COMPONENT_R_BIT |
-    VK_COLOR_COMPONENT_G_BIT |
-    VK_COLOR_COMPONENT_B_BIT |
-    VK_COLOR_COMPONENT_A_BIT;
+      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   colorBlendAttachment.blendEnable = VK_FALSE;
   colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
   colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -715,10 +706,7 @@ void Open4XVulkan::createGraphicsPipeline() {
   colorBlending.blendConstants[2] = 0.0f;
   colorBlending.blendConstants[3] = 0.0f;
 
-  std::vector<VkDynamicState> dynamicStates = {
-  VK_DYNAMIC_STATE_VIEWPORT,
-  VK_DYNAMIC_STATE_LINE_WIDTH
-};
+  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH};
 
   VkPipelineDynamicStateCreateInfo dynamicState{};
   dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -732,7 +720,7 @@ void Open4XVulkan::createGraphicsPipeline() {
   pipelineLayoutInfo.pushConstantRangeCount = 0;
   pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-  if(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+  if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
     throw std::runtime_error("failed to create pipeline layout");
   }
 
@@ -754,7 +742,7 @@ void Open4XVulkan::createGraphicsPipeline() {
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
   pipelineInfo.basePipelineIndex = -1;
 
-  if(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+  if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics pipeline");
   }
 
@@ -765,9 +753,7 @@ void Open4XVulkan::createGraphicsPipeline() {
 void Open4XVulkan::createFramebuffers() {
   swapChainFramebuffers.resize(swapChainImageViews.size());
   for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-    VkImageView attachments[] = {
-    swapChainImageViews[i]
-  };
+    VkImageView attachments[] = {swapChainImageViews[i]};
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass = renderPass;
@@ -780,7 +766,6 @@ void Open4XVulkan::createFramebuffers() {
     if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create framebuffer");
     }
-
   }
 }
 
@@ -817,7 +802,7 @@ void Open4XVulkan::createVertexBuffer() {
   bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  if(vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS){
+  if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
     throw std::runtime_error("failed to create vertex buffer");
   }
 
@@ -827,7 +812,8 @@ void Open4XVulkan::createVertexBuffer() {
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocated vertex buffer memory");
@@ -835,20 +821,19 @@ void Open4XVulkan::createVertexBuffer() {
 
   vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
 
-  void* data;
+  void *data;
   vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-  memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+  memcpy(data, vertices.data(), (size_t)bufferInfo.size);
   vkUnmapMemory(device, vertexBufferMemory);
-
 }
 
 void Open4XVulkan::createCommandBuffers() {
   commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-  VkCommandBufferAllocateInfo allocInfo {};
+  VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = commandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
+  allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
   if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to create command buffers");
@@ -869,7 +854,7 @@ void Open4XVulkan::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = renderPass;
   renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-  renderPassInfo.renderArea.offset = {0,0};
+  renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = swapChainExtent;
   VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
   renderPassInfo.clearValueCount = 1;
@@ -888,7 +873,6 @@ void Open4XVulkan::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t i
   if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer");
   }
-
 }
 
 void Open4XVulkan::createSyncObjects() {
@@ -903,56 +887,58 @@ void Open4XVulkan::createSyncObjects() {
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+        vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
 
- for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-
-            throw std::runtime_error("failed to create synchronization objects for a frame!");
-        }
+      throw std::runtime_error("failed to create synchronization objects for a frame!");
     }
+  }
 }
 
-void Open4XVulkan::cleanupSwapChain () {
+void Open4XVulkan::cleanupSwapChain() {
   for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
-        vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
-    }
+    vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+  }
 
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    vkDestroyRenderPass(device, renderPass, nullptr);
+  vkDestroyPipeline(device, graphicsPipeline, nullptr);
+  vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+  vkDestroyRenderPass(device, renderPass, nullptr);
 
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-        vkDestroyImageView(device, swapChainImageViews[i], nullptr);
-    }
+  for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+    vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+  }
 
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
+  vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
 // TODO
 // https://vulkan-tutorial.com/en/Drawing_a_triangle/Swap_chain_recreation
 // However, the disadvantage of this approach is that we need to stop all rendering before creating the new swap chain.
-// It is possible to create a new swap chain while drawing commands on an image from the old swap chain are still in-flight.
-// You need to pass the previous swap chain to the oldSwapChain field in the VkSwapchainCreateInfoKHR struct and
-// destroy the old swap chain as soon as you've finished using it.
+// It is possible to create a new swap chain while drawing commands on an image from the old swap chain are still
+// in-flight. You need to pass the previous swap chain to the oldSwapChain field in the VkSwapchainCreateInfoKHR struct
+// and destroy the old swap chain as soon as you've finished using it.
 
 void Open4XVulkan::recreateSwapChain() {
   // Pause when minimized
   int width = 0, height = 0;
   glfwGetFramebufferSize(window, &width, &height);
-  while(width == 0 || height == 0) {
+  while (width == 0 || height == 0) {
     glfwGetFramebufferSize(window, &width, &height);
     glfwWaitEvents();
   }
 
   vkDeviceWaitIdle(device);
 
+  cleanupSwapChain();
+
   createSwapChain();
   createImageViews();
   createRenderPass();
   // graphics pipeline doesn't need to be recreated if viewports and scissor rectangles are dynamic
-  //createGraphicsPipeline();
+  // commenting this out causes a crash currently
+  createGraphicsPipeline();
   createFramebuffers();
 }
 
@@ -960,7 +946,8 @@ void Open4XVulkan::drawFrame() {
   vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
   uint32_t imageIndex;
-  VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+  VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame],
+                                          VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain();
@@ -1026,9 +1013,9 @@ Open4XVulkan::~Open4XVulkan() {
   vkFreeMemory(device, vertexBufferMemory, nullptr);
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(device, inFlightFences[i], nullptr);
+    vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+    vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+    vkDestroyFence(device, inFlightFences[i], nullptr);
   }
 
   vkDestroyCommandPool(device, commandPool, nullptr);
