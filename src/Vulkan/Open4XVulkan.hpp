@@ -107,6 +107,16 @@ private:
   void updateUniformBuffer(uint32_t);
   void createDescriptorPool();
   void createDescriptorSets();
+  void createTextureImage();
+  void createImage(uint32_t, uint32_t, VkFormat, VkImageTiling, VkImageUsageFlags, VkMemoryPropertyFlags, VkImage &,
+                   VkDeviceMemory &);
+  VkCommandBuffer beginSingleTimeCommands();
+  void endSingleTimeCommands(VkCommandBuffer);
+  void transitionImageLayout(VkImage, VkFormat, VkImageLayout, VkImageLayout);
+  void copyBufferToImage(VkBuffer, VkImage, uint32_t, uint32_t);
+  void createTextureImageView();
+  VkImageView createImageView(VkImage, VkFormat);
+  void createTextureSampler();
 
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
@@ -139,6 +149,10 @@ private:
   std::vector<VkDeviceMemory> uniformBuffersMemory;
   VkDescriptorPool descriptorPool;
   std::vector<VkDescriptorSet> descriptorSets;
+  VkImage textureImage;
+  VkDeviceMemory textureImageMemory;
+  VkImageView textureImageView;
+  VkSampler textureSampler;
 };
 
 #endif // OPEN4XVULKAN_H_

@@ -25,6 +25,7 @@ file(GLOB SOURCES
   src/*.cpp
   src/Vulkan/*.hpp
   src/Vulkan/*.cpp
+  external/*.h
   )
 
 add_executable(Open4X ${SOURCES})
