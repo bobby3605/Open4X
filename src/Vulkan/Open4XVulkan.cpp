@@ -17,21 +17,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-static void framebufferResizeCallback(GLFWwindow *window, int width, int height) {
-  auto app = reinterpret_cast<Open4XVulkan *>(glfwGetWindowUserPointer(window));
-  app->framebufferResized = true;
-}
-
-void Open4XVulkan::initWindow() {
-  glfwInit();
-
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-  window = glfwCreateWindow(WIDTH, HEIGHT, "Open 4X", nullptr, nullptr);
-  glfwSetWindowUserPointer(window, this);
-  glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-}
-
 void Open4XVulkan::initVulkan() {
   createInstance();
   setupDebugMessenger();
@@ -44,7 +29,6 @@ void Open4XVulkan::initVulkan() {
   createDescriptorSetLayout();
   createGraphicsPipeline();
   createFramebuffers();
-  createCommandPool();
   createTextureImage();
   createTextureImageView();
   createTextureSampler();
