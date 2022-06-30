@@ -10,6 +10,7 @@ public:
 
   VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent);
   VkResult acquireNextImage(uint32_t imageIndex);
+VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex);
 
   VkRenderPass getRenderPass() { return renderPass; }
   VkFramebuffer getFramebuffer(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }

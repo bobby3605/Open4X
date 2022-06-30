@@ -3,6 +3,7 @@
 #include "vulkan_device.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -224,7 +225,7 @@ VkResult VulkanSwapChain::acquireNextImage(uint32_t imageIndex) {
   return result;
 }
 
-void VulkanSwapChain::startFrame() {
+VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex) {
 
   vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
 
@@ -237,9 +238,29 @@ void VulkanSwapChain::startFrame() {
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
+  submitInfo.pCommandBuffers = buffer;
 
   VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
+  if (vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+    throw std::runtime_error("failed to submit draw command buffer");
+  }
+
+  VkPresentInfoKHR presentInfo{};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = signalSemaphores;
+
+  VkSwapchainKHR swapChains[] = {swapChain};
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains;
+  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pResults = nullptr;
+
+VkResult  result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
+
+  currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+  return result;
 }

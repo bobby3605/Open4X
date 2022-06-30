@@ -5,10 +5,11 @@
 #include "vulkan_device.hpp"
 #include "vulkan_pipeline.hpp"
 #include "vulkan_swapchain.hpp"
+#include "vulkan_window.hpp"
 
 class VulkanRenderer : public Renderer {
 public:
-  VulkanRenderer(VulkanDevice &deviceRef, VulkanSwapChain &swapChainRef);
+  VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef);
   void drawFrame();
   void recordCommandBuffer(uint32_t imageIndex);
 
@@ -16,12 +17,17 @@ private:
   void init();
   void createCommandBuffers();
   void createPipeline();
+void recreateSwapChain();
+void startFrame();
+void endFrame();
 
-  void beginSwapChainrenderPass(VkCommandBuffer commandBuffer);
+  void beginSwapChainrenderPass();
+void endSwapChainrenderPass();
 
   VulkanDevice &device;
-  VulkanSwapChain &swapChain;
+  VulkanSwapChain *swapChain;
   VulkanPipeline *graphicsPipeline;
+  VulkanWindow &vulkanWindow;
 
   std::vector<VkCommandBuffer> commandBuffers;
   uint32_t currentFrame = 0;
