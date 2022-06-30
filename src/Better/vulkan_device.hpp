@@ -38,6 +38,8 @@ public:
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
   QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice); }
 
+void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                                VkBuffer &buffer, VkDeviceMemory &bufferMemory);
 private:
   VulkanWindow &window;
   VkInstance instance;
@@ -63,6 +65,7 @@ private:
   std::vector<const char *> getRequiredExtensions();
   bool checkValidationLayerSupport();
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+  uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
   const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
   const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};

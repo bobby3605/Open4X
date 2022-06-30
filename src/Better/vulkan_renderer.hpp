@@ -15,7 +15,8 @@ void startFrame();
 void endFrame();
   void beginSwapChainrenderPass();
 void endSwapChainrenderPass();
-    VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[currentFrame]};
+    VkCommandBuffer getCurrentCommandBuffer();
+    uint32_t getCurrentFrame() { return currentFrame;}
 
 private:
   void init();

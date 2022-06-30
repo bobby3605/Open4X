@@ -1,0 +1,27 @@
+#include "vulkan_buffer.hpp"
+#include "common.hpp"
+#include "vulkan_device.hpp"
+#include <cstring>
+
+VulkanBuffer::VulkanBuffer(VulkanDevice &device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) : device{device}, bufferSize{size} {
+  device.createBuffer(size, usage, properties, buffer, memory);
+
+}
+
+void VulkanBuffer::map() {
+  vkMapMemory(device.device(), memory, 0, bufferSize, 0, &mapped);
+}
+
+void VulkanBuffer::unmap() {
+  vkUnmapMemory(device.device(), memory);
+}
+
+void VulkanBuffer::write(const void *data, VkDeviceSize size, VkDeviceSize offset) {
+  memcpy(((char*)mapped)+offset, data, size);
+}
+
+VulkanBuffer::~VulkanBuffer() {
+  unmap();
+  vkDestroyBuffer(device.device(), buffer, nullptr);
+  vkFreeMemory(device.device(), memory, nullptr);
+}

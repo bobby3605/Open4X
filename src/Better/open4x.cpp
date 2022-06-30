@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <cstring>
+#include "vulkan_buffer.hpp"
+#include "vulkan_swapchain.hpp"
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -38,6 +40,14 @@ struct UniformBufferObject {
 
 void Open4X::run() {
 
+  std::vector<VulkanBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+
+  for (auto uniformBuffer : uniformBuffers) {
+    uniformBuffer = new VulkanBuffer(*vulkanDevice, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniformBuffer->map();
+  }
+
   while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
     glfwPollEvents();
 
@@ -56,10 +66,7 @@ void Open4X::run() {
   ubo.proj = glm::perspective(glm::radians(45.0f), vulkanWindow->getExtent().width / (float)vulkanWindow->getExtent().height, 0.1f, 10.0f);
   ubo.proj[1][1] *= -1;
 
-  void *data;
-  vkMapMemory(vulkanDevice->device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(vulkanDevice, uniformBuffersMemory[currentImage]);
+  uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(static_cast<void*>(&ubo), sizeof(ubo), 0);
 
     vulkanRenderer->beginSwapChainrenderPass();
 /*

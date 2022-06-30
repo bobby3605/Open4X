@@ -16,6 +16,10 @@ void VulkanRenderer::init() {
   createPipeline();
 }
 
+VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() {
+  return commandBuffers[currentFrame];
+};
+
 void VulkanRenderer::recreateSwapChain() {
   // delete &swapChain;
   swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
