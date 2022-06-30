@@ -17,6 +17,7 @@ void endFrame();
 void endSwapChainrenderPass();
     VkCommandBuffer getCurrentCommandBuffer();
     uint32_t getCurrentFrame() { return currentFrame;}
+    void bindPipeline();
 
 private:
   void init();

@@ -16,6 +16,10 @@ void VulkanRenderer::init() {
   createPipeline();
 }
 
+void VulkanRenderer::bindPipeline() {
+  // vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
+}
+
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() {
   return commandBuffers[currentFrame];
 };
@@ -25,6 +29,7 @@ void VulkanRenderer::recreateSwapChain() {
   swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
 }
 
+// TODO pipeline layout
 void VulkanRenderer::createPipeline() {}
 
 void VulkanRenderer::createCommandBuffers() {

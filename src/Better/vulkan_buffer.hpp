@@ -9,7 +9,7 @@ class VulkanBuffer {
                 VulkanBuffer(VulkanDevice &device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
                 void map();
                 void unmap();
-                void write(const void *data, VkDeviceSize size, VkDeviceSize offset);
+                void write(void *data, VkDeviceSize size, VkDeviceSize offset);
                 ~VulkanBuffer();
 
         private:

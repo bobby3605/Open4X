@@ -9,14 +9,14 @@ VulkanBuffer::VulkanBuffer(VulkanDevice &device, VkDeviceSize size, VkBufferUsag
 }
 
 void VulkanBuffer::map() {
-  vkMapMemory(device.device(), memory, 0, bufferSize, 0, &mapped);
+  checkResult(vkMapMemory(device.device(), memory, 0, bufferSize, 0, &mapped), "memory map failed");
 }
 
 void VulkanBuffer::unmap() {
   vkUnmapMemory(device.device(), memory);
 }
 
-void VulkanBuffer::write(const void *data, VkDeviceSize size, VkDeviceSize offset) {
+void VulkanBuffer::write(void *data, VkDeviceSize size, VkDeviceSize offset) {
   memcpy(((char*)mapped)+offset, data, size);
 }
 

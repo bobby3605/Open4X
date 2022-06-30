@@ -66,11 +66,12 @@ void Open4X::run() {
   ubo.proj = glm::perspective(glm::radians(45.0f), vulkanWindow->getExtent().width / (float)vulkanWindow->getExtent().height, 0.1f, 10.0f);
   ubo.proj[1][1] *= -1;
 
-  uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(static_cast<void*>(&ubo), sizeof(ubo), 0);
+ uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo, sizeof(ubo), 0);
 
     vulkanRenderer->beginSwapChainrenderPass();
+    vulkanRenderer->bindPipeline();
 /*
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+  // need to fill out createPipeline in renderer
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                           &descriptorSets[currentFrame], 0, nullptr);
 
