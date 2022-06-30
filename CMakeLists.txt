@@ -21,8 +21,8 @@ endforeach()
 add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 
 file(GLOB SOURCES
-  src/*.hpp
-  src/*.cpp
+  #src/*.hpp
+  #src/*.cpp
   src/Better/*.hpp
   src/Better/*.cpp
   external/*.h

@@ -35,8 +35,8 @@ public:
   VkQueue graphicsQueue() { return graphicsQueue_; }
   VkQueue presentQueue() { return presentQueue_; }
 
-  SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(); }
-  QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(); }
+  SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
+  QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice); }
 
 private:
   VulkanWindow &window;
@@ -57,12 +57,12 @@ private:
   void createLogicalDevice();
   void createCommandPool();
 
-  QueueFamilyIndices findQueueFamilies();
-  bool checkDeviceExtensionSupport();
-  bool isDeviceSuitable();
+  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+  bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+  bool isDeviceSuitable(VkPhysicalDevice device);
   std::vector<const char *> getRequiredExtensions();
   bool checkValidationLayerSupport();
-  SwapChainSupportDetails querySwapChainSupport();
+  SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
   const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
   const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};

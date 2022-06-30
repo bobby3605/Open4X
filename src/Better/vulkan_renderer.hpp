@@ -7,22 +7,22 @@
 #include "vulkan_swapchain.hpp"
 #include "vulkan_window.hpp"
 
-class VulkanRenderer : public Renderer {
+class VulkanRenderer {
 public:
   VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef);
-  void drawFrame();
   void recordCommandBuffer(uint32_t imageIndex);
+void startFrame();
+void endFrame();
+  void beginSwapChainrenderPass();
+void endSwapChainrenderPass();
+    VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[currentFrame]};
 
 private:
   void init();
   void createCommandBuffers();
   void createPipeline();
 void recreateSwapChain();
-void startFrame();
-void endFrame();
 
-  void beginSwapChainrenderPass();
-void endSwapChainrenderPass();
 
   VulkanDevice &device;
   VulkanSwapChain *swapChain;
