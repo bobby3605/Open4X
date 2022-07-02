@@ -231,17 +231,18 @@ void VulkanSwapChain::createSyncObjects() {
   }
 }
 
-VkResult VulkanSwapChain::acquireNextImage(uint32_t imageIndex) {
+VkResult VulkanSwapChain::acquireNextImage() {
   vkWaitForFences(device.device(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
   VkResult result = vkAcquireNextImageKHR(device.device(), swapChain, UINT64_MAX,
                                           imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+  vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
+
   return result;
 }
 
-VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex) {
-
-  vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
+VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer) {
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -257,6 +258,7 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, ui
   VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
+
   checkResult(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
               "failed to submit draw command buffer");
 

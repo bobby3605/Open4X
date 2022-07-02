@@ -10,7 +10,7 @@ public:
   VulkanWindow(int w, int h, std::string name);
   ~VulkanWindow();
 
-  bool wasWindowResized() { return framebufferResized; }
+  bool framebufferResized = false;
   GLFWwindow *getGLFWwindow() { return window; }
   bool shouldClose() { return glfwWindowShouldClose(window); }
   VkExtent2D getExtent() { return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}; }
@@ -19,7 +19,6 @@ private:
   static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
   void initWindow();
 
-  bool framebufferResized = false;
   GLFWwindow *window;
   int width;
   int height;

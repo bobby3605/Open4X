@@ -61,35 +61,19 @@ void Open4X::run() {
   vkFreeMemory(vulkanDevice->device(), stagingBufferMemory, nullptr);
   */
 
-  /*
   std::vector<VulkanBuffer *> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
-  for (auto uniformBuffer : uniformBuffers) {
-    uniformBuffer = new VulkanBuffer(*vulkanDevice, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uniformBuffer->map();
-  }
-  */
-
-  std::vector<VkBuffer> uniformBuffers;
-  std::vector<VkDeviceMemory> uniformBuffersMemory;
-
-  uniformBuffers.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-  uniformBuffersMemory.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-
-  VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
   for (size_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-    vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                               uniformBuffers[i], uniformBuffersMemory[i]);
+    uniformBuffers[i] = new VulkanBuffer(*vulkanDevice, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniformBuffers[i]->map();
   }
 
   std::vector<VkDescriptorBufferInfo> bufferInfos;
   bufferInfos.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
   for (uint32_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-    bufferInfos[i].buffer = uniformBuffers[i];
+    bufferInfos[i].buffer = uniformBuffers[i]->buffer;
     bufferInfos[i].offset = 0;
     bufferInfos[i].range = sizeof(UniformBufferObject);
   }
@@ -127,8 +111,6 @@ void Open4X::run() {
 
     vulkanRenderer->startFrame();
 
-    // TODO
-    // move uniform buffers into its own object
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -140,11 +122,7 @@ void Open4X::run() {
                                 vulkanWindow->getExtent().width / (float)vulkanWindow->getExtent().height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    void *data;
-    vkMapMemory(vulkanDevice->device(), uniformBuffersMemory[vulkanRenderer->getCurrentFrame()], 0, sizeof(ubo), 0,
-                &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(vulkanDevice->device(), uniformBuffersMemory[vulkanRenderer->getCurrentFrame()]);
+    uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo, sizeof(ubo), 0);
 
     vulkanRenderer->beginSwapChainrenderPass();
     vulkanRenderer->bindPipeline();

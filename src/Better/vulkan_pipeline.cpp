@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "vulkan_model.hpp"
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>

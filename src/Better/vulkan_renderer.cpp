@@ -239,7 +239,7 @@ void VulkanRenderer::beginSwapChainrenderPass() {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = swapChain->getRenderPass();
-  renderPassInfo.framebuffer = swapChain->getFramebuffer(imageIndex);
+  renderPassInfo.framebuffer = swapChain->getFramebuffer();
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = swapChain->getExtent();
   VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
@@ -252,7 +252,7 @@ void VulkanRenderer::beginSwapChainrenderPass() {
 void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRenderPass(commandBuffers[currentFrame]); }
 
 void VulkanRenderer::startFrame() {
-  VkResult result = swapChain->acquireNextImage(imageIndex);
+  VkResult result = swapChain->acquireNextImage();
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain();
@@ -266,15 +266,18 @@ void VulkanRenderer::startFrame() {
   beginInfo.flags = 0;
   beginInfo.pInheritanceInfo = nullptr;
 
+  vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+
   checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),
               "failed to begin recording command buffer");
 }
 
 void VulkanRenderer::endFrame() {
   checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
-  VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], imageIndex);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow.wasWindowResized()) {
+  VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame]);
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow.framebufferResized) {
     recreateSwapChain();
+    vulkanWindow.framebufferResized = false;
     return;
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image");

@@ -10,11 +10,11 @@ public:
 
   VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent);
   ~VulkanSwapChain();
-  VkResult acquireNextImage(uint32_t imageIndex);
-  VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex);
+  VkResult acquireNextImage();
+  VkResult submitCommandBuffers(const VkCommandBuffer *buffer);
 
   VkRenderPass getRenderPass() { return renderPass; }
-  VkFramebuffer getFramebuffer(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }
+  VkFramebuffer getFramebuffer() { return swapChainFramebuffers[imageIndex]; }
   VkExtent2D getExtent() { return swapChainExtent; }
   VkImageView createImageView(VkImage image, VkFormat format);
 
@@ -39,6 +39,7 @@ private:
   VkExtent2D swapChainExtent;
 
   size_t currentFrame = 0;
+  uint32_t imageIndex;
 
   std::vector<VkImage> swapChainImages;
   std::vector<VkImageView> swapChainImageViews;
