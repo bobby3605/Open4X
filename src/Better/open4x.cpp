@@ -142,4 +142,8 @@ void Open4X::run() {
 
     vulkanRenderer->endFrame();
   }
+
+  delete vulkanRenderer;
+  delete vulkanDevice;
+  delete vulkanWindow;
 }

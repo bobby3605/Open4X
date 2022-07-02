@@ -18,5 +18,6 @@ private:
   VulkanDevice &device;
   VkDeviceSize bufferSize;
   void *mapped = nullptr;
+  bool isMapped = false;
 };
 #endif // VULKAN_BUFFER_H_

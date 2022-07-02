@@ -239,7 +239,7 @@ void VulkanRenderer::beginSwapChainrenderPass() {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = swapChain->getRenderPass();
-  renderPassInfo.framebuffer = swapChain->getFramebuffer();
+  renderPassInfo.framebuffer = swapChain->getFramebuffer(imageIndex);
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = swapChain->getExtent();
   VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
@@ -252,7 +252,7 @@ void VulkanRenderer::beginSwapChainrenderPass() {
 void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRenderPass(commandBuffers[currentFrame]); }
 
 void VulkanRenderer::startFrame() {
-  VkResult result = swapChain->acquireNextImage();
+  VkResult result = swapChain->acquireNextImage(&imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain();
@@ -266,6 +266,7 @@ void VulkanRenderer::startFrame() {
   beginInfo.flags = 0;
   beginInfo.pInheritanceInfo = nullptr;
 
+  std::cout << "resetting command buffer: " << currentFrame << std::endl;
   vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 
   checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),
@@ -274,7 +275,7 @@ void VulkanRenderer::startFrame() {
 
 void VulkanRenderer::endFrame() {
   checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
-  VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame]);
+  VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow.framebufferResized) {
     recreateSwapChain();
     vulkanWindow.framebufferResized = false;
@@ -282,4 +283,5 @@ void VulkanRenderer::endFrame() {
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image");
   }
+  currentFrame = (currentFrame + 1) % VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
 }

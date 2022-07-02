@@ -13,6 +13,11 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExten
 }
 
 VulkanSwapChain::~VulkanSwapChain() {
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    vkDestroySemaphore(device.device(), renderFinishedSemaphores[i], nullptr);
+    vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
+    vkDestroyFence(device.device(), inFlightFences[i], nullptr);
+  }
   for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
     vkDestroyFramebuffer(device.device(), swapChainFramebuffers[i], nullptr);
   }
@@ -231,18 +236,18 @@ void VulkanSwapChain::createSyncObjects() {
   }
 }
 
-VkResult VulkanSwapChain::acquireNextImage() {
+VkResult VulkanSwapChain::acquireNextImage(uint32_t *imageIndex) {
   vkWaitForFences(device.device(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
   VkResult result = vkAcquireNextImageKHR(device.device(), swapChain, UINT64_MAX,
-                                          imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+                                          imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, imageIndex);
 
   vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
 
   return result;
 }
 
-VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer) {
+VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t *imageIndex) {
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -270,7 +275,7 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer) {
   VkSwapchainKHR swapChains[] = {swapChain};
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swapChains;
-  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pImageIndices = imageIndex;
   presentInfo.pResults = nullptr;
 
   VkResult result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
