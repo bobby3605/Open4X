@@ -1,22 +1,22 @@
 #ifndef VULKAN_BUFFER_H_
 #define VULKAN_BUFFER_H_
-#include <vulkan/vulkan.hpp>
 #include "vulkan_device.hpp"
+#include <vulkan/vulkan.hpp>
 
 class VulkanBuffer {
 
-        public:
-                VulkanBuffer(VulkanDevice &device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-                void map();
-                void unmap();
-                void write(void *data, VkDeviceSize size, VkDeviceSize offset);
-                ~VulkanBuffer();
+public:
+  VulkanBuffer(VulkanDevice &device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+  void map();
+  void unmap();
+  void write(void *data, VkDeviceSize size, VkDeviceSize offset);
+  ~VulkanBuffer();
+  VkBuffer buffer = VK_NULL_HANDLE;
 
-        private:
-                VkBuffer buffer;
-                VkDeviceMemory memory;
-                VulkanDevice &device;
-                VkDeviceSize bufferSize;
-                void *mapped;
+private:
+  VulkanDevice &device;
+  VkDeviceSize bufferSize;
+  void *mapped = nullptr;
+  VkDeviceMemory memory = VK_NULL_HANDLE;
 };
 #endif // VULKAN_BUFFER_H_

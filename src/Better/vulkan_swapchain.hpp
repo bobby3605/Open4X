@@ -9,12 +9,14 @@ public:
   const static int MAX_FRAMES_IN_FLIGHT = 2;
 
   VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent);
+  ~VulkanSwapChain();
   VkResult acquireNextImage(uint32_t imageIndex);
-VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex);
+  VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t imageIndex);
 
   VkRenderPass getRenderPass() { return renderPass; }
   VkFramebuffer getFramebuffer(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }
   VkExtent2D getExtent() { return swapChainExtent; }
+  VkImageView createImageView(VkImage image, VkFormat format);
 
 private:
   void init();
@@ -26,7 +28,6 @@ private:
   void startFrame();
 
   VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
-  VkImageView createImageView(VkImage image, VkFormat format);
 
   VulkanDevice &device;
   VkSwapchainKHR swapChain;

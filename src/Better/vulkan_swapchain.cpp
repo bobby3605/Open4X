@@ -12,6 +12,20 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExten
   init();
 }
 
+VulkanSwapChain::~VulkanSwapChain() {
+  for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+    vkDestroyFramebuffer(device.device(), swapChainFramebuffers[i], nullptr);
+  }
+
+  vkDestroyRenderPass(device.device(), renderPass, nullptr);
+
+  for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+    vkDestroyImageView(device.device(), swapChainImageViews[i], nullptr);
+  }
+
+  vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
+}
+
 void VulkanSwapChain::init() {
   createSwapChain();
   createImageViews();
@@ -243,7 +257,8 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, ui
   VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
-  checkResult(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]), "failed to submit draw command buffer");
+  checkResult(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
+              "failed to submit draw command buffer");
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -256,7 +271,7 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, ui
   presentInfo.pImageIndices = &imageIndex;
   presentInfo.pResults = nullptr;
 
-VkResult  result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
+  VkResult result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
 
   currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
