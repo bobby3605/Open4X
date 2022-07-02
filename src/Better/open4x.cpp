@@ -42,29 +42,26 @@ struct UniformBufferObject {
 
 void Open4X::run() {
 
-  VkDeviceSize bufferSize = sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size();
+  VkDeviceSize vertexBufferSize = sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size();
 
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                             stagingBufferMemory);
+  VulkanBuffer vertexStagingBuffer(*vulkanDevice, vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  vertexStagingBuffer.map();
+  vertexStagingBuffer.write((void *)VulkanModel::vertices.data(),
+                            (sizeof(VulkanModel::vertices) * VulkanModel::vertices.size()), 0);
+  vertexStagingBuffer.unmap();
 
-  void *data;
-  vkMapMemory(vulkanDevice->device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-  memcpy(data, VulkanModel::vertices.data(), (size_t)bufferSize);
-  vkUnmapMemory(vulkanDevice->device(), stagingBufferMemory);
+  VulkanBuffer vertexBuffer(*vulkanDevice, vertexBufferSize,
+                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-  vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-
-  vulkanDevice->copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
+  vulkanDevice->copyBuffer(vertexStagingBuffer.buffer, vertexBuffer.buffer, vertexBufferSize);
+  /*
   vkDestroyBuffer(vulkanDevice->device(), stagingBuffer, nullptr);
   vkFreeMemory(vulkanDevice->device(), stagingBufferMemory, nullptr);
+  */
 
+  /*
   std::vector<VulkanBuffer *> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
   for (auto uniformBuffer : uniformBuffers) {
@@ -72,15 +69,29 @@ void Open4X::run() {
                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     uniformBuffer->map();
   }
+  */
+
+  std::vector<VkBuffer> uniformBuffers;
+  std::vector<VkDeviceMemory> uniformBuffersMemory;
+
+  uniformBuffers.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+  uniformBuffersMemory.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+
+  VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+  for (size_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
+    vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                               uniformBuffers[i], uniformBuffersMemory[i]);
+  }
 
   std::vector<VkDescriptorBufferInfo> bufferInfos;
+  bufferInfos.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
-  int i = 0;
-  for (auto bufferInfo : bufferInfos) {
-    bufferInfo.buffer = uniformBuffers[i]->buffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
-    i++;
+  for (uint32_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
+    bufferInfos[i].buffer = uniformBuffers[i];
+    bufferInfos[i].offset = 0;
+    bufferInfos[i].range = sizeof(UniformBufferObject);
   }
 
   vulkanRenderer->createDescriptorSets(bufferInfos);
@@ -129,16 +140,22 @@ void Open4X::run() {
                                 vulkanWindow->getExtent().width / (float)vulkanWindow->getExtent().height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo, sizeof(ubo), 0);
+    void *data;
+    vkMapMemory(vulkanDevice->device(), uniformBuffersMemory[vulkanRenderer->getCurrentFrame()], 0, sizeof(ubo), 0,
+                &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(vulkanDevice->device(), uniformBuffersMemory[vulkanRenderer->getCurrentFrame()]);
 
     vulkanRenderer->beginSwapChainrenderPass();
     vulkanRenderer->bindPipeline();
 
-    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkBuffer vertexBuffers[] = {vertexBuffer.buffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(vulkanRenderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
     vkCmdBindIndexBuffer(vulkanRenderer->getCurrentCommandBuffer(), indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    vulkanRenderer->bindDescriptorSets();
 
     vkCmdDrawIndexed(vulkanRenderer->getCurrentCommandBuffer(), static_cast<uint32_t>(VulkanModel::indices.size()), 1,
                      0, 0, 0);

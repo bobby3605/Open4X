@@ -38,11 +38,9 @@ void VulkanRenderer::recreateSwapChain() {
 
   delete graphicsPipeline;
   vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
-  delete descriptors;
   delete swapChain;
 
   swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
-  createDescriptors();
   createPipeline();
 }
 
@@ -216,13 +214,11 @@ void VulkanRenderer::createPipeline() {
   pipelineInfo.pDepthStencilState = nullptr;
   pipelineInfo.pColorBlendState = &colorBlending;
   pipelineInfo.pDynamicState = nullptr;
-  pipelineInfo.layout = nullptr;
-  pipelineInfo.renderPass = nullptr;
+  pipelineInfo.layout = pipelineLayout;
+  pipelineInfo.renderPass = swapChain->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
   pipelineInfo.basePipelineIndex = -1;
-  pipelineInfo.layout = pipelineLayout;
-  pipelineInfo.renderPass = swapChain->getRenderPass();
 
   graphicsPipeline = new VulkanPipeline(device, pipelineInfo);
 }

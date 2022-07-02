@@ -12,11 +12,11 @@ public:
   void write(void *data, VkDeviceSize size, VkDeviceSize offset);
   ~VulkanBuffer();
   VkBuffer buffer = VK_NULL_HANDLE;
+  VkDeviceMemory memory = VK_NULL_HANDLE;
 
 private:
   VulkanDevice &device;
   VkDeviceSize bufferSize;
   void *mapped = nullptr;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
 };
 #endif // VULKAN_BUFFER_H_

@@ -4,6 +4,7 @@
 #include "vulkan_swapchain.hpp"
 #include <array>
 #include <cstring>
+#include <iostream>
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice &deviceRef) : device{deviceRef} {
   createDescriptorSetLayout();
