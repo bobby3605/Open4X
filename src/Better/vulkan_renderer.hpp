@@ -23,6 +23,7 @@ public:
   void bindDescriptorSets();
   VulkanDescriptors *descriptors;
   void createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos);
+  VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
 
 private:
   void init();
