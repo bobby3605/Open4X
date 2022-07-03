@@ -16,18 +16,23 @@ public:
   VkRenderPass getRenderPass() { return renderPass; }
   VkFramebuffer getFramebuffer(uint32_t index) { return swapChainFramebuffers[index]; }
   VkExtent2D getExtent() { return swapChainExtent; }
-  VkImageView createImageView(VkImage image, VkFormat format);
+  VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 private:
   void init();
   void createSwapChain();
   void createImageViews();
   void createRenderPass();
+  void createDepthResources();
   void createFramebuffers();
   void createSyncObjects();
   void startFrame();
 
   VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
+  VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
+                               VkFormatFeatureFlags features);
+  VkFormat findDepthFormat();
+  bool hasStencilComponent(VkFormat format);
 
   VulkanDevice *device;
   VkSwapchainKHR swapChain;
@@ -46,6 +51,10 @@ private:
   std::vector<VkSemaphore> imageAvailableSemaphores;
   std::vector<VkSemaphore> renderFinishedSemaphores;
   std::vector<VkFence> inFlightFences;
+
+  VkImage depthImage;
+  VkDeviceMemory depthImageMemory;
+  VkImageView depthImageView;
 };
 
 #endif // VULKAN_SWAPCHAIN_H_

@@ -2,6 +2,7 @@
 #define VULKAN_MODEL_H_
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
 
@@ -9,7 +10,7 @@ class VulkanModel {
 
 public:
   struct Vertex {
-    glm::vec2 pos;
+    glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 texCoord;
 
@@ -26,7 +27,7 @@ public:
       std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions;
       attributeDescriptions[0].binding = 0;
       attributeDescriptions[0].location = 0;
-      attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+      attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
       attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
       attributeDescriptions[1].binding = 0;
@@ -36,19 +37,24 @@ public:
 
       attributeDescriptions[2].binding = 0;
       attributeDescriptions[2].location = 2;
-      attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+      attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
       attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
       return attributeDescriptions;
     }
   };
 
-  const static inline std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                                                      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                                                      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                                                      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
+  const static inline std::vector<Vertex> vertices = {{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                                                      {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                                                      {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                                                      {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 
-  const static inline std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+                                                      {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                                                      {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                                                      {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                                                      {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+
+  const static inline std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 };
 
 #endif // VULKAN_MODEL_H_

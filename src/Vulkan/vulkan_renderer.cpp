@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include "vulkan_swapchain.hpp"
 #include "vulkan_window.hpp"
+#include <array>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -48,6 +49,13 @@ void VulkanRenderer::bindDescriptorSets() {
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
 
 void VulkanRenderer::recreateSwapChain() {
+  // pause on minimization
+  int width = 0, height = 0;
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(vulkanWindow->getGLFWwindow(), &width, &height);
+    glfwWaitEvents();
+  }
+
   vkDeviceWaitIdle(device->device());
 
   delete graphicsPipeline;
@@ -96,7 +104,7 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   vkDestroyBuffer(device->device(), stagingBuffer, nullptr);
   vkFreeMemory(device->device(), stagingBufferMemory, nullptr);
 
-  textureImageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+  textureImageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -212,6 +220,18 @@ void VulkanRenderer::createPipeline() {
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
   dynamicState.pDynamicStates = dynamicStates.data();
 
+  VkPipelineDepthStencilStateCreateInfo depthStencil{};
+  depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  depthStencil.depthTestEnable = VK_TRUE;
+  depthStencil.depthWriteEnable = VK_TRUE;
+  depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+  depthStencil.depthBoundsTestEnable = VK_FALSE;
+  depthStencil.minDepthBounds = 0.0f;
+  depthStencil.maxDepthBounds = 1.0f;
+  depthStencil.stencilTestEnable = VK_FALSE;
+  depthStencil.front = {};
+  depthStencil.back = {};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineInfo.stageCount = 2;
@@ -231,6 +251,7 @@ void VulkanRenderer::createPipeline() {
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
   pipelineInfo.basePipelineIndex = -1;
+  pipelineInfo.pDepthStencilState = &depthStencil;
 
   graphicsPipeline = new VulkanPipeline(device, pipelineInfo);
 }
@@ -254,9 +275,12 @@ void VulkanRenderer::beginSwapChainrenderPass() {
   renderPassInfo.framebuffer = swapChain->getFramebuffer(imageIndex);
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = swapChain->getExtent();
-  VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearColor;
+
+  std::array<VkClearValue, 2> clearValues{};
+  clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  clearValues[1].depthStencil = {1.0f, 0};
+  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+  renderPassInfo.pClearValues = clearValues.data();
 
   vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
