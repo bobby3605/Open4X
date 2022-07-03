@@ -1,19 +1,17 @@
-#include "main.hpp"
-#include "Open4XGame.hpp"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <cstdlib>
 #include <iostream>
-#include <stdexcept>
+#include "open4x.hpp"
 
-int main() {
-  Open4XGame game;
+using namespace std;
+
+int main(int argc, char *argv[]) {
+
+  Open4X game;
   try {
-    game.mainLoop();
+    game.run();
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
+

@@ -1,7 +1,6 @@
 #ifndef VULKAN_RENDERER_H_
 #define VULKAN_RENDERER_H_
 
-#include "Renderer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_pipeline.hpp"

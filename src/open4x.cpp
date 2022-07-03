@@ -1,8 +1,8 @@
 #include "open4x.hpp"
-#include "common.hpp"
-#include "vulkan_buffer.hpp"
-#include "vulkan_model.hpp"
-#include "vulkan_swapchain.hpp"
+#include "Vulkan/common.hpp"
+#include "Vulkan/vulkan_buffer.hpp"
+#include "Vulkan/vulkan_model.hpp"
+#include "Vulkan/vulkan_swapchain.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstring>
