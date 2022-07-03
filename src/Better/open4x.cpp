@@ -16,19 +16,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
   }
 }
 
-Open4X::Open4X() {
-
-  vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
-  vulkanDevice = new VulkanDevice(*vulkanWindow);
-  vulkanRenderer = new VulkanRenderer(*vulkanWindow, *vulkanDevice);
-
-  glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
-
-  run();
-}
+Open4X::Open4X() {}
 
 Open4X::~Open4X() {
-
   delete vulkanRenderer;
   delete vulkanDevice;
   delete vulkanWindow;
@@ -41,6 +31,12 @@ struct UniformBufferObject {
 };
 
 void Open4X::run() {
+
+  vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
+  glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
+
+  vulkanDevice = new VulkanDevice(*vulkanWindow);
+  vulkanRenderer = new VulkanRenderer(*vulkanWindow, *vulkanDevice);
 
   VkDeviceSize vertexBufferSize = sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size();
 
@@ -56,10 +52,6 @@ void Open4X::run() {
                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   vulkanDevice->copyBuffer(vertexStagingBuffer.buffer, vertexBuffer.buffer, vertexBufferSize);
-  /*
-  vkDestroyBuffer(vulkanDevice->device(), stagingBuffer, nullptr);
-  vkFreeMemory(vulkanDevice->device(), stagingBufferMemory, nullptr);
-  */
 
   std::vector<VulkanBuffer *> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
@@ -80,31 +72,20 @@ void Open4X::run() {
 
   vulkanRenderer->createDescriptorSets(bufferInfos);
 
-  VkBuffer indexBuffer;
-  VkDeviceMemory indexBufferMemory;
+  VkDeviceSize indexBufferSize = sizeof(VulkanModel::indices[0]) * VulkanModel::indices.size();
 
-  {
-    VkDeviceSize bufferSize = sizeof(VulkanModel::indices[0]) * VulkanModel::indices.size();
+  VulkanBuffer indexStagingBuffer(*vulkanDevice, indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  indexStagingBuffer.map();
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                               stagingBuffer, stagingBufferMemory);
+  indexStagingBuffer.write((void *)VulkanModel::indices.data(), (size_t)indexBufferSize, 0);
+  indexStagingBuffer.unmap();
 
-    void *data;
-    vkMapMemory(vulkanDevice->device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, VulkanModel::indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(vulkanDevice->device(), stagingBufferMemory);
+  VulkanBuffer indexBuffer(*vulkanDevice, indexBufferSize,
+                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    vulkanDevice->createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
-    vulkanDevice->copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(vulkanDevice->device(), stagingBuffer, nullptr);
-    vkFreeMemory(vulkanDevice->device(), stagingBufferMemory, nullptr);
-  }
+  vulkanDevice->copyBuffer(indexStagingBuffer.buffer, indexBuffer.buffer, indexBufferSize);
 
   while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
     glfwPollEvents();
@@ -131,7 +112,7 @@ void Open4X::run() {
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(vulkanRenderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(vulkanRenderer->getCurrentCommandBuffer(), indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(vulkanRenderer->getCurrentCommandBuffer(), indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
 
     vulkanRenderer->bindDescriptorSets();
 
@@ -142,8 +123,8 @@ void Open4X::run() {
 
     vulkanRenderer->endFrame();
   }
-
-  delete vulkanRenderer;
-  delete vulkanDevice;
-  delete vulkanWindow;
+  vkDeviceWaitIdle(vulkanDevice->device());
+  for (size_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
+    delete uniformBuffers[i];
+  }
 }

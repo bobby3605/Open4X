@@ -99,6 +99,7 @@ void VulkanDescriptors::createDescriptorSets(std::vector<VkDescriptorBufferInfo>
 }
 
 VulkanDescriptors::~VulkanDescriptors() {
+
   vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
   vkDestroyDescriptorSetLayout(device.device(), descriptorSetLayout, nullptr);
 }

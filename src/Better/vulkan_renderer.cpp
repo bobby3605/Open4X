@@ -13,6 +13,20 @@ VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef)
   init();
 }
 
+VulkanRenderer::~VulkanRenderer() {
+  delete graphicsPipeline;
+  vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
+  delete swapChain;
+
+  vkDestroySampler(device.device(), textureSampler, nullptr);
+  vkDestroyImageView(device.device(), textureImageView, nullptr);
+
+  vkDestroyImage(device.device(), textureImage, nullptr);
+  vkFreeMemory(device.device(), textureImageMemory, nullptr);
+
+  delete descriptors;
+}
+
 void VulkanRenderer::init() {
   swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
   createCommandBuffers();
@@ -45,9 +59,6 @@ void VulkanRenderer::recreateSwapChain() {
 }
 
 void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos) {
-
-  VkImage textureImage;
-  VkDeviceMemory textureImageMemory;
 
   int texWidth, texHeight, texChannels;
   stbi_uc *pixels = stbi_load("assets/textures/statue.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -85,8 +96,7 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   vkDestroyBuffer(device.device(), stagingBuffer, nullptr);
   vkFreeMemory(device.device(), stagingBufferMemory, nullptr);
 
-  VkImageView textureImageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
-  VkSampler textureSampler;
+  textureImageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
 
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -266,7 +276,6 @@ void VulkanRenderer::startFrame() {
   beginInfo.flags = 0;
   beginInfo.pInheritanceInfo = nullptr;
 
-  std::cout << "resetting command buffer: " << currentFrame << std::endl;
   vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 
   checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),

@@ -11,6 +11,7 @@
 class VulkanRenderer {
 public:
   VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef);
+  ~VulkanRenderer();
   void recordCommandBuffer(uint32_t imageIndex);
   void startFrame();
   void endFrame();
@@ -36,6 +37,10 @@ private:
   VulkanSwapChain *swapChain;
 
   VkPipelineLayout pipelineLayout;
+  VkSampler textureSampler;
+  VkImage textureImage;
+  VkImageView textureImageView;
+  VkDeviceMemory textureImageMemory;
 
   std::vector<VkCommandBuffer> commandBuffers;
   uint32_t currentFrame = 0;
