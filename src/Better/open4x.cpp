@@ -43,8 +43,7 @@ void Open4X::run() {
   VulkanBuffer vertexStagingBuffer(*vulkanDevice, vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   vertexStagingBuffer.map();
-  vertexStagingBuffer.write((void *)VulkanModel::vertices.data(),
-                            (sizeof(VulkanModel::vertices) * VulkanModel::vertices.size()), 0);
+  vertexStagingBuffer.write((void *)VulkanModel::vertices.data(), vertexBufferSize, 0);
   vertexStagingBuffer.unmap();
 
   VulkanBuffer vertexBuffer(*vulkanDevice, vertexBufferSize,
