@@ -26,7 +26,7 @@ public:
   const bool enableValidationLayers = true;
 #endif
 
-  VulkanDevice(VulkanWindow &window);
+  VulkanDevice(VulkanWindow *window);
   ~VulkanDevice();
 
   VkCommandPool getCommandPool() { return commandPool; }
@@ -51,7 +51,7 @@ public:
   void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 private:
-  VulkanWindow &window;
+  VulkanWindow *window;
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
   VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;

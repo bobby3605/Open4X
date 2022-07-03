@@ -7,7 +7,7 @@
 
 class VulkanPipeline {
 public:
-  VulkanPipeline(VulkanDevice &deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo);
+  VulkanPipeline(VulkanDevice *deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo);
   ~VulkanPipeline();
   static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
   VkPipeline getPipeline() { return graphicsPipeline; }
@@ -16,7 +16,7 @@ private:
   void createGraphicsPipeline();
   VkShaderModule createShaderModule(const std::vector<char> &code);
 
-  VulkanDevice &device;
+  VulkanDevice *device;
   VkPipeline graphicsPipeline;
   VkShaderModule vertShaderModule;
   VkShaderModule fragShaderModule;

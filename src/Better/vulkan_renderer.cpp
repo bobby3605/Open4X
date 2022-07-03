@@ -8,27 +8,27 @@
 #include <iostream>
 #include <stdexcept>
 
-VulkanRenderer::VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef)
+VulkanRenderer::VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef)
     : vulkanWindow{window}, device{deviceRef} {
   init();
 }
 
 VulkanRenderer::~VulkanRenderer() {
   delete graphicsPipeline;
-  vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
+  vkDestroyPipelineLayout(device->device(), pipelineLayout, nullptr);
   delete swapChain;
 
-  vkDestroySampler(device.device(), textureSampler, nullptr);
-  vkDestroyImageView(device.device(), textureImageView, nullptr);
+  vkDestroySampler(device->device(), textureSampler, nullptr);
+  vkDestroyImageView(device->device(), textureImageView, nullptr);
 
-  vkDestroyImage(device.device(), textureImage, nullptr);
-  vkFreeMemory(device.device(), textureImageMemory, nullptr);
+  vkDestroyImage(device->device(), textureImage, nullptr);
+  vkFreeMemory(device->device(), textureImageMemory, nullptr);
 
   delete descriptors;
 }
 
 void VulkanRenderer::init() {
-  swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
+  swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent());
   createCommandBuffers();
   createDescriptors();
   createPipeline();
@@ -48,13 +48,13 @@ void VulkanRenderer::bindDescriptorSets() {
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
 
 void VulkanRenderer::recreateSwapChain() {
-  vkDeviceWaitIdle(device.device());
+  vkDeviceWaitIdle(device->device());
 
   delete graphicsPipeline;
-  vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
+  vkDestroyPipelineLayout(device->device(), pipelineLayout, nullptr);
   delete swapChain;
 
-  swapChain = new VulkanSwapChain(device, vulkanWindow.getExtent());
+  swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent());
   createPipeline();
 }
 
@@ -71,30 +71,30 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
 
-  device.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                      stagingBufferMemory);
+  device->createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                       stagingBufferMemory);
 
   void *data;
-  vkMapMemory(device.device(), stagingBufferMemory, 0, imageSize, 0, &data);
+  vkMapMemory(device->device(), stagingBufferMemory, 0, imageSize, 0, &data);
   memcpy(data, pixels, static_cast<size_t>(imageSize));
-  vkUnmapMemory(device.device(), stagingBufferMemory);
+  vkUnmapMemory(device->device(), stagingBufferMemory);
 
   stbi_image_free(pixels);
 
-  device.createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                     textureImage, textureImageMemory);
+  device->createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                      textureImage, textureImageMemory);
 
-  device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-  device.copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth),
-                           static_cast<uint32_t>(texHeight));
-  device.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  device->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  device->copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth),
+                            static_cast<uint32_t>(texHeight));
+  device->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-  vkDestroyBuffer(device.device(), stagingBuffer, nullptr);
-  vkFreeMemory(device.device(), stagingBufferMemory, nullptr);
+  vkDestroyBuffer(device->device(), stagingBuffer, nullptr);
+  vkFreeMemory(device->device(), stagingBufferMemory, nullptr);
 
   textureImageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
 
@@ -108,7 +108,7 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   samplerInfo.anisotropyEnable = VK_TRUE;
 
   VkPhysicalDeviceProperties properties{};
-  vkGetPhysicalDeviceProperties(device.getPhysicalDevice(), &properties);
+  vkGetPhysicalDeviceProperties(device->getPhysicalDevice(), &properties);
   samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
   samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -119,7 +119,7 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   samplerInfo.minLod = 0.0f;
   samplerInfo.maxLod = 0.0f;
 
-  checkResult(vkCreateSampler(device.device(), &samplerInfo, nullptr, &textureSampler),
+  checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &textureSampler),
               "failed to create texture sampler!");
 
   descriptors->createDescriptorSets(bufferInfos, textureImageView, textureSampler);
@@ -133,7 +133,7 @@ void VulkanRenderer::createPipeline() {
   pipelineLayoutInfo.pushConstantRangeCount = 0;
   pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-  checkResult(vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
+  checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
               "failed to create pipeline layout");
 
   VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -212,11 +212,13 @@ void VulkanRenderer::createPipeline() {
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
   dynamicState.pDynamicStates = dynamicStates.data();
 
-  VkGraphicsPipelineCreateInfo pipelineInfo;
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineInfo.stageCount = 2;
+  // set in VulkanPipeline::createGraphicsPipeline()
   pipelineInfo.pStages = nullptr;
   pipelineInfo.pVertexInputState = nullptr;
+  //
   pipelineInfo.pInputAssemblyState = &inputAssembly;
   pipelineInfo.pViewportState = &viewportState;
   pipelineInfo.pRasterizationState = &rasterizer;
@@ -237,11 +239,11 @@ void VulkanRenderer::createCommandBuffers() {
   commandBuffers.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = device.getCommandPool();
+  allocInfo.commandPool = device->getCommandPool();
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-  checkResult(vkAllocateCommandBuffers(device.device(), &allocInfo, commandBuffers.data()),
+  checkResult(vkAllocateCommandBuffers(device->device(), &allocInfo, commandBuffers.data()),
               "failed to create command buffers");
 }
 
@@ -285,9 +287,9 @@ void VulkanRenderer::startFrame() {
 void VulkanRenderer::endFrame() {
   checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
   VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow.framebufferResized) {
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
     recreateSwapChain();
-    vulkanWindow.framebufferResized = false;
+    vulkanWindow->framebufferResized = false;
     return;
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image");

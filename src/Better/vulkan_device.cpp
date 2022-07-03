@@ -61,7 +61,7 @@ SwapChainSupportDetails VulkanDevice::querySwapChainSupport(VkPhysicalDevice dev
 }
 
 void VulkanDevice::createSurface() {
-  checkResult(glfwCreateWindowSurface(instance, window.getGLFWwindow(), nullptr, &surface_),
+  checkResult(glfwCreateWindowSurface(instance, window->getGLFWwindow(), nullptr, &surface_),
               "failed to create window surface");
 }
 
@@ -485,7 +485,8 @@ void VulkanDevice::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t wi
 
   endSingleTimeCommands(commandBuffer);
 }
-VulkanDevice::VulkanDevice(VulkanWindow &window) : window{window} {
+
+VulkanDevice::VulkanDevice(VulkanWindow *window) : window{window} {
   createInstance();
   setupDebugMessenger();
   createSurface();

@@ -8,7 +8,7 @@ class VulkanSwapChain {
 public:
   const static int MAX_FRAMES_IN_FLIGHT = 2;
 
-  VulkanSwapChain(VulkanDevice &deviceRef, VkExtent2D windowExtent);
+  VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent);
   ~VulkanSwapChain();
   VkResult acquireNextImage(uint32_t *imageIndex);
   VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t *imageIndex);
@@ -29,7 +29,7 @@ private:
 
   VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
-  VulkanDevice &device;
+  VulkanDevice *device;
   VkSwapchainKHR swapChain;
   VkRenderPass renderPass;
 

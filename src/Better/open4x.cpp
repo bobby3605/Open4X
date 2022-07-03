@@ -35,8 +35,8 @@ void Open4X::run() {
   vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
   glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
-  vulkanDevice = new VulkanDevice(*vulkanWindow);
-  vulkanRenderer = new VulkanRenderer(*vulkanWindow, *vulkanDevice);
+  vulkanDevice = new VulkanDevice(vulkanWindow);
+  vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice);
 
   VkDeviceSize vertexBufferSize = sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size();
 

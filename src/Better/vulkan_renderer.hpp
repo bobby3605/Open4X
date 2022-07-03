@@ -10,7 +10,7 @@
 
 class VulkanRenderer {
 public:
-  VulkanRenderer(VulkanWindow &window, VulkanDevice &deviceRef);
+  VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef);
   ~VulkanRenderer();
   void recordCommandBuffer(uint32_t imageIndex);
   void startFrame();
@@ -31,9 +31,9 @@ private:
   void recreateSwapChain();
   void createDescriptors();
 
-  VulkanDevice &device;
+  VulkanDevice *device;
   VulkanPipeline *graphicsPipeline;
-  VulkanWindow &vulkanWindow;
+  VulkanWindow *vulkanWindow;
   VulkanSwapChain *swapChain;
 
   VkPipelineLayout pipelineLayout;

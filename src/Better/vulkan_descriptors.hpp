@@ -4,7 +4,7 @@
 
 class VulkanDescriptors {
 public:
-  VulkanDescriptors(VulkanDevice &deviceRef);
+  VulkanDescriptors(VulkanDevice *deviceRef);
   VkDescriptorSetLayout descriptorSetLayout;
   ~VulkanDescriptors();
   void createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos, VkImageView textureImageView,
@@ -15,7 +15,7 @@ private:
   void createDescriptorSetLayout();
   void createDescriptorPool();
 
-  VulkanDevice device;
+  VulkanDevice *device;
   VkDescriptorPool descriptorPool;
 };
 

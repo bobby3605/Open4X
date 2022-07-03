@@ -6,7 +6,7 @@
 #include <cstring>
 #include <iostream>
 
-VulkanDescriptors::VulkanDescriptors(VulkanDevice &deviceRef) : device{deviceRef} {
+VulkanDescriptors::VulkanDescriptors(VulkanDevice *deviceRef) : device{deviceRef} {
   createDescriptorSetLayout();
   createDescriptorPool();
 }
@@ -32,7 +32,7 @@ void VulkanDescriptors::createDescriptorSetLayout() {
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
   layoutInfo.pBindings = bindings.data();
 
-  checkResult(vkCreateDescriptorSetLayout(device.device(), &layoutInfo, nullptr, &descriptorSetLayout),
+  checkResult(vkCreateDescriptorSetLayout(device->device(), &layoutInfo, nullptr, &descriptorSetLayout),
               "failed to create descriptor set layout");
 }
 
@@ -49,7 +49,7 @@ void VulkanDescriptors::createDescriptorPool() {
   poolInfo.pPoolSizes = poolSizes.data();
   poolInfo.maxSets = static_cast<uint32_t>(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
-  checkResult(vkCreateDescriptorPool(device.device(), &poolInfo, nullptr, &descriptorPool),
+  checkResult(vkCreateDescriptorPool(device->device(), &poolInfo, nullptr, &descriptorPool),
               "failed to create descriptor pool");
 }
 
@@ -64,7 +64,7 @@ void VulkanDescriptors::createDescriptorSets(std::vector<VkDescriptorBufferInfo>
 
   descriptorSets.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
-  checkResult(vkAllocateDescriptorSets(device.device(), &allocInfo, descriptorSets.data()),
+  checkResult(vkAllocateDescriptorSets(device->device(), &allocInfo, descriptorSets.data()),
               "failed to allocate descriptor sets!");
 
   uint32_t i = 0;
@@ -92,7 +92,7 @@ void VulkanDescriptors::createDescriptorSets(std::vector<VkDescriptorBufferInfo>
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pImageInfo = &imageInfo;
 
-    vkUpdateDescriptorSets(device.device(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
+    vkUpdateDescriptorSets(device->device(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0,
                            nullptr);
     i++;
   }
@@ -100,6 +100,6 @@ void VulkanDescriptors::createDescriptorSets(std::vector<VkDescriptorBufferInfo>
 
 VulkanDescriptors::~VulkanDescriptors() {
 
-  vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
-  vkDestroyDescriptorSetLayout(device.device(), descriptorSetLayout, nullptr);
+  vkDestroyDescriptorPool(device->device(), descriptorPool, nullptr);
+  vkDestroyDescriptorSetLayout(device->device(), descriptorSetLayout, nullptr);
 }

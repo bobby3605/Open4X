@@ -8,12 +8,12 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-VulkanPipeline::VulkanPipeline(VulkanDevice &deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo)
+VulkanPipeline::VulkanPipeline(VulkanDevice *deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo)
     : device{deviceRef}, pipelineInfo_{pipelineInfo} {
   createGraphicsPipeline();
 }
 
-VulkanPipeline::~VulkanPipeline() { vkDestroyPipeline(device.device(), graphicsPipeline, nullptr); }
+VulkanPipeline::~VulkanPipeline() { vkDestroyPipeline(device->device(), graphicsPipeline, nullptr); }
 
 VkShaderModule VulkanPipeline::createShaderModule(const std::vector<char> &code) {
   VkShaderModuleCreateInfo createInfo{};
@@ -22,7 +22,7 @@ VkShaderModule VulkanPipeline::createShaderModule(const std::vector<char> &code)
   createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
   VkShaderModule shaderModule;
 
-  checkResult(vkCreateShaderModule(device.device(), &createInfo, nullptr, &shaderModule),
+  checkResult(vkCreateShaderModule(device->device(), &createInfo, nullptr, &shaderModule),
               "failed to create shader module");
 
   return shaderModule;
@@ -83,9 +83,10 @@ void VulkanPipeline::createGraphicsPipeline() {
   pipelineInfo_.pStages = shaderStages;
   pipelineInfo_.pVertexInputState = &vertexInputInfo;
 
-  checkResult(vkCreateGraphicsPipelines(device.device(), VK_NULL_HANDLE, 1, &pipelineInfo_, nullptr, &graphicsPipeline),
-              "failed to create graphics pipeline");
+  checkResult(
+      vkCreateGraphicsPipelines(device->device(), VK_NULL_HANDLE, 1, &pipelineInfo_, nullptr, &graphicsPipeline),
+      "failed to create graphics pipeline");
 
-  vkDestroyShaderModule(device.device(), fragShaderModule, nullptr);
-  vkDestroyShaderModule(device.device(), vertShaderModule, nullptr);
+  vkDestroyShaderModule(device->device(), fragShaderModule, nullptr);
+  vkDestroyShaderModule(device->device(), vertShaderModule, nullptr);
 }
