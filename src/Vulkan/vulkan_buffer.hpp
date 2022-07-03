@@ -41,6 +41,7 @@ struct UniformBufferObject {
 class UniformBuffer {
 public:
   UniformBuffer(VulkanDevice *device);
+  ~UniformBuffer();
   void write(void *data);
   VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
 

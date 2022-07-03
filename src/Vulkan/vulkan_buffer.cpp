@@ -59,4 +59,6 @@ UniformBuffer::UniformBuffer(VulkanDevice *device) {
   bufferInfo.range = sizeof(UniformBufferObject);
 }
 
+UniformBuffer::~UniformBuffer() { delete uniformBuffer; }
+
 void UniformBuffer::write(void *data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
