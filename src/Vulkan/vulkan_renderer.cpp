@@ -69,7 +69,7 @@ void VulkanRenderer::recreateSwapChain() {
 void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos) {
 
   int texWidth, texHeight, texChannels;
-  stbi_uc *pixels = stbi_load("assets/textures/statue.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+  stbi_uc *pixels = stbi_load("assets/textures/viking_room.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   VkDeviceSize imageSize = texWidth * texHeight * 4;
 
   if (!pixels) {

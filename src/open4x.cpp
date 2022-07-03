@@ -1,7 +1,6 @@
 #include "open4x.hpp"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
-#include "Vulkan/vulkan_model.hpp"
 #include "Vulkan/vulkan_swapchain.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
@@ -20,6 +19,8 @@ Open4X::Open4X() {
   vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
   glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
+  vulkanModel = new VulkanModel("assets/models/viking_room.obj");
+
   vulkanDevice = new VulkanDevice(vulkanWindow);
   vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice);
 }
@@ -27,17 +28,18 @@ Open4X::Open4X() {
 Open4X::~Open4X() {
   delete vulkanRenderer;
   delete vulkanDevice;
+  delete vulkanModel;
   delete vulkanWindow;
 }
 
 void Open4X::run() {
 
-  StagedBuffer vertexBuffer(vulkanDevice, (void *)VulkanModel::vertices.data(),
-                            sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size(),
+  StagedBuffer vertexBuffer(vulkanDevice, (void *)vulkanModel->vertices.data(),
+                            sizeof(vulkanModel->vertices[0]) * vulkanModel->vertices.size(),
                             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
-  StagedBuffer indexBuffer(vulkanDevice, (void *)VulkanModel::indices.data(),
-                           sizeof(VulkanModel::indices[0]) * VulkanModel::indices.size(),
+  StagedBuffer indexBuffer(vulkanDevice, vulkanModel->indices.data(),
+                           sizeof(vulkanModel->indices[0]) * vulkanModel->indices.size(),
                            VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
   std::vector<UniformBuffer *> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -77,11 +79,11 @@ void Open4X::run() {
 
     vkCmdBindVertexBuffers(vulkanRenderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(vulkanRenderer->getCurrentCommandBuffer(), indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(vulkanRenderer->getCurrentCommandBuffer(), indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     vulkanRenderer->bindDescriptorSets();
 
-    vkCmdDrawIndexed(vulkanRenderer->getCurrentCommandBuffer(), static_cast<uint32_t>(VulkanModel::indices.size()), 1,
+    vkCmdDrawIndexed(vulkanRenderer->getCurrentCommandBuffer(), static_cast<uint32_t>(vulkanModel->indices.size()), 1,
                      0, 0, 0);
 
     vulkanRenderer->endSwapChainrenderPass();

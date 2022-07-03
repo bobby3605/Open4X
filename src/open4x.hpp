@@ -2,6 +2,7 @@
 #define OPEN4X_H_
 
 #include "Vulkan/vulkan_device.hpp"
+#include "Vulkan/vulkan_model.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 
@@ -15,6 +16,7 @@ private:
   VulkanWindow *vulkanWindow;
   VulkanDevice *vulkanDevice;
   VulkanRenderer *vulkanRenderer;
+  VulkanModel *vulkanModel;
 };
 
 #endif // OPEN4X_H_
