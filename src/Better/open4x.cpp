@@ -16,7 +16,13 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
   }
 }
 
-Open4X::Open4X() {}
+Open4X::Open4X() {
+  vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
+  glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
+
+  vulkanDevice = new VulkanDevice(vulkanWindow);
+  vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice);
+}
 
 Open4X::~Open4X() {
   delete vulkanRenderer;
@@ -25,12 +31,6 @@ Open4X::~Open4X() {
 }
 
 void Open4X::run() {
-
-  vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
-  glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
-
-  vulkanDevice = new VulkanDevice(vulkanWindow);
-  vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice);
 
   StagedBuffer vertexBuffer(vulkanDevice, (void *)VulkanModel::vertices.data(),
                             sizeof(VulkanModel::vertices[0]) * VulkanModel::vertices.size(),
