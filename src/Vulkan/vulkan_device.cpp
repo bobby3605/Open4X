@@ -367,7 +367,7 @@ void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
-  // TODO
+  // TODOO
   // https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
   // Use a fence instead of vkQueueWaitIdle
   // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete, instead of

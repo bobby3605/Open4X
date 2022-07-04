@@ -3,6 +3,7 @@
 
 #include "Vulkan/vulkan_device.hpp"
 #include "Vulkan/vulkan_model.hpp"
+#include "Vulkan/vulkan_object.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 
@@ -13,10 +14,13 @@ public:
   void run();
 
 private:
+  VulkanObject *camera;
+
   VulkanWindow *vulkanWindow;
   VulkanDevice *vulkanDevice;
   VulkanRenderer *vulkanRenderer;
-  VulkanModel *vulkanModel;
+  VulkanModel *vikingRoomModel;
+  VulkanModel *flatVaseModel;
 };
 
 #endif // OPEN4X_H_

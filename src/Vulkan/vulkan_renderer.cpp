@@ -48,13 +48,20 @@ void VulkanRenderer::bindDescriptorSets() {
 
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
 
+// TODO
+// However, the disadvantage of this approach is that we need to stop all rendering before creating the new swap chain.
+// It is possible to create a new swap chain while drawing commands on an image from the old swap chain are still
+// in-flight. You need to pass the previous swap chain to the oldSwapChain field in the VkSwapchainCreateInfoKHR struct
+// and destroy the old swap chain as soon as you've finished using it.
 void VulkanRenderer::recreateSwapChain() {
   // pause on minimization
+  /*
   int width = 0, height = 0;
   while (width == 0 || height == 0) {
     glfwGetFramebufferSize(vulkanWindow->getGLFWwindow(), &width, &height);
     glfwWaitEvents();
   }
+  */
 
   vkDeviceWaitIdle(device->device());
 
@@ -134,12 +141,17 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
 }
 
 void VulkanRenderer::createPipeline() {
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+  pushConstantRange.offset = 0;
+  pushConstantRange.size = sizeof(PushConstants);
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 1;
   pipelineLayoutInfo.pSetLayouts = &descriptors->descriptorSetLayout;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
-  pipelineLayoutInfo.pPushConstantRanges = nullptr;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
   checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
               "failed to create pipeline layout");

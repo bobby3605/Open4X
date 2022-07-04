@@ -2,8 +2,8 @@
 #define VULKAN_MODEL_H_
 
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
+#include "vulkan_buffer.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 #include <vulkan/vulkan.hpp>
@@ -59,7 +59,14 @@ template <> struct hash<Vertex> {
 class VulkanModel {
 
 public:
-  VulkanModel(std::string model_path);
+  VulkanModel(VulkanDevice *device, std::string model_path);
+  ~VulkanModel();
+  void draw(VkCommandBuffer commandBuffer);
+
+private:
+  StagedBuffer *vertexBuffer;
+  StagedBuffer *indexBuffer;
+  VulkanDevice *device;
 
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;

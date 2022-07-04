@@ -3,7 +3,7 @@
 #include "../../external/tiny_obj_loader.h"
 #include <unordered_map>
 
-VulkanModel::VulkanModel(std::string model_path) {
+VulkanModel::VulkanModel(VulkanDevice *device, std::string model_path) : device{device} {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
@@ -35,4 +35,27 @@ VulkanModel::VulkanModel(std::string model_path) {
       indices.push_back(uniqueVertices[vertex]);
     }
   }
+
+  vertexBuffer = new StagedBuffer(device, (void *)vertices.data(), sizeof(vertices[0]) * vertices.size(),
+                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+  indexBuffer = new StagedBuffer(device, (void *)indices.data(), sizeof(indices[0]) * indices.size(),
+                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+}
+
+void VulkanModel::draw(VkCommandBuffer commandBuffer) {
+
+  VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
+  VkDeviceSize offsets[] = {0};
+
+  vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+  vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+  vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+}
+
+VulkanModel::~VulkanModel() {
+  delete vertexBuffer;
+  delete indexBuffer;
 }
