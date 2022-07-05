@@ -31,7 +31,25 @@ void VulkanRenderer::init() {
 }
 
 void VulkanRenderer::bindPipeline() {
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = swapChain->getExtent().width;
+  viewport.height = swapChain->getExtent().height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  vkCmdSetViewport(getCurrentCommandBuffer(), 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = swapChain->getExtent();
+
+  vkCmdSetScissor(getCurrentCommandBuffer(), 0, 1, &scissor);
+
   vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
+
+
 }
 
 void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
@@ -40,11 +58,6 @@ void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
 
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
 
-// TODO
-// However, the disadvantage of this approach is that we need to stop all rendering before creating the new swap chain.
-// It is possible to create a new swap chain while drawing commands on an image from the old swap chain are still
-// in-flight. You need to pass the previous swap chain to the oldSwapChain field in the VkSwapchainCreateInfoKHR struct
-// and destroy the old swap chain as soon as you've finished using it.
 void VulkanRenderer::recreateSwapChain() {
   // pause on minimization
   /*
@@ -57,12 +70,7 @@ void VulkanRenderer::recreateSwapChain() {
 
   vkDeviceWaitIdle(device->device());
 
-  delete graphicsPipeline;
-  vkDestroyPipelineLayout(device->device(), pipelineLayout, nullptr);
-  delete swapChain;
-
-  swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent());
-  createPipeline();
+  swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent(), swapChain);
 }
 
 void VulkanRenderer::createPipeline() {
@@ -150,7 +158,7 @@ void VulkanRenderer::createPipeline() {
   colorBlending.blendConstants[2] = 0.0f;
   colorBlending.blendConstants[3] = 0.0f;
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH};
+  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
   VkPipelineDynamicStateCreateInfo dynamicState{};
   dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -177,12 +185,15 @@ void VulkanRenderer::createPipeline() {
   pipelineInfo.pVertexInputState = nullptr;
   //
   pipelineInfo.pInputAssemblyState = &inputAssembly;
+  //VK_DYNAMIC_STATE_VIEWPORT specifies that the pViewports state in VkPipelineViewportStateCreateInfo will be ignored and
+  //must be set dynamically with vkCmdSetViewport before any drawing commands.
+  //The number of viewports used by a pipeline is still specified by the viewportCount member of VkPipelineViewportStateCreateInfo.
   pipelineInfo.pViewportState = &viewportState;
   pipelineInfo.pRasterizationState = &rasterizer;
   pipelineInfo.pMultisampleState = &multisampling;
   pipelineInfo.pDepthStencilState = nullptr;
   pipelineInfo.pColorBlendState = &colorBlending;
-  pipelineInfo.pDynamicState = nullptr;
+  pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = pipelineLayout;
   pipelineInfo.renderPass = swapChain->getRenderPass();
   pipelineInfo.subpass = 0;
@@ -243,6 +254,7 @@ void VulkanRenderer::startFrame() {
 
   checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),
               "failed to begin recording command buffer");
+
 }
 
 void VulkanRenderer::endFrame() {

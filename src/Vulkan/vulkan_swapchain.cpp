@@ -7,10 +7,17 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 VulkanSwapChain::VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent)
     : device{deviceRef}, windowExtent{windowExtent} {
   init();
+}
+
+VulkanSwapChain::VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain)
+    : device{deviceRef}, windowExtent{windowExtent}, oldSwapChain(oldSwapChain->swapChain) {
+  init();
+  delete oldSwapChain;
 }
 
 VulkanSwapChain::~VulkanSwapChain() {
@@ -108,6 +115,7 @@ void VulkanSwapChain::createSwapChain() {
   createInfo.imageExtent = extent;
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  createInfo.oldSwapchain = oldSwapChain;
 
   QueueFamilyIndices indices = device->findPhysicalQueueFamilies();
   uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};

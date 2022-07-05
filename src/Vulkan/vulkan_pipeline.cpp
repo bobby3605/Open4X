@@ -44,8 +44,8 @@ static std::vector<char> readFile(const std::string &filename) {
 }
 
 void VulkanPipeline::createGraphicsPipeline() {
-  assert(pipelineInfo_.pViewportState->pViewports->height != 0 && "Create graphics pipeline viewport height == 0");
-  assert(pipelineInfo_.pViewportState->pViewports->width != 0 && "Create graphics pipeline viewport width == 0");
+  //assert(pipelineInfo_.pViewportState->pViewports->height != 0 && "Create graphics pipeline viewport height == 0");
+  //assert(pipelineInfo_.pViewportState->pViewports->width != 0 && "Create graphics pipeline viewport width == 0");
   // TODO: add assert for scissor
   assert(pipelineInfo_.layout != nullptr && "Graphics pipeline layout == nullptr");
   assert(pipelineInfo_.renderPass != nullptr && "Graphics pipeline render pass == nullptr");

@@ -3,12 +3,14 @@
 
 #include "vulkan_device.hpp"
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 class VulkanSwapChain {
 public:
   const static int MAX_FRAMES_IN_FLIGHT = 2;
 
   VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent);
+  VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain);
   ~VulkanSwapChain();
   VkResult acquireNextImage(uint32_t *imageIndex);
   VkResult submitCommandBuffers(const VkCommandBuffer *buffer, uint32_t *imageIndex);
@@ -54,6 +56,8 @@ private:
   VkImage depthImage;
   VkDeviceMemory depthImageMemory;
   VkImageView depthImageView;
+
+    VkSwapchainKHR oldSwapChain;
 };
 
 #endif // VULKAN_SWAPCHAIN_H_
