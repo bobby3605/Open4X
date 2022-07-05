@@ -6,6 +6,25 @@
 #include <iostream>
 #include <set>
 
+VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+  VkImageViewCreateInfo viewInfo{};
+  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  viewInfo.image = image;
+  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.format = format;
+  viewInfo.subresourceRange.aspectMask = aspectFlags;
+  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.levelCount = 1;
+  viewInfo.subresourceRange.baseArrayLayer = 0;
+  viewInfo.subresourceRange.layerCount = 1;
+
+  VkImageView imageView;
+  checkResult(vkCreateImageView(device_, &viewInfo, nullptr, &imageView),
+              "failed to create texture image view!");
+
+  return imageView;
+}
+
 QueueFamilyIndices VulkanDevice::findQueueFamilies(VkPhysicalDevice device) {
   QueueFamilyIndices indices;
 

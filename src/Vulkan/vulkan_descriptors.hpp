@@ -14,21 +14,30 @@ public:
 
     VkDescriptorPool createPool();
 VkDescriptorSetLayout createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings);
-VkDescriptorSet allocateSet(VkDescriptorPool pool, VkDescriptorSetLayout layout);
-void createSets(VkDescriptorPool pool, VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
+VkDescriptorSet allocateSet(VkDescriptorSetLayout layout);
+void createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
+
+    VkDescriptorSetLayout getGlobal() const { return globalL;}
+    VkDescriptorSetLayout getMaterial() const { return materialL;}
+
+    std::vector<VkDescriptorSetLayout> const& getLayouts() const { return descriptorLayouts;}
+
+private:
+  void createDescriptorSetLayout();
+void createDescriptorPool();
 
 std::vector<VkDescriptorSetLayoutBinding> globalLayout();
 std::vector<VkDescriptorSetLayoutBinding> passLayout();
 std::vector<VkDescriptorSetLayoutBinding> materialLayout();
 std::vector<VkDescriptorSetLayoutBinding> objectLayout();
 
-
-private:
-  void createDescriptorSetLayout();
-void createDescriptorPool();
-
   VulkanDevice *device;
-  VkDescriptorPool descriptorPool;
+
+  VkDescriptorPool pool;
+  VkDescriptorSetLayout globalL;
+  VkDescriptorSetLayout materialL;
+
+  std::vector<VkDescriptorSetLayout> descriptorLayouts;
 
     std::vector<VkDescriptorType> descriptorTypes = {VK_DESCRIPTOR_TYPE_SAMPLER ,
     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

@@ -16,7 +16,6 @@ public:
   VkRenderPass getRenderPass() { return renderPass; }
   VkFramebuffer getFramebuffer(uint32_t index) { return swapChainFramebuffers[index]; }
   VkExtent2D getExtent() { return swapChainExtent; }
-  VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 private:
   void init();

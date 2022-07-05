@@ -36,6 +36,7 @@ public:
   VkQueue presentQueue() { return presentQueue_; }
   VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
 
+  VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
   QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice); }
 

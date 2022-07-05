@@ -15,7 +15,7 @@ void VulkanObject::draw() {
   vkCmdPushConstants(renderer->getCurrentCommandBuffer(), renderer->getPipelineLayout(),
                      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &push);
 
-  model->draw(renderer->getCurrentCommandBuffer());
+  model->draw(renderer);
 }
 
 VulkanObject::VulkanObject(VulkanRenderer *renderer) : renderer{renderer} {}

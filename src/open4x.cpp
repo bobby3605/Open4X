@@ -43,8 +43,6 @@ Open4X::Open4X() {
 
   vulkanDevice = new VulkanDevice(vulkanWindow);
 
-  vikingRoomModel = new VulkanModel(vulkanDevice, "assets/models/viking_room.obj");
-  flatVaseModel = new VulkanModel(vulkanDevice, "assets/models/flat_vase.obj");
 }
 
 Open4X::~Open4X() {
@@ -59,23 +57,14 @@ void Open4X::run() {
 
   VulkanDescriptors descriptorManager(vulkanDevice);
 
-  VkDescriptorPool pool = descriptorManager.createPool();
-  VkDescriptorSetLayout globalL = descriptorManager.createLayout(descriptorManager.globalLayout());
-  VkDescriptorSetLayout materialL = descriptorManager.createLayout(descriptorManager.materialLayout());
+  vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager, "assets/models/viking_room.obj", "assets/textures/viking_room.png");
+  flatVaseModel = new VulkanModel(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
 
-  std::vector<VkDescriptorSetLayout> descriptorLayouts;
-  descriptorLayouts.push_back(globalL);
-  descriptorLayouts.push_back(materialL);
-
-  vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, descriptorLayouts);
+  vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
   std::vector<VkDescriptorSet> globalSets;
-  std::vector<VkDescriptorSet> obj1MaterialSets;
-  std::vector<VkDescriptorSet> obj2MaterialSets;
 
-  descriptorManager.createSets(pool, globalL, globalSets);
-  descriptorManager.createSets(pool, materialL, obj1MaterialSets);
-  descriptorManager.createSets(pool, materialL, obj2MaterialSets);
+  descriptorManager.createSets(descriptorManager.getGlobal(), globalSets);
 
   std::vector<UniformBuffer *> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
   std::vector<VkDescriptorBufferInfo> bufferInfos(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -95,49 +84,6 @@ void Open4X::run() {
 
     vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0, nullptr);
   }
-
-  VkSampler vikingRoomSampler;
-  VkImageView vikingRoomImageView;
-  vulkanRenderer->loadImage("assets/textures/viking_room.png", vikingRoomSampler, vikingRoomImageView);
-
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = vikingRoomImageView;
-    imageInfo.sampler = vikingRoomSampler;
-
-    VkWriteDescriptorSet descriptorWrite{};
-
-  for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = obj1MaterialSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
-
-    vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0,
-                           nullptr);
-  }
-
-  vulkanRenderer->loadImage("assets/textures/statue.jpg", vikingRoomSampler, vikingRoomImageView);
-    imageInfo.imageView = vikingRoomImageView;
-    imageInfo.sampler = vikingRoomSampler;
-
-  for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = obj2MaterialSets[i];
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
-
-    vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0,
-                           nullptr);
-  }
-
-  //vulkanRenderer->createDescriptorSets(bufferInfos);
 
   VulkanObject obj1(vikingRoomModel, vulkanRenderer);
   VulkanObject obj2(flatVaseModel, vulkanRenderer);
@@ -168,14 +114,10 @@ void Open4X::run() {
     vulkanRenderer->beginSwapChainrenderPass();
     vulkanRenderer->bindPipeline();
 
-  //  vulkanRenderer->bindDescriptorSets();
-
     vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
-    vulkanRenderer->bindDescriptorSet(1, obj1MaterialSets[vulkanRenderer->getCurrentFrame()]);
     obj1.draw();
     obj2.position.y = 1.5f;
-    vulkanRenderer->bindDescriptorSet(1, obj2MaterialSets[vulkanRenderer->getCurrentFrame()]);
     obj2.draw();
 
     vulkanRenderer->endSwapChainrenderPass();

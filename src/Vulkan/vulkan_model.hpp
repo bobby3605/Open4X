@@ -1,6 +1,8 @@
 #ifndef VULKAN_MODEL_H_
 #define VULKAN_MODEL_H_
 
+#include "vulkan_descriptors.hpp"
+#include "vulkan_renderer.hpp"
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "vulkan_buffer.hpp"
@@ -59,9 +61,11 @@ template <> struct hash<Vertex> {
 class VulkanModel {
 
 public:
-  VulkanModel(VulkanDevice *device, std::string model_path);
+  VulkanModel(VulkanDevice *device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path);
   ~VulkanModel();
-  void draw(VkCommandBuffer commandBuffer);
+
+void loadImage(std::string path);
+  void draw(VulkanRenderer* renderer);
 
 private:
   StagedBuffer *vertexBuffer;
@@ -70,6 +74,14 @@ private:
 
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
+
+    VkSampler imageSampler;
+    VkImageView imageView;
+  VkImage image;
+  VkDeviceMemory imageMemory;
+
+    VulkanDescriptors* descriptorManager;
+    VkDescriptorSet materialSet;
 };
 
 #endif // VULKAN_MODEL_H_
