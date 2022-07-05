@@ -10,7 +10,7 @@ public:
   VulkanBuffer(VulkanDevice *device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
   void map();
   void unmap();
-  void write(void *data, VkDeviceSize size, VkDeviceSize offset);
+  void write(void *data, VkDeviceSize size, VkDeviceSize offset = 0);
   ~VulkanBuffer();
   VkBuffer buffer = VK_NULL_HANDLE;
   VkDeviceMemory memory = VK_NULL_HANDLE;

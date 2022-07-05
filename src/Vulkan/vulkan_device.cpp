@@ -2,6 +2,8 @@
 #include "common.hpp"
 #include "vulkan_renderer.hpp"
 #include "vulkan_window.hpp"
+#include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <set>
@@ -385,14 +387,23 @@ void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
   submitInfo.pCommandBuffers = &commandBuffer;
 
   // TODO
-  // https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
-  // Use a fence instead of vkQueueWaitIdle
-  // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete, instead of
-  // executing one at a time. That may give the driver more opportunities to optimize.
-  vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(graphicsQueue_);
+  // Create a handful of fences at start time,
+  // then dynamically allocate as needed,
+  // in order to not call vkCreateFence every time.
+  VkFenceCreateInfo fenceInfo{};
+  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+  VkFence fence;
+  checkResult(vkCreateFence(device_, &fenceInfo, nullptr, &fence), "failed to create single time fence");
+  vkResetFences(device_, 1, &fence);
+
+  vkQueueSubmit(graphicsQueue_, 1, &submitInfo, fence);
+  vkWaitForFences(device_, 1, &fence, VK_TRUE, UINT64_MAX);
 
   vkFreeCommandBuffers(device_, singleTimeCommandPool, 1, &commandBuffer);
+
+  vkDestroyFence(device_, fence, nullptr);
 }
 
 void VulkanDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
