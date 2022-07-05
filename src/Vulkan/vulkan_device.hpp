@@ -4,6 +4,7 @@
 #include "vulkan_window.hpp"
 #include <optional>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphicsFamily;
@@ -29,7 +30,7 @@ public:
   VulkanDevice(VulkanWindow *window);
   ~VulkanDevice();
 
-  VkCommandPool getCommandPool() { return commandPool; }
+  VkCommandPool getCommandPool() { return commandPool_; }
   VkDevice device() { return device_; }
   VkSurfaceKHR surface() { return surface_; }
   VkQueue graphicsQueue() { return graphicsQueue_; }
@@ -56,7 +57,8 @@ private:
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
   VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-  VkCommandPool commandPool;
+  VkCommandPool commandPool_;
+  VkCommandPool singleTimeCommandPool;
 
   VkDevice device_;
   VkSurfaceKHR surface_;
@@ -68,7 +70,7 @@ private:
   void createSurface();
   void pickPhysicalDevice();
   void createLogicalDevice();
-  void createCommandPool();
+  VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
 
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
   bool checkDeviceExtensionSupport(VkPhysicalDevice device);

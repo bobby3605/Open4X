@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <set>
+#include <vulkan/vulkan_core.h>
 
 VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
   VkImageViewCreateInfo viewInfo{};
@@ -308,15 +309,17 @@ void VulkanDevice::createLogicalDevice() {
   vkGetDeviceQueue(device_, indices.presentFamily.value(), 0, &presentQueue_);
 }
 
-void VulkanDevice::createCommandPool() {
+VkCommandPool VulkanDevice::createCommandPool(VkCommandPoolCreateFlags flags) {
   QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  poolInfo.flags = flags;
   poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-  checkResult(vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool), "failed to create command pool");
+  VkCommandPool pool;
+  checkResult(vkCreateCommandPool(device_, &poolInfo, nullptr, &pool), "failed to create command pool");
+  return pool;
 }
 
 uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -358,12 +361,7 @@ VkCommandBuffer VulkanDevice::beginSingleTimeCommands() {
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  // TODO
-  // https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
-  // You may wish to create a separate command pool for these kinds of short-lived buffers, because the implementation
-  // may be able to apply memory allocation optimizations. You should use the VK_COMMAND_POOL_CREATE_TRANSIENT_BIT flag
-  // during command pool generation in that case.
-  allocInfo.commandPool = commandPool;
+  allocInfo.commandPool = singleTimeCommandPool;
   allocInfo.commandBufferCount = 1;
 
   VkCommandBuffer commandBuffer;
@@ -394,7 +392,7 @@ void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
   vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
   vkQueueWaitIdle(graphicsQueue_);
 
-  vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+  vkFreeCommandBuffers(device_, singleTimeCommandPool, 1, &commandBuffer);
 }
 
 void VulkanDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -511,11 +509,13 @@ VulkanDevice::VulkanDevice(VulkanWindow *window) : window{window} {
   createSurface();
   pickPhysicalDevice();
   createLogicalDevice();
-  createCommandPool();
+  commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  singleTimeCommandPool = createCommandPool(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 }
 
 VulkanDevice::~VulkanDevice() {
-  vkDestroyCommandPool(device_, commandPool, nullptr);
+  vkDestroyCommandPool(device_, commandPool_, nullptr);
+  vkDestroyCommandPool(device_, singleTimeCommandPool, nullptr);
   vkDestroyDevice(device_, nullptr);
 
   if (enableValidationLayers) {
