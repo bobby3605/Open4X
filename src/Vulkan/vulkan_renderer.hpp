@@ -23,7 +23,7 @@ public:
   ~VulkanRenderer();
   void recordCommandBuffer(uint32_t imageIndex);
   void startFrame();
-  void endFrame();
+  bool endFrame();
   void beginSwapChainrenderPass();
   void endSwapChainrenderPass();
   VkCommandBuffer getCurrentCommandBuffer();

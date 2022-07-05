@@ -93,6 +93,10 @@ void Open4X::run() {
 
   UniformBufferObject ubo{};
 
+  ubo.proj = perspectiveProjection(
+        45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f,
+        100.0f);
+
   auto startTime = std::chrono::high_resolution_clock::now();
   while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
     glfwPollEvents();
@@ -103,13 +107,8 @@ void Open4X::run() {
     camera->keyboardUpdate(frameTime);
 
     ubo.view = glm::inverse(camera->mat4());
-    // TODO cache projection matrix
-    ubo.proj = perspectiveProjection(
-        45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f,
-        100.0f);
 
     vulkanRenderer->startFrame();
-
 
     uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
@@ -124,7 +123,11 @@ void Open4X::run() {
 
     vulkanRenderer->endSwapChainrenderPass();
 
-    vulkanRenderer->endFrame();
+    if(vulkanRenderer->endFrame()){
+    ubo.proj = perspectiveProjection(
+        45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f,
+        100.0f);
+    }
   }
   vkDeviceWaitIdle(vulkanDevice->device());
   delete camera;

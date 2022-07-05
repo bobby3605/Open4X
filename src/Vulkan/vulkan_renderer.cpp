@@ -257,15 +257,17 @@ void VulkanRenderer::startFrame() {
 
 }
 
-void VulkanRenderer::endFrame() {
+bool VulkanRenderer::endFrame() {
   checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
   VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
     recreateSwapChain();
     vulkanWindow->framebufferResized = false;
-    return;
+    // return true if framebuffer was resized
+    return true;
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image");
   }
   currentFrame = (currentFrame + 1) % VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
+  return false;
 }
