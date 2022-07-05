@@ -1,4 +1,7 @@
 #include "vulkan_renderer.hpp"
+#include <cstdint>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "../../external/stb_image.h"
 #include "common.hpp"
@@ -9,8 +12,8 @@
 #include <iostream>
 #include <stdexcept>
 
-VulkanRenderer::VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef)
-    : vulkanWindow{window}, device{deviceRef} {
+VulkanRenderer::VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef, std::vector<VkDescriptorSetLayout> descriptorLayouts)
+  : vulkanWindow{window}, device{deviceRef}, descriptorLayouts{descriptorLayouts} {
   init();
 }
 
@@ -19,11 +22,13 @@ VulkanRenderer::~VulkanRenderer() {
   vkDestroyPipelineLayout(device->device(), pipelineLayout, nullptr);
   delete swapChain;
 
+  /*
   vkDestroySampler(device->device(), textureSampler, nullptr);
   vkDestroyImageView(device->device(), textureImageView, nullptr);
 
   vkDestroyImage(device->device(), textureImage, nullptr);
   vkFreeMemory(device->device(), textureImageMemory, nullptr);
+  */
 
   delete descriptors;
 }
@@ -44,6 +49,10 @@ void VulkanRenderer::bindPipeline() {
 void VulkanRenderer::bindDescriptorSets() {
   vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
                           &descriptors->descriptorSets[currentFrame], 0, nullptr);
+}
+
+void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
+  vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
 }
 
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
@@ -73,6 +82,75 @@ void VulkanRenderer::recreateSwapChain() {
   createPipeline();
 }
 
+
+void VulkanRenderer::loadImage(std::string path, VkSampler& sampler, VkImageView& imageView) {
+  VkImage textureImage;
+  VkDeviceMemory textureImageMemory;
+
+  int texWidth, texHeight, texChannels;
+  stbi_uc *pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+  VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image");
+  }
+
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingBufferMemory;
+
+  device->createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                       stagingBufferMemory);
+
+  void *data;
+  vkMapMemory(device->device(), stagingBufferMemory, 0, imageSize, 0, &data);
+  memcpy(data, pixels, static_cast<size_t>(imageSize));
+  vkUnmapMemory(device->device(), stagingBufferMemory);
+
+  stbi_image_free(pixels);
+
+  device->createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                      textureImage, textureImageMemory);
+
+  device->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  device->copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth),
+                            static_cast<uint32_t>(texHeight));
+  device->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  vkDestroyBuffer(device->device(), stagingBuffer, nullptr);
+  vkFreeMemory(device->device(), stagingBufferMemory, nullptr);
+
+  imageView = swapChain->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+
+  VkSamplerCreateInfo samplerInfo{};
+  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  samplerInfo.magFilter = VK_FILTER_LINEAR;
+  samplerInfo.minFilter = VK_FILTER_LINEAR;
+  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.anisotropyEnable = VK_TRUE;
+
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(device->getPhysicalDevice(), &properties);
+  samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  samplerInfo.unnormalizedCoordinates = VK_FALSE;
+  samplerInfo.compareEnable = VK_FALSE;
+  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  samplerInfo.mipLodBias = 0.0f;
+  samplerInfo.minLod = 0.0f;
+  samplerInfo.maxLod = 0.0f;
+
+  checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &sampler),
+              "failed to create texture sampler!");
+}
+
+/*
 void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos) {
 
   int texWidth, texHeight, texChannels;
@@ -140,6 +218,8 @@ void VulkanRenderer::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bu
   descriptors->createDescriptorSets(bufferInfos, textureImageView, textureSampler);
 }
 
+*/
+
 void VulkanRenderer::createPipeline() {
   VkPushConstantRange pushConstantRange{};
   pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -148,8 +228,8 @@ void VulkanRenderer::createPipeline() {
 
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &descriptors->descriptorSetLayout;
+  pipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
+  pipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
   pipelineLayoutInfo.pushConstantRangeCount = 1;
   pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 

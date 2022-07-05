@@ -3,12 +3,114 @@
 #include "common.hpp"
 #include "vulkan_swapchain.hpp"
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice *deviceRef) : device{deviceRef} {
-  createDescriptorSetLayout();
-  createDescriptorPool();
+  /*
+  VkDescriptorPool pool = createPool();
+  VkDescriptorSetLayout globalL = createLayout(globalLayout());
+  VkDescriptorSetLayout materialL = createLayout(materialLayout());
+
+  std::vector<VkDescriptorSet> globalSets;
+  std::vector<VkDescriptorSet> materialSets;
+
+  createSets(pool, globalL, globalSets);
+  createSets(pool, materialL, materialSets);
+  */
+
+}
+
+void VulkanDescriptors::createSets(VkDescriptorPool pool, VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
+  for(int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
+    sets.push_back(allocateSet(pool, layout));
+  }
+}
+
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::globalLayout(){
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+  VkDescriptorSetLayoutBinding uboLayoutBinding{};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  uboLayoutBinding.pImmutableSamplers = nullptr;
+  bindings.push_back(uboLayoutBinding);
+
+  return bindings;
+}
+
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::passLayout(){
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+  return bindings;
+}
+
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(){
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+  VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+  samplerLayoutBinding.binding = 0;
+  samplerLayoutBinding.descriptorCount = 1;
+  samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  samplerLayoutBinding.pImmutableSamplers = nullptr;
+  samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  bindings.push_back(samplerLayoutBinding);
+
+  return bindings;
+}
+
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout(){
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+  return bindings;
+}
+
+VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings) {
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+  layoutInfo.pBindings = bindings.data();
+
+  VkDescriptorSetLayout layout;
+  checkResult(vkCreateDescriptorSetLayout(device->device(), &layoutInfo, nullptr, &layout), "failed to create descriptor set layout");
+  return layout;
+}
+
+VkDescriptorPool VulkanDescriptors::createPool() {
+  int count = 10*VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
+  std::vector<VkDescriptorPoolSize> poolSizes{};
+  poolSizes.reserve(descriptorTypes.size());
+  for(VkDescriptorType t : descriptorTypes) {
+    poolSizes.push_back({t,uint32_t(count)});
+  }
+
+  VkDescriptorPoolCreateInfo poolInfo{};
+  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+  poolInfo.pPoolSizes = poolSizes.data();
+  poolInfo.maxSets = count*poolSizes.size();
+
+  VkDescriptorPool pool;
+  checkResult(vkCreateDescriptorPool(device->device(), &poolInfo, nullptr, &pool),
+              "failed to create descriptor pool");
+  return pool;
+}
+
+VkDescriptorSet VulkanDescriptors::allocateSet(VkDescriptorPool pool, VkDescriptorSetLayout layout) {
+  VkDescriptorSetAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = pool;
+  allocInfo.descriptorSetCount = 1;
+  allocInfo.pSetLayouts = &layout;
+
+  VkDescriptorSet set;
+
+  checkResult(vkAllocateDescriptorSets(device->device(), &allocInfo, &set),
+              "failed to allocate descriptor sets");
+  return set;
 }
 
 void VulkanDescriptors::createDescriptorSetLayout() {
@@ -37,21 +139,24 @@ void VulkanDescriptors::createDescriptorSetLayout() {
 }
 
 void VulkanDescriptors::createDescriptorPool() {
-  std::array<VkDescriptorPoolSize, 2> poolSizes{};
-  poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-  poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = static_cast<uint32_t>(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+
+  int count = 10*VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
+  std::vector<VkDescriptorPoolSize> poolSizes{};
+  poolSizes.reserve(descriptorTypes.size());
+  for(VkDescriptorType t : descriptorTypes) {
+    poolSizes.push_back({t,uint32_t(count)});
+  }
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
   poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = static_cast<uint32_t>(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+  poolInfo.maxSets = count*poolSizes.size();
 
   checkResult(vkCreateDescriptorPool(device->device(), &poolInfo, nullptr, &descriptorPool),
               "failed to create descriptor pool");
 }
+
 
 void VulkanDescriptors::createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos,
                                              VkImageView textureImageView, VkSampler textureSampler) {
