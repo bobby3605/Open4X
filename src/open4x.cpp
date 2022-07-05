@@ -88,6 +88,7 @@ void Open4X::run() {
 
   VulkanObject obj1(vikingRoomModel, vulkanRenderer);
   VulkanObject obj2(flatVaseModel, vulkanRenderer);
+  obj2.y(1.5f);
   VulkanObject obj3(flatVaseModel, vulkanRenderer);
   camera = new VulkanObject(vulkanRenderer);
 
@@ -118,7 +119,6 @@ void Open4X::run() {
     vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
     obj1.draw();
-    obj2.position.y = 1.5f;
     obj2.draw();
 
     vulkanRenderer->endSwapChainrenderPass();

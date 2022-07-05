@@ -20,6 +20,32 @@ void VulkanObject::draw() {
 
 VulkanObject::VulkanObject(VulkanRenderer *renderer) : renderer{renderer} {}
 
+void VulkanObject::setPostion(glm::vec3 newPosition) {
+  isModelMatrixValid = false;
+  position = newPosition;
+}
+void VulkanObject::setRotation(glm::quat newRotation) {
+  isModelMatrixValid = false;
+  rotation = newRotation;
+}
+void VulkanObject::setScale(glm::vec3 newScale) {
+  isModelMatrixValid = false;
+  scale = newScale;
+}
+
+void VulkanObject::x(float newX) {
+  isModelMatrixValid = false;
+  position.x = newX;
+}
+void VulkanObject::y(float newY) {
+  isModelMatrixValid = false;
+  position.y = newY;
+}
+void VulkanObject::z(float newZ) {
+  isModelMatrixValid = false;
+  position.z = newZ;
+}
+
 void VulkanObject::keyboardUpdate(float frameTime) {
   glm::vec3 rotate{0};
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.yawRight) == GLFW_PRESS)
@@ -36,7 +62,7 @@ void VulkanObject::keyboardUpdate(float frameTime) {
     rotate.z -= 1.f;
 
   if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
-    rotation *= glm::quat(lookSpeed * frameTime * glm::normalize(rotate));
+    setRotation(getRotation() * glm::quat(lookSpeed * frameTime * glm::normalize(rotate)));
   }
 
   const glm::vec3 forwardDir = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
@@ -58,19 +84,22 @@ void VulkanObject::keyboardUpdate(float frameTime) {
     moveDir -= upDir;
 
   if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
-    position += moveSpeed * frameTime * glm::normalize(moveDir);
+    setPostion(getPosition() + (moveSpeed * frameTime * glm::normalize(moveDir)));
   }
 
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), GLFW_KEY_SPACE))
-    std::cout << "Postion: " << glm::to_string(position) << std::endl
-              << "Rotation: " << glm::to_string(rotation) << std::endl;
+    std::cout << "Postion: " << glm::to_string(getPosition()) << std::endl
+              << "Rotation: " << glm::to_string(getRotation()) << std::endl;
 }
 
-glm::mat4 VulkanObject::mat4() {
+glm::mat4 const VulkanObject::mat4() {
+  if(!isModelMatrixValid) {
   glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), {position.x, position.y, position.z});
   glm::mat4 rotationMatrix = glm::toMat4(rotation);
   glm::mat4 scaleMatrix = glm::scale(scale);
-  glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+  cachedModelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+  isModelMatrixValid = true;
+  }
 
-  return modelMatrix;
+  return cachedModelMatrix;
 }

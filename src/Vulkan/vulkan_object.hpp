@@ -13,14 +13,28 @@ public:
   VulkanObject(VulkanRenderer *renderer);
   void keyboardUpdate(float frameTime);
   void draw();
-  glm::mat4 mat4();
-  glm::vec3 position{0.0f, 0.0f, 0.0f};
-  glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
-  glm::vec3 scale{1.0f, 1.0f, 1.0f};
+  glm::mat4 const mat4();
+  glm::vec3 const getPosition() const { return position;}
+  glm::quat const getRotation() const { return rotation;}
+  glm::vec3 const getScale() const { return scale;}
+  void setPostion(glm::vec3 newPosition);
+  void setRotation(glm::quat newRotation);
+  void setScale(glm::vec3 newScale);
+  void x(float newX);
+  void y(float newY);
+  void z(float newZ);
 
 private:
   VulkanModel *model;
   VulkanRenderer *renderer;
+
+  glm::vec3 position{0.0f, 0.0f, 0.0f};
+  glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+  glm::vec3 scale{1.0f, 1.0f, 1.0f};
+
+  bool isModelMatrixValid = false;
+  glm::mat4 cachedModelMatrix{};
+
   struct KeyMappings {
     int moveLeft = GLFW_KEY_A;
     int moveRight = GLFW_KEY_D;
