@@ -304,8 +304,11 @@ void VulkanDevice::pickPhysicalDevice() {
   for (const auto &device : devices) {
     if (isDeviceSuitable(device)) {
       physicalDevice = device;
+      /*
       msaaSamples = getMaxUsableSampleCount();
       std::cout << "MSAA Samples: " << msaaSamples << std::endl;
+      */
+     msaaSamples = VK_SAMPLE_COUNT_1_BIT;
       break;
     }
   }

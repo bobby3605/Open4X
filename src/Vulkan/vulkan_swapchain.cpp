@@ -166,7 +166,7 @@ void VulkanSwapChain::createRenderPass() {
   colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  colorAttachment.finalLayout = device->getMsaaSamples() == VK_SAMPLE_COUNT_1_BIT ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
   VkAttachmentReference colorAttachmentRef{};
   colorAttachmentRef.attachment = 0;
@@ -205,7 +205,7 @@ void VulkanSwapChain::createRenderPass() {
   subpass.colorAttachmentCount = 1;
   subpass.pColorAttachments = &colorAttachmentRef;
   subpass.pDepthStencilAttachment = &depthAttachmentRef;
-  subpass.pResolveAttachments = &colorAttachmentResolveRef;
+  subpass.pResolveAttachments = device->getMsaaSamples() == VK_SAMPLE_COUNT_1_BIT ? VK_NULL_HANDLE : &colorAttachmentResolveRef;
 
   VkSubpassDependency dependency{};
   dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -215,7 +215,8 @@ void VulkanSwapChain::createRenderPass() {
   dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
   dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-  std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
+  std::vector<VkAttachmentDescription> attachments = {colorAttachment, depthAttachment};
+  if (device->getMsaaSamples() != VK_SAMPLE_COUNT_1_BIT) attachments.push_back(colorAttachmentResolve);
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -232,7 +233,12 @@ void VulkanSwapChain::createRenderPass() {
 void VulkanSwapChain::createFramebuffers() {
   swapChainFramebuffers.resize(swapChainImageViews.size());
   for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-    std::array<VkImageView, 3> attachments = {colorImageView, depthImageView, swapChainImageViews[i]};
+    std::vector<VkImageView> attachments;
+    if(device->getMsaaSamples() != VK_SAMPLE_COUNT_1_BIT) {
+      attachments = {colorImageView, depthImageView, swapChainImageViews[i]};
+    } else {
+      attachments = {swapChainImageViews[i], depthImageView};
+    }
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass = renderPass;
