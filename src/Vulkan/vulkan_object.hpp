@@ -1,5 +1,6 @@
 #ifndef VULKAN_OBJECT_H_
 #define VULKAN_OBJECT_H_
+#include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "vulkan_model.hpp"
@@ -48,6 +49,7 @@ private:
     int pitchDown = GLFW_KEY_DOWN;
     int rollLeft = GLFW_KEY_LEFT_CONTROL;
     int rollRight = GLFW_KEY_RIGHT_CONTROL;
+    int speedUp = GLFW_KEY_LEFT_SHIFT;
   };
   KeyMappings keys{};
 

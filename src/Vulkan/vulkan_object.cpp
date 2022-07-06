@@ -47,6 +47,7 @@ void VulkanObject::z(float newZ) {
 
 void VulkanObject::keyboardUpdate(float frameTime) {
   glm::vec3 rotate{0};
+  float speedUp = 1;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.yawRight) == GLFW_PRESS)
     rotate.y -= 1.f;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.yawLeft) == GLFW_PRESS)
@@ -59,9 +60,11 @@ void VulkanObject::keyboardUpdate(float frameTime) {
     rotate.z += 1.f;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.rollRight) == GLFW_PRESS)
     rotate.z -= 1.f;
+  if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.speedUp) == GLFW_PRESS)
+    speedUp = 2;
 
   if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
-    setRotation(getRotation() * glm::quat(lookSpeed * frameTime * glm::normalize(rotate)));
+    setRotation(getRotation() * glm::quat(speedUp * lookSpeed * frameTime * glm::normalize(rotate)));
   }
 
   const glm::vec3 forwardDir = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
@@ -69,6 +72,7 @@ void VulkanObject::keyboardUpdate(float frameTime) {
   const glm::vec3 upDir = rotation * glm::vec3(0.f, -1.0f, 0.f);
 
   glm::vec3 moveDir{0.f};
+  speedUp = 1;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.moveForward) == GLFW_PRESS)
     moveDir += forwardDir;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.moveBackward) == GLFW_PRESS)
@@ -81,9 +85,11 @@ void VulkanObject::keyboardUpdate(float frameTime) {
     moveDir += upDir;
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.moveDown) == GLFW_PRESS)
     moveDir -= upDir;
+  if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.speedUp) == GLFW_PRESS)
+    speedUp = 5;
 
   if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
-    setPostion(getPosition() + (moveSpeed * frameTime * glm::normalize(moveDir)));
+    setPostion(getPosition() + (speedUp * moveSpeed * frameTime * glm::normalize(moveDir)));
   }
 
   if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), GLFW_KEY_SPACE))
