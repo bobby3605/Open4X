@@ -8,8 +8,6 @@ public:
   VulkanDescriptors(VulkanDevice *deviceRef);
   VkDescriptorSetLayout descriptorSetLayout;
   ~VulkanDescriptors();
-  void createDescriptorSets(std::vector<VkDescriptorBufferInfo> bufferInfos, VkImageView textureImageView,
-                            VkSampler textureSampler);
   std::vector<VkDescriptorSet> descriptorSets;
 
     VkDescriptorPool createPool();

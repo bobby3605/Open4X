@@ -1,6 +1,8 @@
 #include "vulkan_model.hpp"
 #include "../../external/stb_image.h"
 #include "vulkan_renderer.hpp"
+#include <algorithm>
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
@@ -62,6 +64,8 @@ void VulkanModel::loadImage(std::string path) {
     throw std::runtime_error("failed to load texture image");
   }
 
+  mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
   VulkanBuffer stagingBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -71,19 +75,20 @@ void VulkanModel::loadImage(std::string path) {
 
   stbi_image_free(pixels);
 
-  device->createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+  device->createImage(texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                       image, imageMemory);
 
   device->singleTimeCommands()
       .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels)
       .copyBufferToImage(stagingBuffer.buffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
-      .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    // TODO
+    // Save and load mipmaps from a file
+      .generateMipmaps(image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels)
       .run();
 
-  imageView = device->createImageView(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+  imageView = device->createImageView(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -104,7 +109,7 @@ void VulkanModel::loadImage(std::string path) {
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.mipLodBias = 0.0f;
   samplerInfo.minLod = 0.0f;
-  samplerInfo.maxLod = 0.0f;
+  samplerInfo.maxLod = static_cast<float>(mipLevels);
 
   checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &imageSampler),
               "failed to create texture sampler!");
@@ -127,6 +132,7 @@ void VulkanModel::loadImage(std::string path) {
 
   vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
 }
+
 
 void VulkanModel::draw(VulkanRenderer *renderer) {
 

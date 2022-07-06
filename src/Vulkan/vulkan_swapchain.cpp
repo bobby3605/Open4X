@@ -148,7 +148,7 @@ void VulkanSwapChain::createImageViews() {
   swapChainImageViews.resize(swapChainImages.size());
   for (size_t i = 0; i < swapChainImages.size(); i++) {
     swapChainImageViews[i] =
-        device->createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+        device->createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
   }
 }
 
@@ -298,10 +298,10 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer *buffer, ui
 
 void VulkanSwapChain::createDepthResources() {
   VkFormat depthFormat = findDepthFormat();
-  device->createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+  device->createImage(swapChainExtent.width, swapChainExtent.height, 1, depthFormat, VK_IMAGE_TILING_OPTIMAL,
                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage,
                       depthImageMemory);
-  depthImageView = device->createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+  depthImageView = device->createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
 
 VkFormat VulkanSwapChain::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,

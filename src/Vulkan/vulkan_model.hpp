@@ -3,6 +3,7 @@
 
 #include "vulkan_descriptors.hpp"
 #include "vulkan_renderer.hpp"
+#include <cstdint>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "vulkan_buffer.hpp"
@@ -79,6 +80,7 @@ private:
     VkImageView imageView;
   VkImage image;
   VkDeviceMemory imageMemory;
+    uint32_t mipLevels;
 
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
