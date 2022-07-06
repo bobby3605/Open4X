@@ -9,6 +9,30 @@
 #include <set>
 #include <vulkan/vulkan_core.h>
 
+VkFence VulkanDevice::getFence() {
+  uint32_t createCount = 10;
+  VkFence fence;
+  if (fencePool.size() == 0) {
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (int i = 0; i < createCount; i++) {
+      checkResult(vkCreateFence(device_, &fenceInfo, nullptr, &fence), "failed to create single time fence");
+      fencePool.push_back(fence);
+    }
+    vkResetFences(device_, createCount, fencePool.data());
+  }
+  fence = fencePool.back();
+  fencePool.pop_back();
+  return fence;
+}
+
+void VulkanDevice::releaseFence(VkFence fence) {
+  vkResetFences(device_, 1, &fence);
+  fencePool.push_back(fence);
+}
+
 VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -22,8 +46,7 @@ VkImageView VulkanDevice::createImageView(VkImage image, VkFormat format, VkImag
   viewInfo.subresourceRange.layerCount = 1;
 
   VkImageView imageView;
-  checkResult(vkCreateImageView(device_, &viewInfo, nullptr, &imageView),
-              "failed to create texture image view!");
+  checkResult(vkCreateImageView(device_, &viewInfo, nullptr, &imageView), "failed to create texture image view!");
 
   return imageView;
 }
@@ -386,24 +409,12 @@ void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
-  // TODO
-  // Create a handful of fences at start time,
-  // then dynamically allocate as needed,
-  // in order to not call vkCreateFence every time.
-  VkFenceCreateInfo fenceInfo{};
-  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-  VkFence fence;
-  checkResult(vkCreateFence(device_, &fenceInfo, nullptr, &fence), "failed to create single time fence");
-  vkResetFences(device_, 1, &fence);
-
+  VkFence fence = getFence();
   vkQueueSubmit(graphicsQueue_, 1, &submitInfo, fence);
   vkWaitForFences(device_, 1, &fence, VK_TRUE, UINT64_MAX);
+  releaseFence(fence);
 
   vkFreeCommandBuffers(device_, singleTimeCommandPool, 1, &commandBuffer);
-
-  vkDestroyFence(device_, fence, nullptr);
 }
 
 void VulkanDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -525,6 +536,9 @@ VulkanDevice::VulkanDevice(VulkanWindow *window) : window{window} {
 }
 
 VulkanDevice::~VulkanDevice() {
+  for (VkFence fence : fencePool) {
+    vkDestroyFence(device_, fence, nullptr);
+  }
   vkDestroyCommandPool(device_, commandPool_, nullptr);
   vkDestroyCommandPool(device_, singleTimeCommandPool, nullptr);
   vkDestroyDevice(device_, nullptr);

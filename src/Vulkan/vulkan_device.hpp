@@ -52,6 +52,9 @@ public:
 
   void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
+  VkFence getFence();
+  void releaseFence(VkFence fence);
+
 private:
   VulkanWindow *window;
   VkInstance instance;
@@ -71,6 +74,8 @@ private:
   void pickPhysicalDevice();
   void createLogicalDevice();
   VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
+
+  std::vector<VkFence> fencePool;
 
   QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
   bool checkDeviceExtensionSupport(VkPhysicalDevice device);
