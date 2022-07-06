@@ -382,26 +382,32 @@ void VulkanDevice::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
   vkBindBufferMemory(device_, buffer, bufferMemory, 0);
 }
 
-VkCommandBuffer VulkanDevice::beginSingleTimeCommands() {
+VulkanDevice::singleTimeBuilder &VulkanDevice::singleTimeCommands() {
+  return *(new singleTimeBuilder(this, singleTimeCommandPool));
+}
+
+VulkanDevice::singleTimeBuilder::singleTimeBuilder(VulkanDevice *vulkanDevice, VkCommandPool commandPool)
+    : vulkanDevice(vulkanDevice), commandPool(commandPool) {
+  beginSingleTimeCommands();
+}
+
+void VulkanDevice::singleTimeBuilder::beginSingleTimeCommands() {
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = singleTimeCommandPool;
+  allocInfo.commandPool = commandPool;
   allocInfo.commandBufferCount = 1;
 
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(device_, &allocInfo, &commandBuffer);
+  vkAllocateCommandBuffers(vulkanDevice->device(), &allocInfo, &commandBuffer);
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
   vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-  return commandBuffer;
 }
 
-void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+void VulkanDevice::singleTimeBuilder::endSingleTimeCommands() {
   vkEndCommandBuffer(commandBuffer);
 
   VkSubmitInfo submitInfo{};
@@ -409,24 +415,28 @@ void VulkanDevice::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
-  VkFence fence = getFence();
-  vkQueueSubmit(graphicsQueue_, 1, &submitInfo, fence);
-  vkWaitForFences(device_, 1, &fence, VK_TRUE, UINT64_MAX);
-  releaseFence(fence);
+  VkFence fence = vulkanDevice->getFence();
+  vkQueueSubmit(vulkanDevice->graphicsQueue(), 1, &submitInfo, fence);
+  vkWaitForFences(vulkanDevice->device(), 1, &fence, VK_TRUE, UINT64_MAX);
+  vulkanDevice->releaseFence(fence);
 
-  vkFreeCommandBuffers(device_, singleTimeCommandPool, 1, &commandBuffer);
+  vkFreeCommandBuffers(vulkanDevice->device(), commandPool, 1, &commandBuffer);
 }
 
-void VulkanDevice::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+void VulkanDevice::singleTimeBuilder::run() {
+  endSingleTimeCommands();
+  delete this;
+}
 
+VulkanDevice::singleTimeBuilder &VulkanDevice::singleTimeBuilder::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
+                                                                             VkDeviceSize size) {
   VkBufferCopy copyRegion{};
   copyRegion.srcOffset = 0;
   copyRegion.dstOffset = 0;
   copyRegion.size = size;
   vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-  endSingleTimeCommands(commandBuffer);
+  return *this;
 }
 
 void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
@@ -462,10 +472,9 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
   vkBindImageMemory(device_, image, imageMemory, 0);
 }
 
-void VulkanDevice::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                         VkImageLayout newLayout) {
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
+VulkanDevice::singleTimeBuilder &VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkFormat format,
+                                                                                        VkImageLayout oldLayout,
+                                                                                        VkImageLayout newLayout) {
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   barrier.oldLayout = oldLayout;
@@ -500,13 +509,11 @@ void VulkanDevice::transitionImageLayout(VkImage image, VkFormat format, VkImage
   }
 
   vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-  endSingleTimeCommands(commandBuffer);
+  return *this;
 }
 
-void VulkanDevice::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
+VulkanDevice::singleTimeBuilder &VulkanDevice::singleTimeBuilder::copyBufferToImage(VkBuffer buffer, VkImage image,
+                                                                                    uint32_t width, uint32_t height) {
   VkBufferImageCopy region{};
   region.bufferOffset = 0;
   region.bufferRowLength = 0;
@@ -522,7 +529,7 @@ void VulkanDevice::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t wi
 
   vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-  endSingleTimeCommands(commandBuffer);
+  return *this;
 }
 
 VulkanDevice::VulkanDevice(VulkanWindow *window) : window{window} {

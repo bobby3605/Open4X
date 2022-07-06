@@ -42,7 +42,7 @@ StagedBuffer::StagedBuffer(VulkanDevice *device, void *data, VkDeviceSize size, 
   stagedBuffer =
       new VulkanBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-  device->copyBuffer(stagingBuffer.buffer, stagedBuffer->buffer, size);
+  device->singleTimeCommands().copyBuffer(stagingBuffer.buffer, stagedBuffer->buffer, size).run();
 }
 
 StagedBuffer::~StagedBuffer() { delete stagedBuffer; }

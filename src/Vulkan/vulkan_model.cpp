@@ -4,11 +4,13 @@
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
-#include <unordered_map>
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
+#include <unordered_map>
 
-VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path) : device{device}, descriptorManager{descriptorManager} {
+VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, std::string model_path,
+                         std::string texture_path)
+    : device{device}, descriptorManager{descriptorManager} {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
@@ -60,7 +62,8 @@ void VulkanModel::loadImage(std::string path) {
     throw std::runtime_error("failed to load texture image");
   }
 
-  VulkanBuffer stagingBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  VulkanBuffer stagingBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
   stagingBuffer.map();
   stagingBuffer.write(pixels, imageSize);
@@ -68,18 +71,17 @@ void VulkanModel::loadImage(std::string path) {
 
   stbi_image_free(pixels);
 
-  // TODO
-  // Use a builder to schedule these in the same command buffer
   device->createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
                       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                       image, imageMemory);
 
-  device->transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-  device->copyBufferToImage(stagingBuffer.buffer, image, static_cast<uint32_t>(texWidth),
-                            static_cast<uint32_t>(texHeight));
-  device->transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  device->singleTimeCommands()
+      .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+      .copyBufferToImage(stagingBuffer.buffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
+      .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+      .run();
 
   imageView = device->createImageView(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -109,38 +111,36 @@ void VulkanModel::loadImage(std::string path) {
 
   materialSet = descriptorManager->allocateSet(descriptorManager->getMaterial());
 
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = imageView;
-    imageInfo.sampler = imageSampler;
+  VkDescriptorImageInfo imageInfo{};
+  imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  imageInfo.imageView = imageView;
+  imageInfo.sampler = imageSampler;
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = materialSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
+  VkWriteDescriptorSet descriptorWrite{};
+  descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrite.dstSet = materialSet;
+  descriptorWrite.dstBinding = 0;
+  descriptorWrite.dstArrayElement = 0;
+  descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  descriptorWrite.descriptorCount = 1;
+  descriptorWrite.pImageInfo = &imageInfo;
 
-    vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0,
-                           nullptr);
+  vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanModel::draw(VulkanRenderer* renderer) {
+void VulkanModel::draw(VulkanRenderer *renderer) {
 
   VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
   VkDeviceSize offsets[] = {0};
 
   renderer->bindDescriptorSet(1, materialSet);
 
-    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
   vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
   vkCmdDrawIndexed(renderer->getCurrentCommandBuffer(), static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
-
 
 VulkanModel::~VulkanModel() {
   delete vertexBuffer;
@@ -150,5 +150,4 @@ VulkanModel::~VulkanModel() {
   vkDestroyImageView(device->device(), imageView, nullptr);
   vkDestroyImage(device->device(), image, nullptr);
   vkFreeMemory(device->device(), imageMemory, nullptr);
-
 }
