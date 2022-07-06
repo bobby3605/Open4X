@@ -131,9 +131,7 @@ void VulkanRenderer::createPipeline() {
   multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
   multisampling.rasterizationSamples = device->getMsaaSamples();
-  /* Sample Shading
-  multisampling.sampleShadingEnable = VK_TRUE;
-  */
+  multisampling.sampleShadingEnable = device->getSampleShading();
   multisampling.minSampleShading = 1.0f;
   multisampling.pSampleMask = nullptr;
   multisampling.alphaToCoverageEnable = VK_FALSE;

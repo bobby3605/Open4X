@@ -304,11 +304,8 @@ void VulkanDevice::pickPhysicalDevice() {
   for (const auto &device : devices) {
     if (isDeviceSuitable(device)) {
       physicalDevice = device;
-      /*
-      msaaSamples = getMaxUsableSampleCount();
+      if(msaaEnable == VK_TRUE) msaaSamples = getMaxUsableSampleCount();
       std::cout << "MSAA Samples: " << msaaSamples << std::endl;
-      */
-     msaaSamples = VK_SAMPLE_COUNT_1_BIT;
       break;
     }
   }
@@ -335,9 +332,7 @@ void VulkanDevice::createLogicalDevice() {
 
   VkPhysicalDeviceFeatures deviceFeatures{};
   deviceFeatures.samplerAnisotropy = VK_TRUE;
-  /* Sample Shading
-  deviceFeatures.sampleRateShading = VK_TRUE;
-  */
+  deviceFeatures.sampleRateShading = sampleShading;
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

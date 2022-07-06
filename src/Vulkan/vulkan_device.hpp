@@ -39,6 +39,7 @@ public:
   VkQueue presentQueue() { return presentQueue_; }
   VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
   const VkSampleCountFlagBits getMsaaSamples() const { return msaaSamples; }
+  const VkBool32 getSampleShading() const { return sampleShading; }
 
   VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
@@ -88,7 +89,9 @@ private:
   VkQueue graphicsQueue_;
   VkQueue presentQueue_;
 
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+  VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+  VkBool32 msaaEnable = VK_FALSE;
+  VkBool32 sampleShading = VK_FALSE;
 
   void createInstance();
   void setupDebugMessenger();
