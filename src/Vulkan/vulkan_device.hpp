@@ -38,6 +38,7 @@ public:
   VkQueue graphicsQueue() { return graphicsQueue_; }
   VkQueue presentQueue() { return presentQueue_; }
   VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
+  const VkSampleCountFlagBits getMsaaSamples() const { return msaaSamples; }
 
   VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
   SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
@@ -46,7 +47,7 @@ public:
   void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer,
                     VkDeviceMemory &bufferMemory);
 
-  void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+  void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory);
 
   VkFence getFence();
@@ -87,6 +88,8 @@ private:
   VkQueue graphicsQueue_;
   VkQueue presentQueue_;
 
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
   void createInstance();
   void setupDebugMessenger();
   void createSurface();
@@ -103,6 +106,7 @@ private:
   bool checkValidationLayerSupport();
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
   uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+  VkSampleCountFlagBits getMaxUsableSampleCount();
 
   const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
   const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};

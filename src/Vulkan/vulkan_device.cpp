@@ -9,6 +9,25 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
+VkSampleCountFlagBits VulkanDevice::getMaxUsableSampleCount(){
+  VkPhysicalDeviceProperties physicalDeviceProperties;
+  vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+  VkSampleCountFlags counts =
+    physicalDeviceProperties.limits.framebufferColorSampleCounts &
+    physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+
+  if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+  if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+  if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+  if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+  if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+  if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+  return VK_SAMPLE_COUNT_1_BIT;
+
+}
+
 VkFence VulkanDevice::getFence() {
   uint32_t createCount = 10;
   VkFence fence;
@@ -285,6 +304,8 @@ void VulkanDevice::pickPhysicalDevice() {
   for (const auto &device : devices) {
     if (isDeviceSuitable(device)) {
       physicalDevice = device;
+      msaaSamples = getMaxUsableSampleCount();
+      std::cout << "MSAA Samples: " << msaaSamples << std::endl;
       break;
     }
   }
@@ -311,6 +332,9 @@ void VulkanDevice::createLogicalDevice() {
 
   VkPhysicalDeviceFeatures deviceFeatures{};
   deviceFeatures.samplerAnisotropy = VK_TRUE;
+  /* Sample Shading
+  deviceFeatures.sampleRateShading = VK_TRUE;
+  */
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -439,7 +463,7 @@ VulkanDevice::singleTimeBuilder &VulkanDevice::singleTimeBuilder::copyBuffer(VkB
   return *this;
 }
 
-void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling,
+void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,VkFormat format, VkImageTiling tiling,
                                VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image,
                                VkDeviceMemory &imageMemory) {
   VkImageCreateInfo imageInfo{};
@@ -454,7 +478,7 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLeve
   imageInfo.tiling = tiling;
   imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   imageInfo.usage = usage;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  imageInfo.samples = numSamples;
   imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
   checkResult(vkCreateImage(device_, &imageInfo, nullptr, &image), "failed to create image");

@@ -1,5 +1,6 @@
 #include "vulkan_renderer.hpp"
 #include "vulkan_descriptors.hpp"
+#include "vulkan_device.hpp"
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -129,7 +130,10 @@ void VulkanRenderer::createPipeline() {
   VkPipelineMultisampleStateCreateInfo multisampling{};
   multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
-  multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  multisampling.rasterizationSamples = device->getMsaaSamples();
+  /* Sample Shading
+  multisampling.sampleShadingEnable = VK_TRUE;
+  */
   multisampling.minSampleShading = 1.0f;
   multisampling.pSampleMask = nullptr;
   multisampling.alphaToCoverageEnable = VK_FALSE;

@@ -24,6 +24,7 @@ private:
   void createSwapChain();
   void createImageViews();
   void createRenderPass();
+  void createColorResources();
   void createDepthResources();
   void createFramebuffers();
   void createSyncObjects();
@@ -57,7 +58,11 @@ private:
   VkDeviceMemory depthImageMemory;
   VkImageView depthImageView;
 
-    VkSwapchainKHR oldSwapChain;
+  VkImage colorImage;
+  VkDeviceMemory colorImageMemory;
+  VkImageView colorImageView;
+
+  VkSwapchainKHR oldSwapChain;
 };
 
 #endif // VULKAN_SWAPCHAIN_H_
