@@ -13,8 +13,8 @@
 #include <iostream>
 #include <stdexcept>
 
-VulkanRenderer::VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef, VulkanDescriptors* descriptorManager)
-  : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager} {
+VulkanRenderer::VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef, VulkanDescriptors *descriptorManager)
+    : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager} {
   init();
 }
 
@@ -48,12 +48,11 @@ void VulkanRenderer::bindPipeline() {
   vkCmdSetScissor(getCurrentCommandBuffer(), 0, 1, &scissor);
 
   vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
-
-
 }
 
 void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
-  vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
+  vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1,
+                          &set, 0, nullptr);
 }
 
 VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
@@ -185,9 +184,9 @@ void VulkanRenderer::createPipeline() {
   pipelineInfo.pVertexInputState = nullptr;
   //
   pipelineInfo.pInputAssemblyState = &inputAssembly;
-  //VK_DYNAMIC_STATE_VIEWPORT specifies that the pViewports state in VkPipelineViewportStateCreateInfo will be ignored and
-  //must be set dynamically with vkCmdSetViewport before any drawing commands.
-  //The number of viewports used by a pipeline is still specified by the viewportCount member of VkPipelineViewportStateCreateInfo.
+  // VK_DYNAMIC_STATE_VIEWPORT specifies that the pViewports state in VkPipelineViewportStateCreateInfo will be ignored
+  // and must be set dynamically with vkCmdSetViewport before any drawing commands. The number of viewports used by a
+  // pipeline is still specified by the viewportCount member of VkPipelineViewportStateCreateInfo.
   pipelineInfo.pViewportState = &viewportState;
   pipelineInfo.pRasterizationState = &rasterizer;
   pipelineInfo.pMultisampleState = &multisampling;
@@ -254,7 +253,6 @@ void VulkanRenderer::startFrame() {
 
   checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),
               "failed to begin recording command buffer");
-
 }
 
 bool VulkanRenderer::endFrame() {

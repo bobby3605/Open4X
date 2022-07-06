@@ -10,11 +10,11 @@
 #include <vulkan/vulkan_core.h>
 
 VulkanSwapChain::VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent)
-    : device{deviceRef}, windowExtent{windowExtent} {
+    : device{deviceRef}, windowExtent{windowExtent}, oldSwapChain(VK_NULL_HANDLE) {
   init();
 }
 
-VulkanSwapChain::VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain)
+VulkanSwapChain::VulkanSwapChain(VulkanDevice *deviceRef, VkExtent2D windowExtent, VulkanSwapChain *oldSwapChain)
     : device{deviceRef}, windowExtent{windowExtent}, oldSwapChain(oldSwapChain->swapChain) {
   init();
   delete oldSwapChain;
@@ -134,7 +134,6 @@ void VulkanSwapChain::createSwapChain() {
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = VK_NULL_HANDLE;
 
   checkResult(vkCreateSwapchainKHR(device->device(), &createInfo, nullptr, &swapChain), "failed to create swap chain");
 
@@ -148,7 +147,8 @@ void VulkanSwapChain::createSwapChain() {
 void VulkanSwapChain::createImageViews() {
   swapChainImageViews.resize(swapChainImages.size());
   for (size_t i = 0; i < swapChainImages.size(); i++) {
-    swapChainImageViews[i] = device->createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    swapChainImageViews[i] =
+        device->createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
   }
 }
 
