@@ -25,6 +25,8 @@ file(GLOB SOURCES
   src/*.cpp
   src/Vulkan/*.hpp
   src/Vulkan/*.cpp
+  src/glTF/*.hpp
+  src/glTF/*.cpp
   external/*.h
   )
 
