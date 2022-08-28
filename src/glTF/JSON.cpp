@@ -243,7 +243,7 @@ const JSONnode::valueType JSONnode::parse() {
       // string key
       _key = tokenizer->getAlphaNum();
       std::cout << "Found key: " << _key << std::endl;
-      // Need to unget here because getToken in string and at the top of the if statement,
+      // Need to unget here when called from string parse because getToken in string and at the top of the if statement,
       // skips over the value
       tokenizer->unget();
       _value = parse();
