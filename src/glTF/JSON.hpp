@@ -44,7 +44,7 @@ private:
 
 class JSONnode {
 public:
-  typedef std::variant<std::string, int, double, bool, std::vector<JSONnode>> valueType;
+  typedef std::variant<std::string, int, float, bool, std::vector<JSONnode>> valueType;
   JSONnode(std::ifstream &file);
   void print();
   const std::string key() { return _key; }

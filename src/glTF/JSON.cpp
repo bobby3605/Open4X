@@ -2,30 +2,29 @@
 
 void JSONnode::print() {
   std::cout << '"' << key() << '"' << " : ";
-  // Can't distinguish between object and array
-  if (std::holds_alternative<std::vector<JSONnode>>(value())) {
+  // It won't let me do std::get<value().index()>(value())
+  // Probably because the type isn't constant
+  switch (value().index()) {
+  case 0:
+    std::cout << std::get<0>(value()) << std::endl;
+    break;
+  case 1:
+    std::cout << std::get<1>(value()) << std::endl;
+    break;
+  case 2:
+    std::cout << std::get<2>(value()) << std::endl;
+    break;
+  case 3:
+    std::cout << std::get<3>(value()) << std::endl;
+    break;
+  case 4:
     std::cout << "{" << std::endl;
-    for (JSONnode n : std::get<std::vector<JSONnode>>(value())) {
+    std::vector<JSONnode> v = std::get<4>(value());
+    for (JSONnode n : v) {
       n.print();
     }
     std::cout << "}" << std::endl;
-  } else {
-    // It won't let me do std::get<value().index()>(value())
-    // Probably because the type isn't constant
-    switch (value().index()) {
-    case 0:
-      std::cout << std::get<0>(value()) << std::endl;
-      break;
-    case 1:
-      std::cout << std::get<1>(value()) << std::endl;
-      break;
-    case 2:
-      std::cout << std::get<2>(value()) << std::endl;
-      break;
-    case 3:
-      std::cout << std::get<3>(value()) << std::endl;
-      break;
-    }
+    break;
   }
 }
 
@@ -97,7 +96,6 @@ std::string Tokenizer::getAlphaNum() {
 void Tokenizer::get(tokenTypes &token) {
   token = tokens.at(currToken);
   ++currToken;
-  std::cout << "Getting token: " << tokenString(token) << std::endl;
 }
 
 void Tokenizer::unget() { --currToken; }
@@ -121,19 +119,18 @@ Tokenizer::Tokenizer(std::ifstream &file) {
     }
     if (file.eof())
       break;
-    std::cout << "Switching: " << c << std::endl;
     switch (c) {
     case '{':
-      tokens.push_back(OPENBRACKET);
-      break;
-    case '}':
-      tokens.push_back(CLOSEBRACKET);
-      break;
-    case '[':
       tokens.push_back(OPENBRACE);
       break;
-    case ']':
+    case '}':
       tokens.push_back(CLOSEBRACE);
+      break;
+    case '[':
+      tokens.push_back(OPENBRACKET);
+      break;
+    case ']':
+      tokens.push_back(CLOSEBRACKET);
       break;
     case ',':
       tokens.push_back(COMMA);
@@ -141,7 +138,6 @@ Tokenizer::Tokenizer(std::ifstream &file) {
     case '"':
       tokens.push_back(STRING);
       getString(file);
-      std::cout << "Adding string: " << strings.back() << std::endl;
       break;
     case ':':
       tokens.push_back(COLON);
@@ -162,7 +158,6 @@ Tokenizer::Tokenizer(std::ifstream &file) {
     default:
       tokens.push_back(NUMBER);
       getNum(file);
-      std::cout << "Adding number: " << strings.back() << std::endl;
     }
   }
 }
@@ -184,40 +179,40 @@ void Tokenizer::getNum(std::ifstream &file) {
   file.unget();
   char c;
   std::string string;
-  string.push_back(c);
-  file.get(c);
-  while (c != ',' && !isspace(c)) {
-    string.push_back(c);
+
+  do {
     file.get(c);
-  }
+    string.push_back(c);
+  } while (c != ',' && !isspace(c));
+  // pop the comma or space off the number-string
+  string.pop_back();
+  // push the number-string into the strings vector
+  strings.push_back(string);
   // if it ended on a comma, restore it file.get() for object and array parsing
   if (c == ',') {
     file.unget();
   }
-  strings.push_back(string);
 }
 
 JSONnode::JSONnode(std::ifstream &file) {
   tokenizer = std::shared_ptr<Tokenizer>(new Tokenizer(file));
-  // tokenizer = new Tokenizer(file);
   _value = parse();
+  std::vector<JSONnode> tmp = std::get<std::vector<JSONnode>>(_value);
+  std::cout << "Size: " << tmp.size() << std::endl;
 }
 
-JSONnode::JSONnode(std::shared_ptr<Tokenizer> tokenizer) : tokenizer{tokenizer} { parse(); }
+JSONnode::JSONnode(std::shared_ptr<Tokenizer> tokenizer) : tokenizer{tokenizer} { _value = parse(); }
 
 const JSONnode::valueType JSONnode::parse() {
   valueType outputValue;
   tokenTypes token;
   tokenizer->get(token);
-  std::cout << "Parsing token: " << tokenizer->tokenString(token) << std::endl;
   if (token == OPENBRACE) {
     std::vector<JSONnode> nodes;
-    outputValue = nodes;
     // Get all fields of object
     do {
       nodes.push_back(JSONnode(tokenizer));
       tokenizer->get(token);
-      std::cout << "Got token on open brace: " << tokenizer->tokenString(token) << std::endl;
     } while (token == COMMA);
     // Check if close bracket after parsing the object
     if (token != CLOSEBRACE) {
@@ -225,9 +220,10 @@ const JSONnode::valueType JSONnode::parse() {
       err.append("Expected: " + std::to_string(CLOSEBRACE) + " got: " + std::to_string(token) + "\n");
       std::runtime_error(err.c_str());
     }
+    // This assignment has to be after filling the vector, otherwise it returns an empty vector
+    outputValue = nodes;
   } else if (token == OPENBRACKET) {
     std::vector<JSONnode> nodes;
-    outputValue = nodes;
     do {
       nodes.push_back(JSONnode(tokenizer));
       tokenizer->get(token);
@@ -237,20 +233,19 @@ const JSONnode::valueType JSONnode::parse() {
       err.append("Expected: " + std::to_string(CLOSEBRACKET) + " got: " + std::to_string(token) + "\n");
       std::runtime_error(err.c_str());
     }
+    outputValue = nodes;
   } else if (token == STRING) {
     tokenizer->get(token);
+    // Have to unget here because a token gets skipped when called from string token and _value = parse();
+    // Token gets skipped because both the top of if statement and string gets a token
+    if (token == COMMA || token == OPENBRACE || token == CLOSEBRACE || token == OPENBRACKET || token == CLOSEBRACKET) {
+      tokenizer->unget();
+    }
     if (token == COLON) {
       // string key
       _key = tokenizer->getAlphaNum();
-      std::cout << "Found key: " << _key << std::endl;
-      // Need to unget here when called from string parse because getToken in string and at the top of the if statement,
-      // skips over the value
-      tokenizer->unget();
       _value = parse();
-      if (std::holds_alternative<std::string>(_value)) {
-        std::cout << "String value: " << std::get<std::string>(_value) << std::endl;
-      }
-      // Don't need to set outputValue here since this should run when creating objects or arrays
+      outputValue = _value;
     } else {
       // string or number value
       outputValue = tokenizer->getAlphaNum();
@@ -263,14 +258,15 @@ const JSONnode::valueType JSONnode::parse() {
   } else if (token == JSON_NULL) {
   } else if (token == NUMBER) {
     std::string string = tokenizer->getAlphaNum();
-    try {
-      outputValue = std::atoi(string.c_str());
-    } catch (std::exception &e) {
-      try {
-        outputValue = std::atof(string.c_str());
-      } catch (std::exception &e) {
-        std::cout << "Failed to parse: $" << string << "$" << std::endl;
-      }
+    bool isFloat = false;
+    for (char numberChar : string) {
+      if (numberChar == '.')
+        isFloat = true;
+    }
+    if (isFloat) {
+      outputValue = std::stof(string);
+    } else {
+      outputValue = std::stoi(string);
     }
   } else {
     std::string err;
