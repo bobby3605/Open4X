@@ -1,5 +1,6 @@
 #ifndef GLB_H_
 #define GLB_H_
+#include "JSON.hpp"
 #include <string>
 #include <vector>
 
@@ -8,20 +9,9 @@ public:
   GLB(std::string filePath);
 
 private:
-  class Chunk {
-  public:
-    Chunk(std::ifstream &file);
-    const uint32_t chunkLength() { return _chunkLength; }
-    const uint32_t chunkType() { return _chunkType; }
-    void print();
-
-  private:
-    uint32_t _chunkLength;
-    uint32_t _chunkType;
-    std::vector<unsigned char> chunkData;
-  };
   static uint32_t readuint32(std::ifstream &file);
-  std::vector<Chunk> chunks;
+  std::vector<JSONnode> jsonChunks;
+  std::vector<std::vector<unsigned char>> binaryChunks;
 };
 
 #endif // GLB_H_
