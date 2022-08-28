@@ -10,7 +10,7 @@
 
 class JSONnode {
 public:
-  typedef std::variant<std::string, int, float, bool, std::vector<JSONnode>> valueType;
+  typedef std::variant<std::string, int, double, bool, std::vector<JSONnode>> valueType;
   JSONnode(std::ifstream &file);
   // jsonString must have no whitespace
   JSONnode(std::stringstream &jsonString);
@@ -24,6 +24,8 @@ private:
   const valueType parse(std::stringstream &jsonString);
   std::string getString(std::stringstream &jsonString);
   std::string getNum(std::stringstream &jsonString);
+  // 0 for array or value, 1 for object
+  bool type = 0;
 };
 
 #endif // JSON_H_

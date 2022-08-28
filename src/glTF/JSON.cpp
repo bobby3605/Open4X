@@ -8,7 +8,9 @@ void JSONnode::print() {
   // Probably because the type isn't constant
   switch (value().index()) {
   case 0:
+    std::cout << '"';
     std::cout << std::get<0>(value());
+    std::cout << '"';
     break;
   case 1:
     std::cout << std::get<1>(value());
@@ -20,12 +22,16 @@ void JSONnode::print() {
     std::cout << std::get<3>(value());
     break;
   case 4:
-    std::cout << "{";
+    // check if object or array
+    std::cout << (type ? "[" : "{");
     std::vector<JSONnode> v = std::get<4>(value());
-    for (JSONnode n : v) {
-      n.print();
+    for (long unsigned int i = 0; i < v.size(); ++i) {
+      v[i].print();
+      if (i != v.size() - 1) {
+        std::cout << ",";
+      }
     }
-    std::cout << "}";
+    std::cout << (type ? "]" : "}");
     break;
   }
 }
@@ -91,6 +97,8 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
     // This assignment has to be after filling the vector, otherwise it returns an empty vector
     outputValue = nodes;
   } else if (c == '[') {
+    // set it as an array type
+    type = 1;
     std::vector<JSONnode> nodes;
     do {
       nodes.push_back(JSONnode(jsonString));
@@ -130,13 +138,13 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
     jsonString.seekg(3, std::ios_base::cur);
   } else {
     std::string string = getNum(jsonString);
-    bool isFloat = false;
+    bool isDouble = false;
     for (char numberChar : string) {
       if (numberChar == '.')
-        isFloat = true;
+        isDouble = true;
     }
-    if (isFloat) {
-      outputValue = std::stof(string);
+    if (isDouble) {
+      outputValue = std::atof(string.c_str());
     } else {
       outputValue = std::stoi(string);
     }
