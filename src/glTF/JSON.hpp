@@ -17,6 +17,7 @@ public:
   void print();
   const std::string key() { return _key; }
   const valueType value() { return _value; }
+  JSONnode find(std::string);
 
 private:
   std::string _key;

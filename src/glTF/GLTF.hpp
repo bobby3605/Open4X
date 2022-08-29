@@ -14,12 +14,19 @@
 
 // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#properties-reference
 
-namespace gltf {
-
 class GLTF {
 public:
   GLTF(std::string filePath);
+  ~GLTF();
+
+private:
+  std::string getFileExtension(std::string filePath);
+  void loadURI(std::string uri, int byteLength);
+  void loadGLTF(std::string filePath);
+  uint32_t readuint32(std::ifstream &file);
+  void loadGLB(std::string filePath);
+  JSONnode *jsonRoot = nullptr;
+  std::vector<std::vector<unsigned char>> buffers;
 };
 
-} // namespace gltf
 #endif // GLTF_H_

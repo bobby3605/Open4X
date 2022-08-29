@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
+#include "../glTF/GLTF.hpp"
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
@@ -75,16 +76,17 @@ void VulkanModel::loadImage(std::string path) {
 
   stbi_image_free(pixels);
 
-  device->createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                      image, imageMemory);
+  device->createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB,
+                      VK_IMAGE_TILING_OPTIMAL,
+                      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
   device->singleTimeCommands()
       .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels)
       .copyBufferToImage(stagingBuffer.buffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
-    // TODO
-    // Save and load mipmaps from a file
+      // TODO
+      // Save and load mipmaps from a file
       .generateMipmaps(image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels)
       .run();
 
@@ -132,7 +134,6 @@ void VulkanModel::loadImage(std::string path) {
 
   vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
 }
-
 
 void VulkanModel::draw(VulkanRenderer *renderer) {
 

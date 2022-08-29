@@ -92,7 +92,7 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
     if (c != '}') {
       std::string err;
       err.append("Expected: } got: " + std::to_string(c) + "\n");
-      std::runtime_error(err.c_str());
+      throw std::runtime_error(err.c_str());
     }
     // This assignment has to be after filling the vector, otherwise it returns an empty vector
     outputValue = nodes;
@@ -107,7 +107,7 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
     if (c != ']') {
       std::string err;
       err.append("Expected: ] got: " + std::to_string(c) + "\n");
-      std::runtime_error(err.c_str());
+      throw std::runtime_error(err.c_str());
     }
     outputValue = nodes;
   } else if (c == '"') {
@@ -150,4 +150,18 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
     }
   }
   return outputValue;
+}
+
+JSONnode JSONnode::find(std::string key) {
+  if (std::holds_alternative<std::vector<JSONnode>>(value())) {
+    std::vector<JSONnode> test = std::get<std::vector<JSONnode>>(value());
+    for (JSONnode node : test) {
+      if (node.key().compare(key) == 0) {
+        return node;
+      }
+    }
+  } else {
+    throw std::runtime_error("Tried to find on value type");
+  }
+  throw std::runtime_error("Failed to find node: " + key);
 }
