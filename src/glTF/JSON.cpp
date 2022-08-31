@@ -1,4 +1,5 @@
 #include "JSON.hpp"
+#include <stdexcept>
 
 void JSONnode::print() {
   if (key() != "") {
@@ -153,15 +154,30 @@ const JSONnode::valueType JSONnode::parse(std::stringstream &jsonString) {
 }
 
 JSONnode JSONnode::find(std::string key) {
+  std::optional<JSONnode> nodeOptional = findOptional(key);
+  if(nodeOptional) {
+    return nodeOptional.value();
+  } else {
+    throw std::runtime_error("Could not find " + key + " in " + _key);
+  }
+}
+
+std::optional<JSONnode> JSONnode::findOptional(std::string key) {
   if (std::holds_alternative<std::vector<JSONnode>>(value())) {
     std::vector<JSONnode> test = std::get<std::vector<JSONnode>>(value());
     for (JSONnode node : test) {
       if (node.key().compare(key) == 0) {
-        return node;
+        return std::optional<JSONnode>(node);
       }
     }
   } else {
-    throw std::runtime_error("Tried to find on value type");
+    #ifndef NDEBUG
+    std::cout << "Find: Node " + _key +" does not hold JSONnode";
+    #endif
+    return {};
   }
-  throw std::runtime_error("Failed to find node: " + key);
+  #ifndef NDEBUG
+  std::cout << "Failed to find node: " + key;
+  #endif
+  return {};
 }

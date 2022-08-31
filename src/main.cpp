@@ -6,11 +6,11 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-  // Open4X game;
+  Open4X game;
   try {
-    GLTF("assets/glTF/simple_animation.gltf");
-    // game.run();
-    GLTF("assets/glTF/Box.glb");
+    //gltf::GLTF("assets/glTF/basic_triangle.gltf");
+    game.run();
+    gltf::GLTF("assets/glTF/Box.glb");
   } catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;

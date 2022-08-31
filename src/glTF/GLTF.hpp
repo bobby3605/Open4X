@@ -11,9 +11,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "GLTF_Types.hpp"
 
 // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#properties-reference
 
+namespace gltf{
 class GLTF {
 public:
   GLTF(std::string filePath);
@@ -21,12 +23,21 @@ public:
 
 private:
   std::string getFileExtension(std::string filePath);
-  void loadURI(std::string uri, int byteLength);
+  std::vector<unsigned char> loadURI(std::string uri, int byteLength);
   void loadGLTF(std::string filePath);
   uint32_t readuint32(std::ifstream &file);
   void loadGLB(std::string filePath);
   JSONnode *jsonRoot = nullptr;
-  std::vector<std::vector<unsigned char>> buffers;
+
+  std::vector<Accessor> accessors;
+  std::vector<Buffer> buffers;
+  std::vector<BufferView> bufferViews;
+  int scene;
+  std::vector<Scene> scenes;
+  std::vector<Node> nodes;
+  std::vector<Mesh> meshes;
+  Asset asset;
+};
 };
 
 #endif // GLTF_H_
