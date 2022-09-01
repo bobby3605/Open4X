@@ -36,7 +36,7 @@ private:
   std::vector<Scene> scenes;
   std::vector<Node> nodes;
   std::vector<Mesh> meshes;
-  Asset asset;
+  Asset *asset;
 };
 };
 

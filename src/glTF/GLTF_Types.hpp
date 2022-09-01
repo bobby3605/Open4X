@@ -23,7 +23,7 @@ template <typename T> std::optional<T> findOptional(JSONnode node, std::string k
   // Then wraps it back into optional
   // If it doesn't exist
   // Return a blank optional
-  return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().findOptional("sparseNode").value().value())) : std::optional<T>();
+  return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().value())) : std::optional<T>();
 }
 
 template <typename T> std::optional<T> findOptional(JSONnode* node, std::string key) {
@@ -38,7 +38,7 @@ template <typename T> std::optional<T> findOptional(JSONnode* node, std::string 
   // Then wraps it back into optional
   // If it doesn't exist
   // Return a blank optional
-  return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().findOptional("sparseNode").value().value())) : std::optional<T>();
+  return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().value())) : std::optional<T>();
 }
 
 template <typename T> T find(JSONnode node, std::string key) {
@@ -78,8 +78,8 @@ Accessor(JSONnode jsonAccessor);
   std::optional<bool> normalized;
   int count;
   std::string type;
-  std::optional<std::vector<double>> max;
-  std::optional<std::vector<double>> min;
+  std::vector<double> max;
+  std::vector<double> min;
   std::optional<Sparse> sparse;
   std::optional<std::string> name;
 };
@@ -87,10 +87,10 @@ Accessor(JSONnode jsonAccessor);
 class Asset {
 public:
   Asset(JSONnode jsonAsset);
-  std::optional<std::string> copyright;
-  std::optional<std::string> generator;
+  std::string copyright;
+  std::string generator;
   std::string version;
-  std::optional<std::string> minVersion;
+  std::string minVersion;
 };
 
 class Buffer {
@@ -98,7 +98,7 @@ public:
   Buffer(JSONnode jsonBuffer, std::vector<unsigned char> data);
   std::string uri;
   int byteLength;
-  std::optional<std::string> name;
+  std::string name;
   std::vector<unsigned char> data;
 };
 
@@ -110,21 +110,21 @@ public:
   int byteLength;
   std::optional<int> byteStride;
   std::optional<int> target;
-  std::optional<std::string> name;
+  std::string name;
 };
 class Node {
 public:
   Node(JSONnode jsonNode);
-  std::optional<std::string> name;
+  std::string name;
   std::optional<uint> mesh;
-  std::optional<std::vector<uint>> children;
+  std::vector<uint> children;
   std::optional<glm::vec3> translation;
   std::optional<glm::quat> rotation;
   std::optional<glm::vec3> scale;
   std::optional<glm::mat4> matrix;
   std::optional<uint> skin;
   std::optional<uint> camera;
-  std::optional<std::vector<float>> weights;
+  std::vector<float> weights;
 };
 
 class Mesh {
@@ -133,12 +133,13 @@ public:
   class Primitive {
       public:
       Primitive(JSONnode jsonPrimitive);
+      ~Primitive();
     class Attributes {
         public:
-        Attributes(JSONnode jsonAttributes);
-      int normal;
-      int position;
-      int tangent;
+        Attributes(JSONnode::nodeVector jsonAttributes);
+      std::optional<int> normal;
+      std::optional<int> position;
+      std::optional<int> tangent;
       std::vector<int> texcoords;
       std::vector<int> colors;
       std::vector<int> joints;
@@ -153,22 +154,22 @@ public:
       std::vector<int> texcoords;
       std::vector<int> colors;
     };
-    Attributes attributes;
+    Attributes *attributes;
     std::optional<int> indices;
     std::optional<int> material;
     std::optional<int> mode;
-    std::optional<std::vector<Target>> targets;
+    std::vector<Target> targets;
   };
   std::vector<Primitive> primitives;
-  std::optional<std::vector<float>> weights;
-  std::optional<std::string> name;
+  std::vector<float> weights;
+  std::string name;
 };
 
 class Scene {
 public:
   Scene(JSONnode jsonScene);
-  std::optional<std::vector<int>> nodes;
-  std::optional<std::string> name;
+  std::vector<int> nodes;
+  std::string name;
 };
 
 

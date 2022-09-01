@@ -35,8 +35,10 @@ void GLTF::loadGLTF(std::string filePath) {
   }
   // Get JSON of GLTF
   jsonRoot = new JSONnode(file);
+
+  // TODO put this into a separate function so loadGLB can call it
   // Get data from GLTF JSON
-  // For some reason, I need this extra buffers variable, otherwise I crash with basic_string::_M_create
+  // For some reason, I need this extra variable, otherwise I crash with basic_string::_M_create
   JSONnode::nodeVector jsonBuffers = find<JSONnode::nodeVector>(jsonRoot, "buffers");
   for (JSONnode jsonBuffer : jsonBuffers) {
     buffers.push_back(Buffer(jsonBuffer,loadURI(find<std::string>(jsonBuffer, "uri"), find<int>(jsonBuffer, "byteLength"))));
@@ -123,7 +125,7 @@ void GLTF::loadGLB(std::string filePath) {
         file.read((char *)&dataBuffer, sizeof(dataBuffer));
         binaryChunk.push_back(dataBuffer);
       }
-      buffers.push_back(binaryChunk);
+      //buffers.push_back(binaryChunk);
       // Reset binaryChunk
       binaryChunk.clear();
     } else {
