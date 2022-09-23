@@ -2,6 +2,7 @@
 #define VULKAN_MODEL_H_
 
 #include "vulkan_descriptors.hpp"
+#include "../glTF/GLTF.hpp"
 #include "vulkan_renderer.hpp"
 #include <cstdint>
 #define GLM_FORCE_RADIANS
@@ -62,6 +63,7 @@ template <> struct hash<Vertex> {
 class VulkanModel {
 
 public:
+ VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model);
   VulkanModel(VulkanDevice *device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path);
   ~VulkanModel();
 

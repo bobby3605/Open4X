@@ -6,10 +6,13 @@
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
-#include "../glTF/GLTF.hpp"
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
+
+VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model) {
+
+}
 
 VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, std::string model_path,
                          std::string texture_path)

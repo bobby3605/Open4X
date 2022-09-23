@@ -1,5 +1,6 @@
 #ifndef GLTF_TYPES_H_
 #define GLTF_TYPES_H_
+#include <memory>
 #include <string>
 #include <vector>
 #include <optional>
@@ -98,7 +99,7 @@ public:
   Buffer(JSONnode jsonBuffer, std::vector<unsigned char> data);
   std::string uri;
   int byteLength;
-  std::string name;
+  std::optional<std::string> name;
   std::vector<unsigned char> data;
 };
 
@@ -110,12 +111,12 @@ public:
   int byteLength;
   std::optional<int> byteStride;
   std::optional<int> target;
-  std::string name;
+  std::optional<std::string> name;
 };
 class Node {
 public:
   Node(JSONnode jsonNode);
-  std::string name;
+  std::optional<std::string> name;
   std::optional<uint> mesh;
   std::vector<uint> children;
   std::optional<glm::vec3> translation;
@@ -133,7 +134,6 @@ public:
   class Primitive {
       public:
       Primitive(JSONnode jsonPrimitive);
-      ~Primitive();
     class Attributes {
         public:
         Attributes(JSONnode::nodeVector jsonAttributes);
@@ -154,7 +154,7 @@ public:
       std::vector<int> texcoords;
       std::vector<int> colors;
     };
-    Attributes *attributes;
+    std::unique_ptr<Attributes> attributes;
     std::optional<int> indices;
     std::optional<int> material;
     std::optional<int> mode;
@@ -162,14 +162,14 @@ public:
   };
   std::vector<Primitive> primitives;
   std::vector<float> weights;
-  std::string name;
+  std::optional<std::string> name;
 };
 
 class Scene {
 public:
   Scene(JSONnode jsonScene);
   std::vector<int> nodes;
-  std::string name;
+  std::optional<std::string> name;
 };
 
 

@@ -78,9 +78,6 @@ void GLTF::loadGLTF(std::string filePath) {
     }
   }
 
-
-
-
   file.close();
 }
 

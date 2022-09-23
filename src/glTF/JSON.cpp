@@ -177,7 +177,7 @@ std::optional<JSONnode> JSONnode::findOptional(std::string key) {
     return {};
   }
   #ifndef NDEBUG
-  std::cout << "Failed to find node: " + key << std::endl;
+//  std::cout << "Failed to find node: " + key << std::endl;
   #endif
   return {};
 }
