@@ -19,6 +19,7 @@ private:
   VulkanWindow *vulkanWindow;
   VulkanDevice *vulkanDevice;
   VulkanRenderer *vulkanRenderer;
+  VulkanModel *basicTriangleModel;
   VulkanModel *vikingRoomModel;
   VulkanModel *flatVaseModel;
 };

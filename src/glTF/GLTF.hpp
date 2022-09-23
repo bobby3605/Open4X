@@ -21,14 +21,9 @@ public:
   GLTF(std::string filePath);
   ~GLTF();
 
-private:
-  std::string getFileExtension(std::string filePath);
-  std::vector<unsigned char> loadURI(std::string uri, int byteLength);
-  void loadGLTF(std::string filePath);
-  uint32_t readuint32(std::ifstream &file);
-  void loadGLB(std::string filePath);
-  JSONnode *jsonRoot = nullptr;
-
+    // TODO
+    // Make private
+    // Add const getters
   std::vector<Accessor> accessors;
   std::vector<Buffer> buffers;
   std::vector<BufferView> bufferViews;
@@ -37,6 +32,15 @@ private:
   std::vector<Node> nodes;
   std::vector<Mesh> meshes;
   Asset *asset;
+
+private:
+  std::string getFileExtension(std::string filePath);
+  std::vector<unsigned char> loadURI(std::string uri, int byteLength);
+  void loadGLTF(std::string filePath);
+  uint32_t readuint32(std::ifstream &file);
+  void loadGLB(std::string filePath);
+  JSONnode *jsonRoot = nullptr;
+
 };
 };
 

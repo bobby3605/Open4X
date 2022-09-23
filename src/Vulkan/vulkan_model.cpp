@@ -10,7 +10,12 @@
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
-VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model) {
+VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model) : device{device}, descriptorManager{descriptorManager} {
+  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+  std::cout << "Position: " << gltf_model.meshes[0].primitives[0].attributes->position.value() << std::endl;
+  std::cout << "Indices: " << gltf_model.meshes[0].primitives[0].indices.value() << std::endl;
+
 
 }
 

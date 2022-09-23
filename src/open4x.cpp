@@ -47,6 +47,8 @@ Open4X::Open4X() {
 }
 
 Open4X::~Open4X() {
+  // causes a segfault
+//  delete basicTriangleModel;
   delete vikingRoomModel;
   delete flatVaseModel;
   delete vulkanRenderer;
@@ -58,6 +60,7 @@ void Open4X::run() {
 
   VulkanDescriptors descriptorManager(vulkanDevice);
 
+  basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager, gltf::GLTF("assets/glTF/basic_triangle.gltf"));
   vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager, "assets/models/viking_room.obj", "assets/textures/viking_room.png");
   flatVaseModel = new VulkanModel(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
 
