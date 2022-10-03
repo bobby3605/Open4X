@@ -60,7 +60,7 @@ Accessor::Sparse::Sparse::Value::Value(JSONnode jsonValue) {
       byteOffset = findOptional<int>(jsonValue,"byteOffset");
 }
 
-Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> data) {
+Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> byteData) {
     uri = find<std::string>(jsonBuffer,"uri");
     byteLength = find<int>(jsonBuffer,"byteLength");
     // TODO
@@ -73,7 +73,7 @@ Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> data) {
     // then, delete in the destructor if they are allocated
     // I could probably keep the optional wrapper around them as well if I'm declaring as new
     name = findOptional<std::string>(jsonBuffer, "name");
-    data = data;
+    data = byteData;
 }
 
 BufferView::BufferView(JSONnode jsonBufferView) {

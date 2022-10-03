@@ -3,18 +3,79 @@
 #include "vulkan_renderer.hpp"
 #include <algorithm>
 #include <cstdint>
+#include <glm/fwd.hpp>
+#include <string>
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
+#include "glm/gtx/string_cast.hpp"
 
 VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model) : device{device}, descriptorManager{descriptorManager} {
   std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 
-  std::cout << "Position: " << gltf_model.meshes[0].primitives[0].attributes->position.value() << std::endl;
-  std::cout << "Indices: " << gltf_model.meshes[0].primitives[0].indices.value() << std::endl;
+  int positionIndex = gltf_model.meshes[0].primitives[0].attributes->position.value();
+  int indiciesIndex = gltf_model.meshes[0].primitives[0].indices.value();
+
+   gltf::BufferView positionBufferView = gltf_model.bufferViews[positionIndex];
+   gltf::BufferView indexBufferView = gltf_model.bufferViews[indiciesIndex];
+
+   gltf::Buffer gltfDataBuffer = gltf_model.buffers[positionBufferView.buffer];
+ //  gltf::Buffer gltfIndexBuffer = gltf_model.buffers[indexBufferView.buffer];
+
+   std::vector<int> indices;
+   std::vector<glm::vec3> vertices;
+   std::vector<float> vertexTmp;
+
+     std::cout << "Position offset: " << positionBufferView.byteOffset.value() << std::endl;
+     std::cout << "Position length: " << positionBufferView.byteLength << std::endl;
+     std::cout << "Index offset: " << indexBufferView.byteOffset.value() << std::endl;
+     std::cout << "Index length: " << indexBufferView.byteLength << std::endl;
+
+     std::cout << "Data buffer length: " << gltfDataBuffer.data.size() << std::endl;
+     std::cout << "Position buffer length: " << gltf_model.buffers[positionBufferView.buffer].data.size() << std::endl;
+
+   for(std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin(); ptr < gltfDataBuffer.data.end(); ptr++) {
+
+     int ptr_index = ptr - gltfDataBuffer.data.begin();
+     std::string byteBuffer;
+
+     std::cout << "ptr_index: " << ptr_index << std::endl;
+
+       // TODO
+       // check accessor for number of elements and element type
+     if((ptr_index >= positionBufferView.byteOffset.value()) &&  (ptr_index < (positionBufferView.byteOffset.value() + positionBufferView.byteLength))) {
+       std::cout << "Pushing float byte: " << *ptr << std::endl;
+       byteBuffer.push_back(*ptr);
+       // get float
+       if(byteBuffer.length() == 4) {
+         vertexTmp.push_back(std::stof(byteBuffer));
+         std::cout << "Pushed float: " << vertexTmp.back();
+         byteBuffer.clear();
+         // get vec3
+         if(vertexTmp.size() == 3) {
+           vertices.push_back(glm::vec3(vertexTmp[0], vertexTmp[1], vertexTmp[2]));
+           std::cout << "Pushed vector: " << glm::to_string(vertices.back());
+           vertexTmp.clear();
+         }
+       }
+     } else if((ptr_index >= indexBufferView.byteOffset.value()) &&  (ptr_index < (indexBufferView.byteOffset.value() + indexBufferView.byteLength))) {
+       indices.push_back( *ptr | *++ptr << 8);
+     }
+   }
+
+   std::cout << "Indices:";
+   for(int index : indices) {
+     std::cout << " " << index;
+   }
+   std::cout << std::endl;
+   std::cout << "Vertices:";
+   for(glm::vec3 vector : vertices) {
+     std::cout << " " << glm::to_string(vector);
+   }
+   std::cout << std::endl;
 
 
 }

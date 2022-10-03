@@ -96,7 +96,7 @@ public:
 
 class Buffer {
 public:
-  Buffer(JSONnode jsonBuffer, std::vector<unsigned char> data);
+  Buffer(JSONnode jsonBuffer, std::vector<unsigned char> byteData);
   std::string uri;
   int byteLength;
   std::optional<std::string> name;

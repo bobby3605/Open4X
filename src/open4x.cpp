@@ -93,6 +93,8 @@ void Open4X::run() {
   VulkanObject obj2(flatVaseModel, vulkanRenderer);
   obj2.y(1.5f);
   VulkanObject obj3(flatVaseModel, vulkanRenderer);
+  VulkanObject gltfObj(basicTriangleModel, vulkanRenderer);
+
   camera = new VulkanObject(vulkanRenderer);
 
   UniformBufferObject ubo{};
@@ -121,8 +123,10 @@ void Open4X::run() {
 
     vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
-    obj1.draw();
-    obj2.draw();
+//    obj1.draw();
+ //   obj2.draw();
+
+    gltfObj.draw();
 
     vulkanRenderer->endSwapChainrenderPass();
 
