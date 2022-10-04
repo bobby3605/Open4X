@@ -66,38 +66,20 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
 
      vertices.push_back(vertex);
 
-/*
   std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
       if (uniqueVertices.count(vertex) == 0) {
         uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
         vertices.push_back(vertex);
       }
 
       indices.push_back(uniqueVertices[vertex]);
-    */
 
    }
-
-  /*
-  std::cout << "Vertices: ";
-  for (Vertex vertex : vertices) {
-      std::cout << glm::to_string(vertex.pos) << " ";
-  }
-  std::cout << std::endl;
-  */
 
   vertexBuffer = new StagedBuffer(device, (void *)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
- /*
-  std::cout << "Indices: ";
-  for (uint32_t index : tmpIndices) {
-      std::cout << index << " ";
-  }
-  std::cout << std::endl;
-  */
-
-  indices = tmpIndices;
   indexBuffer = new StagedBuffer(device, (void *)indices.data(), sizeof(indices[0]) * indices.size(),
                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
