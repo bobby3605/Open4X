@@ -47,8 +47,7 @@ Open4X::Open4X() {
 }
 
 Open4X::~Open4X() {
-  // causes a segfault
-//  delete basicTriangleModel;
+  delete basicTriangleModel;
   delete vikingRoomModel;
   delete flatVaseModel;
   delete vulkanRenderer;
@@ -124,7 +123,7 @@ void Open4X::run() {
     vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
 //    obj1.draw();
- //   obj2.draw();
+    obj2.draw();
 
     gltfObj.draw();
 

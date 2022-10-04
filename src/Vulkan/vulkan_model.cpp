@@ -25,8 +25,8 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
    gltf::Buffer gltfDataBuffer = gltf_model.buffers[positionBufferView.buffer];
  //  gltf::Buffer gltfIndexBuffer = gltf_model.buffers[indexBufferView.buffer];
 
-   std::vector<int> indices;
-   std::vector<glm::vec3> vertices;
+   std::vector<uint32_t> tmpIndices;
+   std::vector<glm::vec3> tmpVertices;
 
    std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
    while(ptr < gltfDataBuffer.data.end()) {
@@ -43,30 +43,65 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
        // &*ptr is a reference to the first unsigned char in the float
        // ptr can't be used instead of &*ptr because it is an iterator, not a standard reference
        // reinterpret_cast<float*>(&*ptr) interprets the unsigned char reference as a float pointer
-       // *reinterpret_cast<float*>(&*ptr) dereferences the float*
-       // ptr+sizeof(float) adds the float offset to ptr
+       // tmp[0..2] gets each float
        // ptr+=3*sizeof(float); sets ptr to the next value
-      vertices.push_back(glm::vec3(*reinterpret_cast<float*>(&*ptr), *reinterpret_cast<float*>(&*ptr+sizeof(float)), *reinterpret_cast<float*>(&*ptr+2*sizeof(float))));
+       float* tmp = reinterpret_cast<float*>(&*ptr);
+      tmpVertices.push_back(glm::vec3(tmp[0], tmp[1], tmp[2]));
       ptr+=3*sizeof(float);
      } else if((ptr_index >= indexBufferView.byteOffset.value()) &&  (ptr_index < (indexBufferView.byteOffset.value() + indexBufferView.byteLength))) {
-       indices.push_back(*reinterpret_cast<short*>(&*ptr));
-       ptr+=sizeof(short);
+       tmpIndices.push_back(*reinterpret_cast<unsigned short*>(&*ptr));
+       ptr+=sizeof(unsigned short);
      } else {
        ++ptr;
      }
    }
 
-   std::cout << "Indices:";
-   for(int index : indices) {
-     std::cout << " " << index;
-   }
-   std::cout << std::endl;
-   std::cout << "Vertices:";
-   for(glm::vec3 vector : vertices) {
-     std::cout << " " << glm::to_string(vector);
-   }
-   std::cout << std::endl;
 
+  for (glm::vec3 v : tmpVertices) {
+     Vertex vertex{};
+
+     vertex.pos = v;
+
+     vertex.texCoord = {0,0};
+
+     vertex.color = {1.0f, 1.0f, 1.0f};
+
+     vertices.push_back(vertex);
+
+/*
+      if (uniqueVertices.count(vertex) == 0) {
+        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+        vertices.push_back(vertex);
+      }
+
+      indices.push_back(uniqueVertices[vertex]);
+    */
+
+   }
+
+  /*
+  std::cout << "Vertices: ";
+  for (Vertex vertex : vertices) {
+      std::cout << glm::to_string(vertex.pos) << " ";
+  }
+  std::cout << std::endl;
+  */
+
+  vertexBuffer = new StagedBuffer(device, (void *)vertices.data(), sizeof(vertices[0]) * vertices.size(),
+                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+ /*
+  std::cout << "Indices: ";
+  for (uint32_t index : tmpIndices) {
+      std::cout << index << " ";
+  }
+  std::cout << std::endl;
+  */
+
+  indexBuffer = new StagedBuffer(device, (void *)tmpIndices.data(), sizeof(tmpIndices[0]) * tmpIndices.size(),
+                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+  loadImage("assets/textures/white.png");
 
 }
 
