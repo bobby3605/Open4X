@@ -27,42 +27,32 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
 
    std::vector<int> indices;
    std::vector<glm::vec3> vertices;
-   std::vector<float> vertexTmp;
 
-     std::cout << "Position offset: " << positionBufferView.byteOffset.value() << std::endl;
-     std::cout << "Position length: " << positionBufferView.byteLength << std::endl;
-     std::cout << "Index offset: " << indexBufferView.byteOffset.value() << std::endl;
-     std::cout << "Index length: " << indexBufferView.byteLength << std::endl;
-
-     std::cout << "Data buffer length: " << gltfDataBuffer.data.size() << std::endl;
-     std::cout << "Position buffer length: " << gltf_model.buffers[positionBufferView.buffer].data.size() << std::endl;
-
-   for(std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin(); ptr < gltfDataBuffer.data.end(); ptr++) {
+   std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
+   while(ptr < gltfDataBuffer.data.end()) {
 
      int ptr_index = ptr - gltfDataBuffer.data.begin();
      std::string byteBuffer;
 
-     std::cout << "ptr_index: " << ptr_index << std::endl;
-
        // TODO
        // check accessor for number of elements and element type
      if((ptr_index >= positionBufferView.byteOffset.value()) &&  (ptr_index < (positionBufferView.byteOffset.value() + positionBufferView.byteLength))) {
-       std::cout << "Pushing float byte: " << *ptr << std::endl;
-       byteBuffer.push_back(*ptr);
-       // get float
-       if(byteBuffer.length() == 4) {
-         vertexTmp.push_back(std::stof(byteBuffer));
-         std::cout << "Pushed float: " << vertexTmp.back();
-         byteBuffer.clear();
-         // get vec3
-         if(vertexTmp.size() == 3) {
-           vertices.push_back(glm::vec3(vertexTmp[0], vertexTmp[1], vertexTmp[2]));
-           std::cout << "Pushed vector: " << glm::to_string(vertices.back());
-           vertexTmp.clear();
-         }
-       }
+       // Floats are 4 unsigned char
+       // ptr is the iterator over the data buffer
+       // *ptr is the first unsigned char in the float
+       // &*ptr is a reference to the first unsigned char in the float
+       // ptr can't be used instead of &*ptr because it is an iterator, not a standard reference
+       // reinterpret_cast<float*>(&*ptr) interprets the unsigned char reference as a float pointer
+       // *reinterpret_cast<float*>(&*ptr) dereferences the float*
+       // ptr+sizeof(float) adds the float offset to ptr
+       // ptr+=3*sizeof(float); sets ptr to the next value
+      vertices.push_back(glm::vec3(*reinterpret_cast<float*>(&*ptr), *reinterpret_cast<float*>(&*ptr+sizeof(float)), *reinterpret_cast<float*>(&*ptr+2*sizeof(float))));
+      ptr+=3*sizeof(float);
      } else if((ptr_index >= indexBufferView.byteOffset.value()) &&  (ptr_index < (indexBufferView.byteOffset.value() + indexBufferView.byteLength))) {
-       indices.push_back( *ptr | *++ptr << 8);
+       indices.push_back(*reinterpret_cast<short*>(&*ptr));
+       ptr+=sizeof(short);
+     } else {
+       ++ptr;
      }
    }
 
