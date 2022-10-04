@@ -14,8 +14,6 @@
 #include "glm/gtx/string_cast.hpp"
 
 VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorManager, gltf::GLTF gltf_model) : device{device}, descriptorManager{descriptorManager} {
-  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
   int positionIndex = gltf_model.meshes[0].primitives[0].attributes->position.value();
   int indiciesIndex = gltf_model.meshes[0].primitives[0].indices.value();
 
@@ -69,6 +67,7 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
      vertices.push_back(vertex);
 
 /*
+  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
       if (uniqueVertices.count(vertex) == 0) {
         uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
         vertices.push_back(vertex);
@@ -98,7 +97,8 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
   std::cout << std::endl;
   */
 
-  indexBuffer = new StagedBuffer(device, (void *)tmpIndices.data(), sizeof(tmpIndices[0]) * tmpIndices.size(),
+  indices = tmpIndices;
+  indexBuffer = new StagedBuffer(device, (void *)indices.data(), sizeof(indices[0]) * indices.size(),
                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
   loadImage("assets/textures/white.png");
