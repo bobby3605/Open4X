@@ -55,6 +55,9 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
    }
 
 
+   // TODO
+   // Maybe iterate over tmpIndices and use that to index into tmpVertices
+   // Right now, tmpIndices is unused
   for (glm::vec3 v : tmpVertices) {
      Vertex vertex{};
 
