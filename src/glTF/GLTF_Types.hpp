@@ -80,7 +80,7 @@ class Accessor {
         std::vector<Value> values;
     };
     std::optional<int> bufferView;
-    std::optional<int> byteOffset;
+    int byteOffset;
     int componentType;
     std::optional<bool> normalized;
     int count;

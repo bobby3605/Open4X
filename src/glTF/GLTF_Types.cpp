@@ -7,7 +7,7 @@ using namespace gltf;
 
 Accessor::Accessor(JSONnode jsonAccessor) {
     bufferView = findOptional<int>(jsonAccessor, "bufferView");
-    byteOffset = findOptional<int>(jsonAccessor, "byteOffset");
+    byteOffset = findOptional<int>(jsonAccessor, "byteOffset").value_or(0);
     componentType = find<int>(jsonAccessor, "componentType");
     normalized = findOptional<bool>(jsonAccessor, "normalized");
     count = find<int>(jsonAccessor, "count");

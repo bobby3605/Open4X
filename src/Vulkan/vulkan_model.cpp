@@ -16,27 +16,30 @@
 #include <unordered_map>
 
 glm::vec2 VulkanModel::getVec2(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr) {
+                               std::vector<unsigned char>::iterator& ptr,
+                               int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr);
-    float y = getComponent<float>(accessor.componentType, ptr);
+    float x = getComponent<float>(accessor.componentType, ptr, offset);
+    float y = getComponent<float>(accessor.componentType, ptr, offset);
     return glm::vec2(x, y);
 }
 glm::vec3 VulkanModel::getVec3(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr) {
+                               std::vector<unsigned char>::iterator& ptr,
+                               int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr);
-    float y = getComponent<float>(accessor.componentType, ptr);
-    float z = getComponent<float>(accessor.componentType, ptr);
+    float x = getComponent<float>(accessor.componentType, ptr, offset);
+    float y = getComponent<float>(accessor.componentType, ptr, offset);
+    float z = getComponent<float>(accessor.componentType, ptr, offset);
     return glm::vec3(x, y, z);
 }
 glm::vec4 VulkanModel::getVec4(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr) {
+                               std::vector<unsigned char>::iterator& ptr,
+                               int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr);
-    float y = getComponent<float>(accessor.componentType, ptr);
-    float z = getComponent<float>(accessor.componentType, ptr);
-    float w = getComponent<float>(accessor.componentType, ptr);
+    float x = getComponent<float>(accessor.componentType, ptr, offset);
+    float y = getComponent<float>(accessor.componentType, ptr, offset);
+    float z = getComponent<float>(accessor.componentType, ptr, offset);
+    float w = getComponent<float>(accessor.componentType, ptr, offset);
     return glm::vec4(x, y, z, w);
 }
 
@@ -73,9 +76,11 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                                 if (accessor.bufferView == i) {
                                     // If index buffer
                                     if (i == primitive.indices.value()) {
-                                        indices.push_back(getAccessorChunk<int>(
-                                                              accessor, ptr) +
-                                                          indicesOffset);
+                                        indices.push_back(
+                                            getAccessorChunk<int>(
+                                                accessor, ptr,
+                                                accessor.byteOffset) +
+                                            indicesOffset);
                                     }
                                     // If vertex buffer
                                     else if (i == primitive.attributes->position
@@ -83,13 +88,12 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                                         Vertex vertex;
                                         vertex.pos =
                                             getAccessorChunk<glm::vec3>(
-                                                accessor, ptr);
+                                                accessor, ptr,
+                                                accessor.byteOffset);
                                         vertex.texCoord = {0, 0};
                                         vertex.color = {1.0f, 1.0f, 1.0f};
                                         vertices.push_back(vertex);
                                     }
-                                    // Matched accessor bufferView
-                                    break;
                                 }
                             }
                         }
