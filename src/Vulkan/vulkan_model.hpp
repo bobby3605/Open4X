@@ -101,6 +101,10 @@ class VulkanModel {
                    std::vector<unsigned char>::iterator& ptr) {
         switch (componentType) {
         case 5120:
+            // A bad cast error will be thrown here if T is incompatible with
+            // the component type
+            // This would occur if the accessor component type is incompatible
+            // with the return type
             return (T)getComponentType<char>(ptr);
             break;
         case 5121:
@@ -140,6 +144,51 @@ class VulkanModel {
         T tmp = *reinterpret_cast<T*>(&*ptr);
         ptr += sizeof(T);
         return tmp;
+    }
+
+    glm::vec2 getVec2(gltf::Accessor accessor,
+                      std::vector<unsigned char>::iterator& ptr);
+    glm::vec3 getVec3(gltf::Accessor accessor,
+                      std::vector<unsigned char>::iterator& ptr);
+    glm::vec4 getVec4(gltf::Accessor accessor,
+                      std::vector<unsigned char>::iterator& ptr);
+
+    template <typename T>
+    T getAccessorChunk(gltf::Accessor accessor,
+                       std::vector<unsigned char>::iterator& ptr) {
+        std::any output;
+        if (accessor.type.compare("SCALAR") == 0) {
+            output = getComponent<T>(accessor.componentType, ptr);
+        } else if (accessor.type.compare("VEC2") == 0) {
+            output = getVec2(accessor, ptr);
+        } else if (accessor.type.compare("VEC3") == 0) {
+            output = getVec3(accessor, ptr);
+        } else if (accessor.type.compare("VEC4") == 0) {
+            output = getVec4(accessor, ptr);
+        } else if (accessor.type.compare("MAT2") == 0) {
+            glm::vec2 x = getVec2(accessor, ptr);
+            glm::vec2 y = getVec2(accessor, ptr);
+            // glm matrix constructors for vectors go by column
+            // the matrix data is being read by row
+            // so the transpose needs to be returned
+            output = glm::transpose(glm::mat2(x, y));
+        } else if (accessor.type.compare("MAT3") == 0) {
+            glm::vec3 x = getVec3(accessor, ptr);
+            glm::vec3 y = getVec3(accessor, ptr);
+            glm::vec3 z = getVec3(accessor, ptr);
+            output = glm::transpose(glm::mat3(x, y, z));
+        } else if (accessor.type.compare("MAT4") == 0) {
+            glm::vec4 x = getVec4(accessor, ptr);
+            glm::vec4 y = getVec4(accessor, ptr);
+            glm::vec4 z = getVec4(accessor, ptr);
+            glm::vec4 w = getVec4(accessor, ptr);
+            output = glm::transpose(glm::mat4(x, y, z, w));
+        } else {
+            throw std::runtime_error("Unknown accessor type: " + accessor.type);
+        }
+        // std::any_cast throws bad any_cast if output cannot be casted to T
+        // This would occur if T is incompatible with the accessor type
+        return std::any_cast<T>(output);
     }
 };
 

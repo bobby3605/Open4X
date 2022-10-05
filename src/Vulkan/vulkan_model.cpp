@@ -15,6 +15,31 @@
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
+glm::vec2 VulkanModel::getVec2(gltf::Accessor accessor,
+                               std::vector<unsigned char>::iterator& ptr) {
+
+    float x = getComponent<float>(accessor.componentType, ptr);
+    float y = getComponent<float>(accessor.componentType, ptr);
+    return glm::vec2(x, y);
+}
+glm::vec3 VulkanModel::getVec3(gltf::Accessor accessor,
+                               std::vector<unsigned char>::iterator& ptr) {
+
+    float x = getComponent<float>(accessor.componentType, ptr);
+    float y = getComponent<float>(accessor.componentType, ptr);
+    float z = getComponent<float>(accessor.componentType, ptr);
+    return glm::vec3(x, y, z);
+}
+glm::vec4 VulkanModel::getVec4(gltf::Accessor accessor,
+                               std::vector<unsigned char>::iterator& ptr) {
+
+    float x = getComponent<float>(accessor.componentType, ptr);
+    float y = getComponent<float>(accessor.componentType, ptr);
+    float z = getComponent<float>(accessor.componentType, ptr);
+    float w = getComponent<float>(accessor.componentType, ptr);
+    return glm::vec4(x, y, z, w);
+}
+
 VulkanModel::VulkanModel(VulkanDevice* device,
                          VulkanDescriptors* descriptorManager,
                          gltf::GLTF gltf_model)
@@ -37,38 +62,30 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                     foundBuffer = 1;
                     // Get the accessor for the found buffer view
                     for (gltf::Accessor accessor : gltf_model.accessors) {
+                        // If accessor bufferView matches the current bufferView
                         if (accessor.bufferView == i) {
-                            if (accessor.type.compare("SCALAR") == 0) {
-                                // If index buffer
-                                if (i == gltf_model.meshes[0]
-                                             .primitives[0]
-                                             .indices.value()) {
-                                    indices.push_back(getComponent<int>(
-                                        accessor.componentType, ptr));
-                                }
-                            } else if (accessor.type.compare("VEC3") == 0) {
-                                // If vertex buffer
-                                if (i == gltf_model.meshes[0]
-                                             .primitives[0]
-                                             .attributes->position.value()) {
-                                    Vertex vertex;
-                                    float x = getComponent<float>(
-                                        accessor.componentType, ptr);
-                                    float y = getComponent<float>(
-                                        accessor.componentType, ptr);
-                                    float z = getComponent<float>(
-                                        accessor.componentType, ptr);
-                                    vertex.pos = glm::vec3(x, y, z);
-                                    vertex.texCoord = {0, 0};
-                                    vertex.color = {1.0f, 1.0f, 1.0f};
-                                    vertices.push_back(vertex);
-                                }
+                            // If index buffer
+                            if (i == gltf_model.meshes[0]
+                                         .primitives[0]
+                                         .indices.value()) {
+                                indices.push_back(
+                                    getAccessorChunk<int>(accessor, ptr));
                             }
+                            // If vertex buffer
+                            else if (i == gltf_model.meshes[0]
+                                              .primitives[0]
+                                              .attributes->position.value()) {
+                                Vertex vertex;
+                                vertex.pos =
+                                    getAccessorChunk<glm::vec3>(accessor, ptr);
+                                vertex.texCoord = {0, 0};
+                                vertex.color = {1.0f, 1.0f, 1.0f};
+                                vertices.push_back(vertex);
+                            }
+                            // Matched accessor bufferView
                             break;
                         }
                     }
-                    // Buffer view was found
-                    break;
                 }
             }
             // If no valid buffer view, increment ptr
