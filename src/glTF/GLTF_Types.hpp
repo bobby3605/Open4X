@@ -161,7 +161,7 @@ class Mesh {
             std::vector<int> texcoords;
             std::vector<int> colors;
         };
-        std::unique_ptr<Attributes> attributes;
+        std::shared_ptr<Attributes> attributes;
         std::optional<int> indices;
         std::optional<int> material;
         std::optional<int> mode;
