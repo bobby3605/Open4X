@@ -1,3 +1,3 @@
 #include "vulkan_camera.hpp"
 
-VulkanCamera::VulkanCamera(VulkanRenderer *renderer) : renderer{renderer} {}
+VulkanCamera::VulkanCamera(VulkanRenderer* renderer) : renderer{renderer} {}

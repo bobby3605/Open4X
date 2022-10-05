@@ -4,10 +4,10 @@
 #include "vulkan_renderer.hpp"
 
 class VulkanCamera {
-  VulkanCamera(VulkanRenderer *renderer);
+    VulkanCamera(VulkanRenderer* renderer);
 
-private:
-  VulkanRenderer *renderer;
+  private:
+    VulkanRenderer* renderer;
 };
 
 #endif // VULKAN_CAMERA_H_

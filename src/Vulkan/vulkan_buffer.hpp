@@ -6,47 +6,49 @@
 
 class VulkanBuffer {
 
-public:
-  VulkanBuffer(VulkanDevice *device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-  void map();
-  void unmap();
-  void write(void *data, VkDeviceSize size, VkDeviceSize offset = 0);
-  ~VulkanBuffer();
-  VkBuffer buffer = VK_NULL_HANDLE;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
+  public:
+    VulkanBuffer(VulkanDevice* device, VkDeviceSize size,
+                 VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    void map();
+    void unmap();
+    void write(void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    ~VulkanBuffer();
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
 
-private:
-  VulkanDevice *device;
-  VkDeviceSize bufferSize;
-  void *mapped = nullptr;
-  bool isMapped = false;
+  private:
+    VulkanDevice* device;
+    VkDeviceSize bufferSize;
+    void* mapped = nullptr;
+    bool isMapped = false;
 };
 
 class StagedBuffer {
-public:
-  StagedBuffer(VulkanDevice *device, void *data, VkDeviceSize size, VkMemoryPropertyFlags type);
-  ~StagedBuffer();
-  VkBuffer getBuffer() { return stagedBuffer->buffer; }
+  public:
+    StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
+                 VkMemoryPropertyFlags type);
+    ~StagedBuffer();
+    VkBuffer getBuffer() { return stagedBuffer->buffer; }
 
-private:
-  VulkanBuffer *stagedBuffer;
+  private:
+    VulkanBuffer* stagedBuffer;
 };
 
 struct UniformBufferObject {
-  glm::mat4 view;
-  glm::mat4 proj;
+    glm::mat4 view;
+    glm::mat4 proj;
 };
 
 class UniformBuffer {
-public:
-  UniformBuffer(VulkanDevice *device);
-  ~UniformBuffer();
-  void write(void *data);
-  VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
+  public:
+    UniformBuffer(VulkanDevice* device);
+    ~UniformBuffer();
+    void write(void* data);
+    VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
 
-private:
-  VulkanBuffer *uniformBuffer;
-  VkDescriptorBufferInfo bufferInfo;
+  private:
+    VulkanBuffer* uniformBuffer;
+    VkDescriptorBufferInfo bufferInfo;
 };
 
 #endif // VULKAN_BUFFER_H_

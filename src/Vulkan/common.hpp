@@ -6,12 +6,12 @@
 #ifdef NDEBUG
 #define checkResult(f, str)
 #else
-#define checkResult(f, str)                                                                                            \
-  {                                                                                                                    \
-    if ((f) != VK_SUCCESS) {                                                                                           \
-      throw std::runtime_error((str) + std::to_string((f)));                                                           \
-    }                                                                                                                  \
-  }
+#define checkResult(f, str)                                                    \
+    {                                                                          \
+        if ((f) != VK_SUCCESS) {                                               \
+            throw std::runtime_error((str) + std::to_string((f)));             \
+        }                                                                      \
+    }
 #endif
 
 #endif // COMMON_H_

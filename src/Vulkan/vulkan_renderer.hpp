@@ -14,44 +14,46 @@
 #include <glm/glm.hpp>
 
 struct PushConstants {
-  glm::mat4 model{1.0f};
+    glm::mat4 model{1.0f};
 };
 
 class VulkanRenderer {
-public:
-  VulkanRenderer(VulkanWindow *window, VulkanDevice *deviceRef, VulkanDescriptors* descriptorManager);
-  ~VulkanRenderer();
-  void recordCommandBuffer(uint32_t imageIndex);
-  void startFrame();
-  bool endFrame();
-  void beginSwapChainrenderPass();
-  void endSwapChainrenderPass();
-  VkCommandBuffer getCurrentCommandBuffer();
-  uint32_t getCurrentFrame() { return currentFrame; }
-  void bindPipeline();
+  public:
+    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef,
+                   VulkanDescriptors* descriptorManager);
+    ~VulkanRenderer();
+    void recordCommandBuffer(uint32_t imageIndex);
+    void startFrame();
+    bool endFrame();
+    void beginSwapChainrenderPass();
+    void endSwapChainrenderPass();
+    VkCommandBuffer getCurrentCommandBuffer();
+    uint32_t getCurrentFrame() { return currentFrame; }
+    void bindPipeline();
     VulkanDescriptors* descriptorManager;
-void bindDescriptorSet(uint32_t setNum, VkDescriptorSet set);
-void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);
-  VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
-  const VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
-  VulkanWindow *getWindow() { return vulkanWindow; }
+    void bindDescriptorSet(uint32_t setNum, VkDescriptorSet set);
+    void loadImage(std::string path, VkSampler& sampler,
+                   VkImageView& imageView);
+    VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
+    const VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
+    VulkanWindow* getWindow() { return vulkanWindow; }
 
-private:
-  void init();
-  void createCommandBuffers();
-  void createPipeline();
-  void recreateSwapChain();
+  private:
+    void init();
+    void createCommandBuffers();
+    void createPipeline();
+    void recreateSwapChain();
 
-  VulkanDevice *device;
-  VulkanPipeline *graphicsPipeline;
-  VulkanWindow *vulkanWindow;
-  VulkanSwapChain *swapChain;
+    VulkanDevice* device;
+    VulkanPipeline* graphicsPipeline;
+    VulkanWindow* vulkanWindow;
+    VulkanSwapChain* swapChain;
 
-  VkPipelineLayout pipelineLayout;
+    VkPipelineLayout pipelineLayout;
 
-  std::vector<VkCommandBuffer> commandBuffers;
-  uint32_t currentFrame = 0;
-  uint32_t imageIndex = 0;
+    std::vector<VkCommandBuffer> commandBuffers;
+    uint32_t currentFrame = 0;
+    uint32_t imageIndex = 0;
 };
 
 #endif // VULKAN_RENDERER_H_
