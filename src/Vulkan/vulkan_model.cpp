@@ -53,11 +53,9 @@ VulkanModel::VulkanModel(VulkanDevice* device,
             bool foundBuffer = 0;
             for (int i = 0; i < (int)gltf_model.bufferViews.size(); i++) {
                 // TODO
-                // check if byteOffset exists, otherwise 0
                 // take byteStride into account
-                if ((ptr_index >=
-                     gltf_model.bufferViews[i].byteOffset.value()) &&
-                    (ptr_index < (gltf_model.bufferViews[i].byteOffset.value() +
+                if ((ptr_index >= gltf_model.bufferViews[i].byteOffset) &&
+                    (ptr_index < (gltf_model.bufferViews[i].byteOffset +
                                   gltf_model.bufferViews[i].byteLength))) {
                     foundBuffer = 1;
                     // Get the accessor for the found buffer view

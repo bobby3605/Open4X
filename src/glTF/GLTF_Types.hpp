@@ -113,7 +113,8 @@ class BufferView {
   public:
     BufferView(JSONnode jsonBufferView);
     int buffer;
-    std::optional<int> byteOffset;
+    // Doesn't use optional because it gets a default value of 0
+    int byteOffset;
     int byteLength;
     std::optional<int> byteStride;
     std::optional<int> target;
