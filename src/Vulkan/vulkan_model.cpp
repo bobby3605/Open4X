@@ -48,6 +48,7 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                          gltf::GLTF gltf_model)
     : device{device}, descriptorManager{descriptorManager} {
 
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     for (gltf::Mesh mesh : gltf_model.meshes) {
         int indicesOffset = 0;
         for (gltf::Mesh::Primitive primitive : mesh.primitives) {
@@ -60,6 +61,7 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                     bool foundBuffer = 0;
                     for (int i = 0; i < (int)gltf_model.bufferViews.size();
                          i++) {
+                        int byteStride = 0;
                         // TODO
                         // take byteStride into account
                         if ((ptr_index >=
@@ -79,22 +81,31 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                                         indices.push_back(
                                             getAccessorChunk<int>(
                                                 accessor, ptr,
-                                                accessor.byteOffset) +
+                                                accessor.byteOffset +
+                                                    byteStride) +
                                             indicesOffset);
                                     }
+                                    if (i ==
+                                        primitive.attributes->normals.value_or(
+                                            -1)) {
+                                        // Normals
+                                    }
                                     // If vertex buffer
-                                    else if (i == primitive.attributes->position
-                                                      .value()) {
+                                    if (i == primitive.attributes->position
+                                                 .value()) {
                                         Vertex vertex;
                                         vertex.pos =
                                             getAccessorChunk<glm::vec3>(
                                                 accessor, ptr,
-                                                accessor.byteOffset);
+                                                accessor.byteOffset +
+                                                    byteStride);
                                         vertex.texCoord = {0, 0};
                                         vertex.color = {1.0f, 1.0f, 1.0f};
                                         vertices.push_back(vertex);
                                     }
                                 }
+                                byteStride +=
+                                    gltf_model.bufferViews[i].byteStride;
                             }
                         }
                     }
@@ -104,10 +115,8 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                     }
                 }
             }
-
             // If the model did not contain an index buffer, generate one
             if ((indices.size() - indicesOffset) == 0) {
-                std::unordered_map<Vertex, uint32_t> uniqueVertices{};
                 for (Vertex vertex : vertices) {
                     if (uniqueVertices.count(vertex) == 0) {
                         uniqueVertices[vertex] =
