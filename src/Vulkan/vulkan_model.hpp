@@ -92,6 +92,14 @@ class VulkanModel {
 
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
+
+    template <typename T>
+    T getComponentType(std::vector<unsigned char>::iterator& ptr) {
+        T tmp = *reinterpret_cast<T*>(&*ptr);
+        std::cout << "Got value: " << tmp << std::endl;
+        ptr += sizeof(T);
+        return tmp;
+    }
 };
 
 #endif // VULKAN_MODEL_H_

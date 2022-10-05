@@ -29,12 +29,12 @@ VulkanModel::VulkanModel(VulkanDevice* device,
     std::set<int> uniqueBuffers;
     uniqueBuffers.insert(positionBufferView.buffer);
     uniqueBuffers.insert(indexBufferView.buffer);
+
     for (int uniqueBuffer : uniqueBuffers) {
         gltf::Buffer gltfDataBuffer = gltf_model.buffers[uniqueBuffer];
 
         std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
         while (ptr < gltfDataBuffer.data.end()) {
-
             int ptr_index = ptr - gltfDataBuffer.data.begin();
 
             // TODO
@@ -51,38 +51,38 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                 // interprets the unsigned char reference as a float pointer
                 // tmp[0..2] gets each float
                 // ptr+=3*sizeof(float); sets ptr to the next value
-                float* tmp = reinterpret_cast<float*>(&*ptr);
-
                 Vertex vertex;
-                vertex.pos = glm::vec3(tmp[0], tmp[1], tmp[2]);
+                // Broken on g++, it seems to reverse the order.
+                // Clang works fine
+                vertex.pos = glm::vec3(getComponentType<float>(ptr),
+                                       getComponentType<float>(ptr),
+                                       getComponentType<float>(ptr));
+                std::cout << "Got position: " << glm::to_string(vertex.pos)
+                          << std::endl;
                 vertex.texCoord = {0, 0};
                 vertex.color = {1.0f, 1.0f, 1.0f};
                 vertices.push_back(vertex);
-
-                ptr += 3 * sizeof(float);
-
             } else if ((ptr_index >= indexBufferView.byteOffset.value()) &&
                        (ptr_index < (indexBufferView.byteOffset.value() +
                                      indexBufferView.byteLength))) {
-                indices.push_back(*reinterpret_cast<unsigned short*>(&*ptr));
-                ptr += sizeof(unsigned short);
+                indices.push_back(getComponentType<unsigned short>(ptr));
+                std::cout << "Got u_short: " << indices.back() << std::endl;
             } else {
                 ++ptr;
             }
         }
+    }
 
-        // If the model did not contain an index buffer, generate one
-        if (indices.size() == 0) {
-            std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-            for (Vertex vertex : vertices) {
+    // If the model did not contain an index buffer, generate one
+    if (indices.size() == 0) {
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+        for (Vertex vertex : vertices) {
 
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] =
-                        static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
-                }
-                indices.push_back(uniqueVertices[vertex]);
+            if (uniqueVertices.count(vertex) == 0) {
+                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                vertices.push_back(vertex);
             }
+            indices.push_back(uniqueVertices[vertex]);
         }
     }
 
