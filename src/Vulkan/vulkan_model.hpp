@@ -8,6 +8,7 @@
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "vulkan_buffer.hpp"
+#include <any>
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 #include <vulkan/vulkan.hpp>
@@ -93,10 +94,41 @@ class VulkanModel {
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
 
-    // Can't be used as a function argument, since argument evaluation order is
-    // undefined and it causes side effects
+    // Template type is the return type only
+    // The type read from the buffer is dependent on componentType
     template <typename T>
-    T getComponent(std::vector<unsigned char>::iterator& ptr) {
+    T getComponent(int componentType,
+                   std::vector<unsigned char>::iterator& ptr) {
+        switch (componentType) {
+        case 5120:
+            return (T)getComponentType<char>(ptr);
+            break;
+        case 5121:
+            return (T)getComponentType<unsigned char>(ptr);
+            break;
+        case 5122:
+            return (T)getComponentType<short>(ptr);
+            break;
+        case 5123:
+            return (T)getComponentType<unsigned short>(ptr);
+            break;
+        case 5125:
+            return (T)getComponentType<unsigned int>(ptr);
+            break;
+        case 5126:
+            return (T)getComponentType<float>(ptr);
+            break;
+        default:
+            throw std::runtime_error("Unknown component type: " +
+                                     componentType);
+            break;
+        }
+    }
+
+    // Can't be used as a function argument, since argument evaluation order
+    // is undefined and it causes side effects
+    template <typename T>
+    T getComponentType(std::vector<unsigned char>::iterator& ptr) {
         // ptr is the iterator over the data buffer
         // *ptr is the first unsigned char in the float
         // &*ptr is a reference to the first unsigned char in the type T

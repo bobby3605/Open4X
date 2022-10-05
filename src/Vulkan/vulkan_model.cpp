@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vulkan/vulkan_core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -18,15 +19,8 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                          VulkanDescriptors* descriptorManager,
                          gltf::GLTF gltf_model)
     : device{device}, descriptorManager{descriptorManager} {
-    // Get unique buffers from buffer views
-    std::set<int> uniqueBuffers;
-    for (gltf::BufferView bufferView : gltf_model.bufferViews) {
-        uniqueBuffers.insert(bufferView.buffer);
-    }
 
-    for (int uniqueBuffer : uniqueBuffers) {
-        gltf::Buffer gltfDataBuffer = gltf_model.buffers[uniqueBuffer];
-
+    for (gltf::Buffer gltfDataBuffer : gltf_model.buffers) {
         std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
         while (ptr < gltfDataBuffer.data.end()) {
             int ptr_index = ptr - gltfDataBuffer.data.begin();
@@ -45,13 +39,12 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                     for (gltf::Accessor accessor : gltf_model.accessors) {
                         if (accessor.bufferView == i) {
                             if (accessor.type.compare("SCALAR") == 0) {
-                                // TODO check component type
                                 // If index buffer
                                 if (i == gltf_model.meshes[0]
                                              .primitives[0]
                                              .indices.value()) {
-                                    indices.push_back(
-                                        getComponent<unsigned short>(ptr));
+                                    indices.push_back(getComponent<int>(
+                                        accessor.componentType, ptr));
                                 }
                             } else if (accessor.type.compare("VEC3") == 0) {
                                 // If vertex buffer
@@ -59,9 +52,12 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                                              .primitives[0]
                                              .attributes->position.value()) {
                                     Vertex vertex;
-                                    float x = getComponent<float>(ptr);
-                                    float y = getComponent<float>(ptr);
-                                    float z = getComponent<float>(ptr);
+                                    float x = getComponent<float>(
+                                        accessor.componentType, ptr);
+                                    float y = getComponent<float>(
+                                        accessor.componentType, ptr);
+                                    float z = getComponent<float>(
+                                        accessor.componentType, ptr);
                                     vertex.pos = glm::vec3(x, y, z);
                                     vertex.texCoord = {0, 0};
                                     vertex.color = {1.0f, 1.0f, 1.0f};
