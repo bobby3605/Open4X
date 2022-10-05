@@ -21,16 +21,11 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
    gltf::BufferView indexBufferView = gltf_model.bufferViews[indiciesIndex];
 
    gltf::Buffer gltfDataBuffer = gltf_model.buffers[positionBufferView.buffer];
- //  gltf::Buffer gltfIndexBuffer = gltf_model.buffers[indexBufferView.buffer];
-
-   std::vector<uint32_t> tmpIndices;
-   std::vector<glm::vec3> tmpVertices;
 
    std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
    while(ptr < gltfDataBuffer.data.end()) {
 
      int ptr_index = ptr - gltfDataBuffer.data.begin();
-     std::string byteBuffer;
 
        // TODO
        // check accessor for number of elements and element type
@@ -44,41 +39,35 @@ VulkanModel::VulkanModel(VulkanDevice *device, VulkanDescriptors *descriptorMana
        // tmp[0..2] gets each float
        // ptr+=3*sizeof(float); sets ptr to the next value
        float* tmp = reinterpret_cast<float*>(&*ptr);
-      tmpVertices.push_back(glm::vec3(tmp[0], tmp[1], tmp[2]));
-      ptr+=3*sizeof(float);
+
+       Vertex vertex;
+       vertex.pos = glm::vec3(tmp[0], tmp[1], tmp[2]);
+       vertex.texCoord = {0,0};
+       vertex.color = {1.0f, 1.0f, 1.0f};
+       vertices.push_back(vertex);
+
+       ptr+=3*sizeof(float);
+
      } else if((ptr_index >= indexBufferView.byteOffset.value()) &&  (ptr_index < (indexBufferView.byteOffset.value() + indexBufferView.byteLength))) {
-       tmpIndices.push_back(*reinterpret_cast<unsigned short*>(&*ptr));
+       indices.push_back(*reinterpret_cast<unsigned short*>(&*ptr));
        ptr+=sizeof(unsigned short);
      } else {
        ++ptr;
      }
    }
 
+     if(indices.size() == 0) {
+         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+         for(Vertex vertex : vertices) {
 
-   // TODO
-   // Maybe iterate over tmpIndices and use that to index into tmpVertices
-   // Right now, tmpIndices is unused
-  for (glm::vec3 v : tmpVertices) {
-     Vertex vertex{};
+             if (uniqueVertices.count(vertex) == 0) {
+                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                 vertices.push_back(vertex);
+             }
+             indices.push_back(uniqueVertices[vertex]);
+         }
 
-     vertex.pos = v;
-
-     vertex.texCoord = {0,0};
-
-     vertex.color = {1.0f, 1.0f, 1.0f};
-
-     vertices.push_back(vertex);
-
-  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-      if (uniqueVertices.count(vertex) == 0) {
-        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-        vertices.push_back(vertex);
-      }
-
-      indices.push_back(uniqueVertices[vertex]);
-
-   }
+     }
 
   vertexBuffer = new StagedBuffer(device, (void *)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
