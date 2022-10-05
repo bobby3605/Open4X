@@ -18,17 +18,11 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                          VulkanDescriptors* descriptorManager,
                          gltf::GLTF gltf_model)
     : device{device}, descriptorManager{descriptorManager} {
-    int positionIndex =
-        gltf_model.meshes[0].primitives[0].attributes->position.value();
-    int indiciesIndex = gltf_model.meshes[0].primitives[0].indices.value();
-
-    gltf::BufferView positionBufferView = gltf_model.bufferViews[positionIndex];
-    gltf::BufferView indexBufferView = gltf_model.bufferViews[indiciesIndex];
-
     // Get unique buffers from buffer views
     std::set<int> uniqueBuffers;
-    uniqueBuffers.insert(positionBufferView.buffer);
-    uniqueBuffers.insert(indexBufferView.buffer);
+    for (gltf::BufferView bufferView : gltf_model.bufferViews) {
+        uniqueBuffers.insert(bufferView.buffer);
+    }
 
     for (int uniqueBuffer : uniqueBuffers) {
         gltf::Buffer gltfDataBuffer = gltf_model.buffers[uniqueBuffer];
@@ -36,38 +30,53 @@ VulkanModel::VulkanModel(VulkanDevice* device,
         std::vector<unsigned char>::iterator ptr = gltfDataBuffer.data.begin();
         while (ptr < gltfDataBuffer.data.end()) {
             int ptr_index = ptr - gltfDataBuffer.data.begin();
-
-            // TODO
-            // check accessor for number of elements and element type
-            if ((ptr_index >= positionBufferView.byteOffset.value()) &&
-                (ptr_index < (positionBufferView.byteOffset.value() +
-                              positionBufferView.byteLength))) {
-                // Floats are 4 unsigned char
-                // ptr is the iterator over the data buffer
-                // *ptr is the first unsigned char in the float
-                // &*ptr is a reference to the first unsigned char in the float
-                // ptr can't be used instead of &*ptr because it is an iterator,
-                // not a standard reference reinterpret_cast<float*>(&*ptr)
-                // interprets the unsigned char reference as a float pointer
-                // tmp[0..2] gets each float
-                // ptr+=3*sizeof(float); sets ptr to the next value
-                Vertex vertex;
-                // Broken on g++, it seems to reverse the order.
-                // Clang works fine
-                vertex.pos = glm::vec3(getComponentType<float>(ptr),
-                                       getComponentType<float>(ptr),
-                                       getComponentType<float>(ptr));
-                std::cout << "Got position: " << glm::to_string(vertex.pos)
-                          << std::endl;
-                vertex.texCoord = {0, 0};
-                vertex.color = {1.0f, 1.0f, 1.0f};
-                vertices.push_back(vertex);
-            } else if ((ptr_index >= indexBufferView.byteOffset.value()) &&
-                       (ptr_index < (indexBufferView.byteOffset.value() +
-                                     indexBufferView.byteLength))) {
-                indices.push_back(getComponentType<unsigned short>(ptr));
-                std::cout << "Got u_short: " << indices.back() << std::endl;
-            } else {
+            // Detemine which buffer view the pointer has indexed into
+            bool foundBuffer = 0;
+            for (int i = 0; i < (int)gltf_model.bufferViews.size(); i++) {
+                // TODO
+                // check if byteOffset exists, otherwise 0
+                // take byteStride into account
+                if ((ptr_index >=
+                     gltf_model.bufferViews[i].byteOffset.value()) &&
+                    (ptr_index < (gltf_model.bufferViews[i].byteOffset.value() +
+                                  gltf_model.bufferViews[i].byteLength))) {
+                    foundBuffer = 1;
+                    // Get the accessor for the found buffer view
+                    for (gltf::Accessor accessor : gltf_model.accessors) {
+                        if (accessor.bufferView == i) {
+                            if (accessor.type.compare("SCALAR") == 0) {
+                                // TODO check component type
+                                // If index buffer
+                                if (i == gltf_model.meshes[0]
+                                             .primitives[0]
+                                             .indices.value()) {
+                                    indices.push_back(
+                                        getComponent<unsigned short>(ptr));
+                                }
+                            } else if (accessor.type.compare("VEC3") == 0) {
+                                // If vertex buffer
+                                if (i == gltf_model.meshes[0]
+                                             .primitives[0]
+                                             .attributes->position.value()) {
+                                    Vertex vertex;
+                                    float x = getComponent<float>(ptr);
+                                    float y = getComponent<float>(ptr);
+                                    float z = getComponent<float>(ptr);
+                                    vertex.pos = glm::vec3(x, y, z);
+                                    vertex.texCoord = {0, 0};
+                                    vertex.color = {1.0f, 1.0f, 1.0f};
+                                    vertices.push_back(vertex);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    // Buffer view was found
+                    break;
+                }
+            }
+            // If no valid buffer view, increment ptr
+            if (!foundBuffer) {
                 ++ptr;
             }
         }

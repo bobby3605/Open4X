@@ -93,10 +93,19 @@ class VulkanModel {
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
 
+    // Can't be used as a function argument, since argument evaluation order is
+    // undefined and it causes side effects
     template <typename T>
-    T getComponentType(std::vector<unsigned char>::iterator& ptr) {
+    T getComponent(std::vector<unsigned char>::iterator& ptr) {
+        // ptr is the iterator over the data buffer
+        // *ptr is the first unsigned char in the float
+        // &*ptr is a reference to the first unsigned char in the type T
+        // ptr can't be used instead of &*ptr because it is an iterator,
+        // not a standard reference
+        // reinterpret_cast<T*>(&*ptr) interprets the unsigned char
+        // reference as a T pointer
+        // ptr += sizeof(T) increments the pointer to the next value
         T tmp = *reinterpret_cast<T*>(&*ptr);
-        std::cout << "Got value: " << tmp << std::endl;
         ptr += sizeof(T);
         return tmp;
     }
