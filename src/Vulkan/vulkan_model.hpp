@@ -69,7 +69,7 @@ class VulkanModel {
 
   public:
     VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager,
-                gltf::GLTF gltf_model);
+                gltf::GLTF* gltf_model);
     VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager,
                 std::string model_path, std::string texture_path);
     ~VulkanModel();
@@ -94,15 +94,97 @@ class VulkanModel {
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
 
-    void loadAccessors(gltf::GLTF& gltf_model);
+    gltf::GLTF* gltf_model;
+
+    void loadAccessors();
 
     glm::vec2 getVec2(unsigned char* ptr, int offset);
     glm::vec3 getVec3(unsigned char* ptr, int offset);
     glm::vec4 getVec4(unsigned char* ptr, int offset);
 
     template <typename T> T getBufferData(unsigned char* ptr, int offset) {
-        T tmp = *reinterpret_cast<T*>(ptr + offset);
-        return tmp;
+        return *reinterpret_cast<T*>(ptr + offset);
+    }
+
+    template <typename T> glm::vec2 getVec2(unsigned char* ptr, int offset) {
+
+        float x = getBufferData<T>(ptr, offset);
+        float y = getBufferData<T>(ptr, offset + sizeof(T));
+        return glm::vec2(x, y);
+    }
+
+    template <typename T> glm::vec3 getVec3(unsigned char* ptr, int offset) {
+
+        float x = getBufferData<T>(ptr, offset);
+        float y = getBufferData<T>(ptr, offset + sizeof(T));
+        float z = getBufferData<T>(ptr, offset + 2 * sizeof(T));
+        return glm::vec3(x, y, z);
+    }
+
+    template <typename T> glm::vec4 getVec4(unsigned char* ptr, int offset) {
+
+        float x = getBufferData<T>(ptr, offset);
+        float y = getBufferData<T>(ptr, offset + sizeof(T));
+        float z = getBufferData<T>(ptr, offset + 2 * sizeof(T));
+        float w = getBufferData<T>(ptr, offset + 3 * sizeof(T));
+        return glm::vec4(x, y, z, w);
+    }
+
+    template <typename glm::vec2, typename T>
+    glm::vec2 getAccessorValue(unsigned char* ptr, int offset) {
+        return getVec2<T>(ptr, offset);
+    }
+
+    template <typename glm::vec3, typename T>
+    glm::vec3 getAccessorValue(unsigned char* ptr, int offset) {
+        return getVec3<T>(ptr, offset);
+    }
+
+    template <typename glm::vec4, typename T>
+    glm::vec3 getAccessorValue(unsigned char* ptr, int offset) {
+        return getVec4<T>(ptr, offset);
+    }
+
+    template <typename RT, typename T>
+    RT getAccessorValue(unsigned char* ptr, int offset) {
+        return getBufferData<T>(ptr, offset);
+    }
+
+    template <typename T>
+    T loadAccessor(gltf::Accessor* accessor, int count_index) {
+        gltf::BufferView* bufferView =
+            &gltf_model->bufferViews[accessor->bufferView.value()];
+        gltf::Buffer* buffer = &gltf_model->buffers[bufferView->buffer];
+        int offset =
+            accessor->byteOffset + bufferView->byteOffset +
+            count_index * (bufferView->byteLength + bufferView->byteStride);
+        switch (accessor->componentType) {
+        case 5120:
+            return getAccessorValue<T, char>(buffer->data.data(), offset);
+            break;
+        case 5121:
+            return getAccessorValue<T, unsigned char>(buffer->data.data(),
+                                                      offset);
+            break;
+        case 5122:
+            return getAccessorValue<T, short>(buffer->data.data(), offset);
+            break;
+        case 5123:
+            return getAccessorValue<T, unsigned short>(buffer->data.data(),
+                                                       offset);
+            break;
+        case 5125:
+            return getAccessorValue<T, unsigned int>(buffer->data.data(),
+                                                     offset);
+            break;
+        case 5126:
+            return getAccessorValue<T, float>(buffer->data.data(), offset);
+            break;
+        default:
+            throw std::runtime_error("Unknown component type: " +
+                                     accessor->componentType);
+            break;
+        }
     }
 };
 

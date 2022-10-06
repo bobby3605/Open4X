@@ -15,41 +15,21 @@
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
-glm::vec2 VulkanModel::getVec2(unsigned char* ptr, int offset) {
-
-    float x = getBufferData<float>(ptr, offset);
-    float y = getBufferData<float>(ptr, offset + sizeof(float));
-    return glm::vec2(x, y);
-}
-glm::vec3 VulkanModel::getVec3(unsigned char* ptr, int offset) {
-
-    float x = getBufferData<float>(ptr, offset);
-    float y = getBufferData<float>(ptr, offset + sizeof(float));
-    float z = getBufferData<float>(ptr, offset + 2 * sizeof(float));
-    return glm::vec3(x, y, z);
-}
-glm::vec4 VulkanModel::getVec4(unsigned char* ptr, int offset) {
-
-    float x = getBufferData<float>(ptr, offset);
-    float y = getBufferData<float>(ptr, offset + sizeof(float));
-    float z = getBufferData<float>(ptr, offset + 2 * sizeof(float));
-    float w = getBufferData<float>(ptr, offset + 3 * sizeof(float));
-    return glm::vec4(x, y, z, w);
-}
-
-void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
+void VulkanModel::loadAccessors() {
+    // TODO
+    // Use component type and type
     int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-    for (gltf::Mesh mesh : gltf_model.meshes) {
+    for (gltf::Mesh mesh : gltf_model->meshes) {
         gltf::Accessor* accessor;
         gltf::BufferView* bufferView;
         gltf::Buffer* buffer;
         if (mesh.primitives->attributes->normal.has_value()) {
             accessor =
                 &gltf_model
-                     .accessors[mesh.primitives->attributes->normal.value()];
-            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model.buffers[bufferView->buffer];
+                     ->accessors[mesh.primitives->attributes->normal.value()];
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO load into buffer
                 getVec3(buffer->data.data(),
@@ -59,9 +39,9 @@ void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
         if (mesh.primitives->attributes->position.has_value()) {
             accessor =
                 &gltf_model
-                     .accessors[mesh.primitives->attributes->position.value()];
-            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model.buffers[bufferView->buffer];
+                     ->accessors[mesh.primitives->attributes->position.value()];
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO get texcoord and color
                 int accessorOffset =
@@ -79,9 +59,9 @@ void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
         if (mesh.primitives->attributes->tangent.has_value()) {
             accessor =
                 &gltf_model
-                     .accessors[mesh.primitives->attributes->tangent.value()];
-            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model.buffers[bufferView->buffer];
+                     ->accessors[mesh.primitives->attributes->tangent.value()];
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO load into buffer
                 getVec3(buffer->data.data(),
@@ -97,20 +77,19 @@ void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
         for (int weight : mesh.primitives->attributes->weights) {
         }
         if (mesh.primitives->indices.has_value()) {
-            accessor = &gltf_model.accessors[mesh.primitives->indices.value()];
-            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model.buffers[bufferView->buffer];
+            accessor = &gltf_model->accessors[mesh.primitives->indices.value()];
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
-                // TODO
-                // Use component type and type
                 int accessorOffset =
                     accessor->byteOffset + i * sizeof(unsigned short);
                 int bufferViewOffset =
                     bufferView->byteOffset + i * bufferView->byteStride;
-                indices.push_back(getBufferData<unsigned short>(
+                indices.push_back(
+                    getComponent<int>(accessor->componentType,
                                       buffer->data.data(),
                                       accessorOffset + bufferViewOffset) +
-                                  indicesOffset);
+                    indicesOffset);
             }
         }
     }
@@ -137,10 +116,11 @@ void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
 
 VulkanModel::VulkanModel(VulkanDevice* device,
                          VulkanDescriptors* descriptorManager,
-                         gltf::GLTF gltf_model)
-    : device{device}, descriptorManager{descriptorManager} {
+                         gltf::GLTF* gltf_model)
+    : device{device}, descriptorManager{descriptorManager}, gltf_model{
+                                                                gltf_model} {
 
-    loadAccessors(gltf_model);
+    loadAccessors();
 
     loadImage("assets/textures/white.png");
 }

@@ -49,6 +49,7 @@ Open4X::Open4X() {
 }
 
 Open4X::~Open4X() {
+    delete basicTriangleGLTFModel;
     delete basicTriangleModel;
     delete vikingRoomModel;
     delete flatVaseModel;
@@ -61,9 +62,10 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    basicTriangleModel =
-        new VulkanModel(vulkanDevice, &descriptorManager,
-                        gltf::GLTF("assets/glTF/basic_triangle.gltf"));
+    basicTriangleGLTFModel = new gltf::GLTF("assets/glTF/basic_triangle.gltf");
+
+    basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
+                                         basicTriangleGLTFModel);
     vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                       "assets/models/viking_room.obj",
                                       "assets/textures/viking_room.png");
