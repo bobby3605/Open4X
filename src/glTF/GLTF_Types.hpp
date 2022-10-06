@@ -167,7 +167,7 @@ class Mesh {
         std::optional<int> mode;
         std::vector<Target> targets;
     };
-    std::vector<Primitive> primitives;
+    std::shared_ptr<Primitive> primitives;
     std::vector<float> weights;
     std::optional<std::string> name;
 };

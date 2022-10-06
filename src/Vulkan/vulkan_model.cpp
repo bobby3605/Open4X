@@ -41,95 +41,87 @@ void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
     int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     for (gltf::Mesh mesh : gltf_model.meshes) {
-        // TODO
-        // There will only ever be one mesh primitive
-        // This for loop is not needed
-        for (gltf::Mesh::Primitive primitive : mesh.primitives) {
-            gltf::Accessor* accessor;
-            gltf::BufferView* bufferView;
-            gltf::Buffer* buffer;
-            if (primitive.attributes->normal.has_value()) {
-                accessor =
-                    &gltf_model.accessors[primitive.attributes->normal.value()];
-                bufferView =
-                    &gltf_model.bufferViews[accessor->bufferView.value()];
-                buffer = &gltf_model.buffers[bufferView->buffer];
-                for (int i = 0; i < accessor->count; ++i) {
-                    // TODO load into buffer
-                    getVec3(buffer->data.data(),
-                            accessor->byteOffset + i * bufferView->byteStride);
-                }
-            }
-            if (primitive.attributes->position.has_value()) {
-                accessor =
-                    &gltf_model
-                         .accessors[primitive.attributes->position.value()];
-                bufferView =
-                    &gltf_model.bufferViews[accessor->bufferView.value()];
-                buffer = &gltf_model.buffers[bufferView->buffer];
-                for (int i = 0; i < accessor->count; ++i) {
-                    // TODO get texcoord and color
-                    int accessorOffset =
-                        accessor->byteOffset + i * (3 * sizeof(float));
-                    int bufferViewOffset =
-                        bufferView->byteOffset + i * bufferView->byteStride;
-                    Vertex vertex{};
-                    vertex.pos = getVec3(buffer->data.data(),
-                                         accessorOffset + bufferViewOffset);
-                    vertex.texCoord = {0, 0};
-                    vertex.color = {1.0f, 1.0f, 1.0f};
-                    vertices.push_back(vertex);
-                }
-            }
-            if (primitive.attributes->tangent.has_value()) {
-                accessor =
-                    &gltf_model
-                         .accessors[primitive.attributes->tangent.value()];
-                bufferView =
-                    &gltf_model.bufferViews[accessor->bufferView.value()];
-                buffer = &gltf_model.buffers[bufferView->buffer];
-                for (int i = 0; i < accessor->count; ++i) {
-                    // TODO load into buffer
-                    getVec3(buffer->data.data(),
-                            accessor->byteOffset + i * bufferView->byteStride);
-                }
-            }
-            for (int texcoord : primitive.attributes->texcoords) {
-            }
-            for (int color : primitive.attributes->colors) {
-            }
-            for (int joint : primitive.attributes->joints) {
-            }
-            for (int weight : primitive.attributes->weights) {
-            }
-            if (primitive.indices.has_value()) {
-                accessor = &gltf_model.accessors[primitive.indices.value()];
-                bufferView =
-                    &gltf_model.bufferViews[accessor->bufferView.value()];
-                buffer = &gltf_model.buffers[bufferView->buffer];
-                for (int i = 0; i < accessor->count; ++i) {
-                    // TODO
-                    // Use component type and type
-                    int accessorOffset =
-                        accessor->byteOffset + i * sizeof(unsigned short);
-                    int bufferViewOffset =
-                        bufferView->byteOffset + i * bufferView->byteStride;
-                    indices.push_back(getBufferData<unsigned short>(
-                                          buffer->data.data(),
-                                          accessorOffset + bufferViewOffset) +
-                                      indicesOffset);
-                }
+        gltf::Accessor* accessor;
+        gltf::BufferView* bufferView;
+        gltf::Buffer* buffer;
+        if (mesh.primitives->attributes->normal.has_value()) {
+            accessor =
+                &gltf_model
+                     .accessors[mesh.primitives->attributes->normal.value()];
+            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model.buffers[bufferView->buffer];
+            for (int i = 0; i < accessor->count; ++i) {
+                // TODO load into buffer
+                getVec3(buffer->data.data(),
+                        accessor->byteOffset + i * bufferView->byteStride);
             }
         }
-        // If no index buffer on mesh, generate one
-        if ((indices.size() - indicesOffset) == 0) {
-            for (Vertex vertex : vertices) {
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] =
-                        static_cast<uint32_t>(uniqueVertices.size());
-                }
-                indices.push_back(uniqueVertices[vertex]);
+        if (mesh.primitives->attributes->position.has_value()) {
+            accessor =
+                &gltf_model
+                     .accessors[mesh.primitives->attributes->position.value()];
+            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model.buffers[bufferView->buffer];
+            for (int i = 0; i < accessor->count; ++i) {
+                // TODO get texcoord and color
+                int accessorOffset =
+                    accessor->byteOffset + i * (3 * sizeof(float));
+                int bufferViewOffset =
+                    bufferView->byteOffset + i * bufferView->byteStride;
+                Vertex vertex{};
+                vertex.pos = getVec3(buffer->data.data(),
+                                     accessorOffset + bufferViewOffset);
+                vertex.texCoord = {0, 0};
+                vertex.color = {1.0f, 1.0f, 1.0f};
+                vertices.push_back(vertex);
             }
+        }
+        if (mesh.primitives->attributes->tangent.has_value()) {
+            accessor =
+                &gltf_model
+                     .accessors[mesh.primitives->attributes->tangent.value()];
+            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model.buffers[bufferView->buffer];
+            for (int i = 0; i < accessor->count; ++i) {
+                // TODO load into buffer
+                getVec3(buffer->data.data(),
+                        accessor->byteOffset + i * bufferView->byteStride);
+            }
+        }
+        for (int texcoord : mesh.primitives->attributes->texcoords) {
+        }
+        for (int color : mesh.primitives->attributes->colors) {
+        }
+        for (int joint : mesh.primitives->attributes->joints) {
+        }
+        for (int weight : mesh.primitives->attributes->weights) {
+        }
+        if (mesh.primitives->indices.has_value()) {
+            accessor = &gltf_model.accessors[mesh.primitives->indices.value()];
+            bufferView = &gltf_model.bufferViews[accessor->bufferView.value()];
+            buffer = &gltf_model.buffers[bufferView->buffer];
+            for (int i = 0; i < accessor->count; ++i) {
+                // TODO
+                // Use component type and type
+                int accessorOffset =
+                    accessor->byteOffset + i * sizeof(unsigned short);
+                int bufferViewOffset =
+                    bufferView->byteOffset + i * bufferView->byteStride;
+                indices.push_back(getBufferData<unsigned short>(
+                                      buffer->data.data(),
+                                      accessorOffset + bufferViewOffset) +
+                                  indicesOffset);
+            }
+        }
+    }
+    // If no index buffer on mesh, generate one
+    if ((indices.size() - indicesOffset) == 0) {
+        for (Vertex vertex : vertices) {
+            if (uniqueVertices.count(vertex) == 0) {
+                uniqueVertices[vertex] =
+                    static_cast<uint32_t>(uniqueVertices.size());
+            }
+            indices.push_back(uniqueVertices[vertex]);
         } // Update indices offset
         indicesOffset += indices.size() - indicesOffset;
     }

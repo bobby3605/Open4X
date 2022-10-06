@@ -146,7 +146,7 @@ Node::Node(JSONnode jsonNode) {
 Mesh::Mesh(JSONnode jsonMesh) {
     for (JSONnode jsonPrimitive :
          find<JSONnode::nodeVector>(jsonMesh, "primitives")) {
-        primitives.push_back(Primitive(jsonPrimitive));
+        primitives = std::unique_ptr<Primitive>(new Primitive(jsonPrimitive));
     }
 
     for (JSONnode weight :
