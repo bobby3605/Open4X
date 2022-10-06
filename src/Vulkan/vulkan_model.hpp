@@ -94,101 +94,15 @@ class VulkanModel {
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
 
-    // Template type is the return type only
-    // The type read from the buffer is dependent on componentType
-    template <typename T>
-    T getComponent(int componentType, std::vector<unsigned char>::iterator& ptr,
-                   int offset) {
-        switch (componentType) {
-        case 5120:
-            // A bad cast error will be thrown here if T is incompatible with
-            // the component type
-            // This would occur if the accessor component type is incompatible
-            // with the return type
-            return (T)getComponentType<char>(ptr, offset);
-            break;
-        case 5121:
-            return (T)getComponentType<unsigned char>(ptr, offset);
-            break;
-        case 5122:
-            return (T)getComponentType<short>(ptr, offset);
-            break;
-        case 5123:
-            return (T)getComponentType<unsigned short>(ptr, offset);
-            break;
-        case 5125:
-            return (T)getComponentType<unsigned int>(ptr, offset);
-            break;
-        case 5126:
-            return (T)getComponentType<float>(ptr, offset);
-            break;
-        default:
-            throw std::runtime_error("Unknown component type: " +
-                                     componentType);
-            break;
-        }
-    }
+    void loadAccessors(gltf::GLTF& gltf_model);
 
-    // Can't be used as a function argument, since argument evaluation order
-    // is undefined and it causes side effects
-    template <typename T>
-    T getComponentType(std::vector<unsigned char>::iterator& ptr, int offset) {
-        // ptr is the iterator over the data buffer
-        // *ptr is the first unsigned char in the float
-        // &*ptr is a reference to the first unsigned char in the type T
-        // ptr can't be used instead of &*ptr because it is an iterator,
-        // not a standard reference
-        // reinterpret_cast<T*>(&*ptr) interprets the unsigned char
-        // reference as a T pointer
-        // ptr += sizeof(T) increments the pointer to the next value
-        T tmp = *reinterpret_cast<T*>(&*(ptr + offset));
-        ptr += sizeof(T);
+    glm::vec2 getVec2(unsigned char* ptr, int offset);
+    glm::vec3 getVec3(unsigned char* ptr, int offset);
+    glm::vec4 getVec4(unsigned char* ptr, int offset);
+
+    template <typename T> T getBufferData(unsigned char* ptr, int offset) {
+        T tmp = *reinterpret_cast<T*>(ptr + offset);
         return tmp;
-    }
-
-    glm::vec2 getVec2(gltf::Accessor accessor,
-                      std::vector<unsigned char>::iterator& ptr, int offset);
-    glm::vec3 getVec3(gltf::Accessor accessor,
-                      std::vector<unsigned char>::iterator& ptr, int offset);
-    glm::vec4 getVec4(gltf::Accessor accessor,
-                      std::vector<unsigned char>::iterator& ptr, int offset);
-
-    template <typename T>
-    T getAccessorChunk(gltf::Accessor accessor,
-                       std::vector<unsigned char>::iterator& ptr, int offset) {
-        std::any output;
-        if (accessor.type.compare("SCALAR") == 0) {
-            output = getComponent<T>(accessor.componentType, ptr, offset);
-        } else if (accessor.type.compare("VEC2") == 0) {
-            output = getVec2(accessor, ptr, offset);
-        } else if (accessor.type.compare("VEC3") == 0) {
-            output = getVec3(accessor, ptr, offset);
-        } else if (accessor.type.compare("VEC4") == 0) {
-            output = getVec4(accessor, ptr, offset);
-        } else if (accessor.type.compare("MAT2") == 0) {
-            glm::vec2 x = getVec2(accessor, ptr, offset);
-            glm::vec2 y = getVec2(accessor, ptr, offset);
-            // glm matrix constructors for vectors go by column
-            // the matrix data is being read by row
-            // so the transpose needs to be returned
-            output = glm::transpose(glm::mat2(x, y));
-        } else if (accessor.type.compare("MAT3") == 0) {
-            glm::vec3 x = getVec3(accessor, ptr, offset);
-            glm::vec3 y = getVec3(accessor, ptr, offset);
-            glm::vec3 z = getVec3(accessor, ptr, offset);
-            output = glm::transpose(glm::mat3(x, y, z));
-        } else if (accessor.type.compare("MAT4") == 0) {
-            glm::vec4 x = getVec4(accessor, ptr, offset);
-            glm::vec4 y = getVec4(accessor, ptr, offset);
-            glm::vec4 z = getVec4(accessor, ptr, offset);
-            glm::vec4 w = getVec4(accessor, ptr, offset);
-            output = glm::transpose(glm::mat4(x, y, z, w));
-        } else {
-            throw std::runtime_error("Unknown accessor type: " + accessor.type);
-        }
-        // std::any_cast throws bad any_cast if output cannot be casted to T
-        // This would occur if T is incompatible with the accessor type
-        return std::any_cast<T>(output);
     }
 };
 

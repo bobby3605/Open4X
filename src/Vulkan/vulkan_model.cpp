@@ -15,119 +15,122 @@
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
-glm::vec2 VulkanModel::getVec2(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr,
-                               int offset) {
+glm::vec2 VulkanModel::getVec2(unsigned char* ptr, int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr, offset);
-    float y = getComponent<float>(accessor.componentType, ptr, offset);
+    float x = getBufferData<float>(ptr, offset);
+    float y = getBufferData<float>(ptr, offset + sizeof(float));
     return glm::vec2(x, y);
 }
-glm::vec3 VulkanModel::getVec3(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr,
-                               int offset) {
+glm::vec3 VulkanModel::getVec3(unsigned char* ptr, int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr, offset);
-    float y = getComponent<float>(accessor.componentType, ptr, offset);
-    float z = getComponent<float>(accessor.componentType, ptr, offset);
+    float x = getBufferData<float>(ptr, offset);
+    float y = getBufferData<float>(ptr, offset + sizeof(float));
+    float z = getBufferData<float>(ptr, offset + 2 * sizeof(float));
     return glm::vec3(x, y, z);
 }
-glm::vec4 VulkanModel::getVec4(gltf::Accessor accessor,
-                               std::vector<unsigned char>::iterator& ptr,
-                               int offset) {
+glm::vec4 VulkanModel::getVec4(unsigned char* ptr, int offset) {
 
-    float x = getComponent<float>(accessor.componentType, ptr, offset);
-    float y = getComponent<float>(accessor.componentType, ptr, offset);
-    float z = getComponent<float>(accessor.componentType, ptr, offset);
-    float w = getComponent<float>(accessor.componentType, ptr, offset);
+    float x = getBufferData<float>(ptr, offset);
+    float y = getBufferData<float>(ptr, offset + sizeof(float));
+    float z = getBufferData<float>(ptr, offset + 2 * sizeof(float));
+    float w = getBufferData<float>(ptr, offset + 3 * sizeof(float));
     return glm::vec4(x, y, z, w);
 }
 
-VulkanModel::VulkanModel(VulkanDevice* device,
-                         VulkanDescriptors* descriptorManager,
-                         gltf::GLTF gltf_model)
-    : device{device}, descriptorManager{descriptorManager} {
-
+void VulkanModel::loadAccessors(gltf::GLTF& gltf_model) {
+    int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     for (gltf::Mesh mesh : gltf_model.meshes) {
-        int indicesOffset = 0;
+        // TODO
+        // There will only ever be one mesh primitive
+        // This for loop is not needed
         for (gltf::Mesh::Primitive primitive : mesh.primitives) {
-            for (gltf::Buffer gltfDataBuffer : gltf_model.buffers) {
-                std::vector<unsigned char>::iterator ptr =
-                    gltfDataBuffer.data.begin();
-                while (ptr < gltfDataBuffer.data.end()) {
-                    int ptr_index = ptr - gltfDataBuffer.data.begin();
-                    // Detemine which buffer view the pointer has indexed into
-                    bool foundBuffer = 0;
-                    for (int i = 0; i < (int)gltf_model.bufferViews.size();
-                         i++) {
-                        int byteStride = 0;
-                        // TODO
-                        // take byteStride into account
-                        if ((ptr_index >=
-                             gltf_model.bufferViews[i].byteOffset) &&
-                            (ptr_index <
-                             (gltf_model.bufferViews[i].byteOffset +
-                              gltf_model.bufferViews[i].byteLength))) {
-                            foundBuffer = 1;
-                            // Get the accessor for the found buffer view
-                            for (gltf::Accessor accessor :
-                                 gltf_model.accessors) {
-                                // If accessor bufferView matches the current
-                                // bufferView
-                                if (accessor.bufferView == i) {
-                                    // If index buffer
-                                    if (i == primitive.indices.value()) {
-                                        indices.push_back(
-                                            getAccessorChunk<int>(
-                                                accessor, ptr,
-                                                accessor.byteOffset +
-                                                    byteStride) +
-                                            indicesOffset);
-                                    }
-                                    if (i ==
-                                        primitive.attributes->normals.value_or(
-                                            -1)) {
-                                        // Normals
-                                    }
-                                    // If vertex buffer
-                                    if (i == primitive.attributes->position
-                                                 .value()) {
-                                        Vertex vertex;
-                                        vertex.pos =
-                                            getAccessorChunk<glm::vec3>(
-                                                accessor, ptr,
-                                                accessor.byteOffset +
-                                                    byteStride);
-                                        vertex.texCoord = {0, 0};
-                                        vertex.color = {1.0f, 1.0f, 1.0f};
-                                        vertices.push_back(vertex);
-                                    }
-                                }
-                                byteStride +=
-                                    gltf_model.bufferViews[i].byteStride;
-                            }
-                        }
-                    }
-                    // If no valid buffer view, increment ptr
-                    if (!foundBuffer) {
-                        ++ptr;
-                    }
+            gltf::Accessor* accessor;
+            gltf::BufferView* bufferView;
+            gltf::Buffer* buffer;
+            if (primitive.attributes->normal.has_value()) {
+                accessor =
+                    &gltf_model.accessors[primitive.attributes->normal.value()];
+                bufferView =
+                    &gltf_model.bufferViews[accessor->bufferView.value()];
+                buffer = &gltf_model.buffers[bufferView->buffer];
+                for (int i = 0; i < accessor->count; ++i) {
+                    // TODO load into buffer
+                    getVec3(buffer->data.data(),
+                            accessor->byteOffset + i * bufferView->byteStride);
                 }
             }
-            // If the model did not contain an index buffer, generate one
-            if ((indices.size() - indicesOffset) == 0) {
-                for (Vertex vertex : vertices) {
-                    if (uniqueVertices.count(vertex) == 0) {
-                        uniqueVertices[vertex] =
-                            static_cast<uint32_t>(vertices.size());
-                        vertices.push_back(vertex);
-                    }
-                    indices.push_back(uniqueVertices[vertex]);
+            if (primitive.attributes->position.has_value()) {
+                accessor =
+                    &gltf_model
+                         .accessors[primitive.attributes->position.value()];
+                bufferView =
+                    &gltf_model.bufferViews[accessor->bufferView.value()];
+                buffer = &gltf_model.buffers[bufferView->buffer];
+                for (int i = 0; i < accessor->count; ++i) {
+                    // TODO get texcoord and color
+                    int accessorOffset =
+                        accessor->byteOffset + i * (3 * sizeof(float));
+                    int bufferViewOffset =
+                        bufferView->byteOffset + i * bufferView->byteStride;
+                    Vertex vertex{};
+                    vertex.pos = getVec3(buffer->data.data(),
+                                         accessorOffset + bufferViewOffset);
+                    vertex.texCoord = {0, 0};
+                    vertex.color = {1.0f, 1.0f, 1.0f};
+                    vertices.push_back(vertex);
+                }
+            }
+            if (primitive.attributes->tangent.has_value()) {
+                accessor =
+                    &gltf_model
+                         .accessors[primitive.attributes->tangent.value()];
+                bufferView =
+                    &gltf_model.bufferViews[accessor->bufferView.value()];
+                buffer = &gltf_model.buffers[bufferView->buffer];
+                for (int i = 0; i < accessor->count; ++i) {
+                    // TODO load into buffer
+                    getVec3(buffer->data.data(),
+                            accessor->byteOffset + i * bufferView->byteStride);
+                }
+            }
+            for (int texcoord : primitive.attributes->texcoords) {
+            }
+            for (int color : primitive.attributes->colors) {
+            }
+            for (int joint : primitive.attributes->joints) {
+            }
+            for (int weight : primitive.attributes->weights) {
+            }
+            if (primitive.indices.has_value()) {
+                accessor = &gltf_model.accessors[primitive.indices.value()];
+                bufferView =
+                    &gltf_model.bufferViews[accessor->bufferView.value()];
+                buffer = &gltf_model.buffers[bufferView->buffer];
+                for (int i = 0; i < accessor->count; ++i) {
+                    // TODO
+                    // Use component type and type
+                    int accessorOffset =
+                        accessor->byteOffset + i * sizeof(unsigned short);
+                    int bufferViewOffset =
+                        bufferView->byteOffset + i * bufferView->byteStride;
+                    indices.push_back(getBufferData<unsigned short>(
+                                          buffer->data.data(),
+                                          accessorOffset + bufferViewOffset) +
+                                      indicesOffset);
                 }
             }
         }
-        // Update indices offset
+        // If no index buffer on mesh, generate one
+        if ((indices.size() - indicesOffset) == 0) {
+            for (Vertex vertex : vertices) {
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] =
+                        static_cast<uint32_t>(uniqueVertices.size());
+                }
+                indices.push_back(uniqueVertices[vertex]);
+            }
+        } // Update indices offset
         indicesOffset += indices.size() - indicesOffset;
     }
 
@@ -138,6 +141,14 @@ VulkanModel::VulkanModel(VulkanDevice* device,
     indexBuffer = new StagedBuffer(device, (void*)indices.data(),
                                    sizeof(indices[0]) * indices.size(),
                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+}
+
+VulkanModel::VulkanModel(VulkanDevice* device,
+                         VulkanDescriptors* descriptorManager,
+                         gltf::GLTF gltf_model)
+    : device{device}, descriptorManager{descriptorManager} {
+
+    loadAccessors(gltf_model);
 
     loadImage("assets/textures/white.png");
 }

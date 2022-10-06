@@ -116,7 +116,7 @@ class BufferView {
     // Doesn't use optional because it gets a default value of 0
     int byteOffset;
     int byteLength;
-    std::optional<int> byteStride;
+    int byteStride;
     std::optional<int> target;
     std::optional<std::string> name;
 };

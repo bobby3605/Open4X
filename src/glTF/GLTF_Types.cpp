@@ -86,7 +86,7 @@ BufferView::BufferView(JSONnode jsonBufferView) {
     buffer = find<int>(jsonBufferView, "buffer");
     byteOffset = findOptional<int>(jsonBufferView, "byteOffset").value_or(0);
     byteLength = find<int>(jsonBufferView, "byteLength");
-    byteStride = findOptional<int>(jsonBufferView, "byteStride");
+    byteStride = findOptional<int>(jsonBufferView, "byteStride").value_or(0);
     target = findOptional<int>(jsonBufferView, "target");
     name = findOptional<std::string>(jsonBufferView, "name");
 }
