@@ -66,18 +66,18 @@ class Accessor {
           public:
             Index(JSONnode jsonIndex);
             int bufferView;
-            std::optional<int> byteOffset;
+            int byteOffset;
             int componentType;
         };
         class Value {
           public:
             Value(JSONnode jsonValue);
             int bufferView;
-            std::optional<int> byteOffset;
+            int byteOffset;
         };
         int count;
-        std::vector<Index> indices;
-        std::vector<Value> values;
+        std::shared_ptr<Index> indices;
+        std::shared_ptr<Value> values;
     };
     std::optional<int> bufferView;
     int byteOffset;

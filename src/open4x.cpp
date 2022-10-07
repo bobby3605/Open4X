@@ -62,7 +62,8 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    basicTriangleGLTFModel = new gltf::GLTF("assets/glTF/basic_triangle.gltf");
+    basicTriangleGLTFModel =
+        new gltf::GLTF("assets/glTF/basic_sparse_triangles.gltf");
 
     basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                          basicTriangleGLTFModel);

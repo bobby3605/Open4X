@@ -21,6 +21,8 @@ void VulkanModel::loadAccessors() {
         gltf::Accessor* accessor;
         gltf::BufferView* bufferView;
         gltf::Buffer* buffer;
+        // TODO
+        // Take max and min into account
         if (mesh.primitives->attributes->normal.has_value()) {
             accessor =
                 &gltf_model
@@ -61,7 +63,7 @@ void VulkanModel::loadAccessors() {
         if (mesh.primitives->indices.has_value()) {
             accessor = &gltf_model->accessors[mesh.primitives->indices.value()];
             for (int i = 0; i < accessor->count; ++i) {
-                indices.push_back(loadAccessor<int>(accessor, i) +
+                indices.push_back(loadAccessor<unsigned short>(accessor, i) +
                                   indicesOffset);
             }
         }

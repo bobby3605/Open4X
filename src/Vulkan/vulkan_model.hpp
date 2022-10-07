@@ -100,8 +100,7 @@ class VulkanModel {
 
     template <typename T>
     static T getBufferData(unsigned char* ptr, int offset) {
-        T tmp = *reinterpret_cast<T*>(ptr + offset);
-        return tmp;
+        return *reinterpret_cast<T*>(ptr + offset);
     }
 
     template <typename T>
@@ -195,45 +194,90 @@ class VulkanModel {
     };
 
     template <typename T>
-    T loadAccessor(gltf::Accessor* accessor, int count_index) {
-        gltf::BufferView* bufferView =
-            &gltf_model->bufferViews[accessor->bufferView.value()];
-        gltf::Buffer* buffer = &gltf_model->buffers[bufferView->buffer];
-        int offset = accessor->byteOffset + bufferView->byteOffset +
-                     count_index * (bufferView->byteStride +
-                                    bufferView->byteLength / accessor->count);
+    T getComponent(int componentType, unsigned char* data, int offset) {
         // TODO
         // Check if accessor->type == <T, type>
-        switch (accessor->componentType) {
+        switch (componentType) {
         case 5120:
-            return AccessorLoaders<T, char>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, char>::getAccessorValue(data, offset);
             break;
         case 5121:
-            return AccessorLoaders<T, unsigned char>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, unsigned char>::getAccessorValue(data,
+                                                                       offset);
             break;
         case 5122:
-            return AccessorLoaders<T, short>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, short>::getAccessorValue(data, offset);
             break;
         case 5123:
-            return AccessorLoaders<T, unsigned short>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, unsigned short>::getAccessorValue(data,
+                                                                        offset);
             break;
         case 5125:
-            return AccessorLoaders<T, unsigned int>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, unsigned int>::getAccessorValue(data,
+                                                                      offset);
             break;
         case 5126:
-            return AccessorLoaders<T, float>::getAccessorValue(
-                buffer->data.data(), offset);
+            return AccessorLoaders<T, float>::getAccessorValue(data, offset);
             break;
         default:
             throw std::runtime_error("Unknown component type: " +
-                                     std::to_string(accessor->componentType));
+                                     std::to_string(componentType));
             break;
         }
+    }
+
+    template <typename T>
+    T loadAccessor(gltf::Accessor* accessor, int count_index) {
+        std::optional<int> sparseIndex;
+
+        // TODO
+        // Don't run this every call, only run it once per count_index loop
+        if (accessor->sparse.has_value()) {
+            gltf::BufferView* sparseIndicesBufferView =
+                &gltf_model->bufferViews[accessor->sparse->indices->bufferView];
+            gltf::Buffer* sparseIndicesBuffer =
+                &gltf_model->buffers[sparseIndicesBufferView->buffer];
+            for (int sparseCount = 0; sparseCount < accessor->sparse->count;
+                 ++sparseCount) {
+                int sparseIndexOffset =
+                    accessor->sparse->indices->byteOffset +
+                    sparseIndicesBufferView->byteOffset +
+                    sparseCount * (sparseIndicesBufferView->byteStride +
+                                   sparseIndicesBufferView->byteLength /
+                                       accessor->sparse->count);
+                // TODO
+                // Might not be unsigned short
+                if (count_index == getComponent<unsigned short>(
+                                       accessor->sparse->indices->componentType,
+                                       sparseIndicesBuffer->data.data(),
+                                       sparseIndexOffset)) {
+                    sparseIndex = sparseCount;
+                    break;
+                }
+            }
+        }
+
+        gltf::BufferView* bufferView;
+        gltf::Buffer* buffer;
+        int offset;
+
+        if (!sparseIndex.has_value()) {
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            offset = accessor->byteOffset + bufferView->byteOffset +
+                     count_index * (bufferView->byteStride +
+                                    bufferView->byteLength / accessor->count);
+        } else {
+            bufferView =
+                &gltf_model->bufferViews[accessor->sparse->values->bufferView];
+            offset = accessor->sparse->indices->byteOffset +
+                     bufferView->byteOffset +
+                     sparseIndex.value() *
+                         (bufferView->byteStride +
+                          bufferView->byteLength / accessor->sparse->count);
+        }
+        buffer = &gltf_model->buffers[bufferView->buffer];
+        return getComponent<T>(accessor->componentType, buffer->data.data(),
+                               offset);
     }
 };
 

@@ -32,37 +32,32 @@ Accessor::Accessor(JSONnode jsonAccessor) {
         }
     }
     // Only 1 sparse node
-    std::optional<JSONnode::nodeVector> jsonSparse =
-        findOptional<JSONnode::nodeVector>(jsonAccessor, "sparse");
-    if (jsonSparse) {
-        sparse = Sparse(jsonSparse.value()[0]);
+    std::optional<JSONnode> jsonSparse = jsonAccessor.findOptional("sparse");
+    if (jsonSparse.has_value()) {
+        sparse = Sparse(jsonSparse.value());
     }
     name = findOptional<std::string>(jsonAccessor, "name");
 }
 
 Accessor::Sparse::Sparse(JSONnode jsonSparse) {
     count = find<int>(jsonSparse, "count");
-    std::vector<JSONnode> jsonSparseIndices =
-        find<JSONnode::nodeVector>(jsonSparse, "indices");
-    for (JSONnode jsonIndex : jsonSparseIndices) {
-        indices.push_back(Index(jsonIndex));
-    }
-    std::vector<JSONnode> jsonSparseValues =
-        find<JSONnode::nodeVector>(jsonSparse, "values");
-    for (JSONnode jsonValue : jsonSparseValues) {
-        values.push_back(Value(jsonValue));
-    }
+    JSONnode jsonSparseIndices = jsonSparse.find("indices");
+    indices =
+        std::unique_ptr<Accessor::Sparse::Index>(new Index(jsonSparseIndices));
+    JSONnode jsonSparseValues = jsonSparse.find("values");
+    values =
+        std::unique_ptr<Accessor::Sparse::Value>(new Value(jsonSparseValues));
 }
 
 Accessor::Sparse::Sparse::Index::Index(JSONnode jsonIndex) {
     bufferView = find<int>(jsonIndex, "bufferView");
-    byteOffset = findOptional<int>(jsonIndex, "byteOffset");
+    byteOffset = findOptional<int>(jsonIndex, "byteOffset").value_or(0);
     componentType = find<int>(jsonIndex, "componentType");
 }
 
 Accessor::Sparse::Sparse::Value::Value(JSONnode jsonValue) {
     bufferView = find<int>(jsonValue, "bufferView");
-    byteOffset = findOptional<int>(jsonValue, "byteOffset");
+    byteOffset = findOptional<int>(jsonValue, "byteOffset").value_or(0);
 }
 
 Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> byteData) {

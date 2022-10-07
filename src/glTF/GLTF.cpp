@@ -12,10 +12,9 @@ std::string GLTF::getFileExtension(std::string filePath) {
 
 std::vector<unsigned char> GLTF::loadURI(std::string uri, int byteLength) {
     // Check what type of buffer
-    if (uri.find("data:application/octet-stream;base64,") !=
-        std::string::npos) {
-        // base64 header is 37 characters long
-        return base64ToUChar(uri.substr(37));
+    std::string::size_type pos;
+    if ((pos = uri.find("base64,")) != std::string::npos) {
+        return base64ToUChar(uri.substr(pos + 7));
     } else if (getFileExtension(uri).compare(".bin") == 0) {
         std::ifstream file(uri, std::ios::binary);
         unsigned char dataBuffer;
