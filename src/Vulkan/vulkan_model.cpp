@@ -17,68 +17,77 @@
 void VulkanModel::loadAccessors() {
     int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-    for (gltf::Mesh mesh : gltf_model->meshes) {
-        gltf::Accessor* accessor;
-        gltf::BufferView* bufferView;
-        gltf::Buffer* buffer;
-        // TODO
-        // Take max and min into account
-        if (mesh.primitives->attributes->normal.has_value()) {
-            accessor =
-                &gltf_model
-                     ->accessors[mesh.primitives->attributes->normal.value()];
-            for (int i = 0; i < accessor->count; ++i) {
-                // TODO load into buffer
-            }
-        }
-        if (mesh.primitives->attributes->position.has_value()) {
-            accessor =
-                &gltf_model
-                     ->accessors[mesh.primitives->attributes->position.value()];
-            for (int i = 0; i < accessor->count; ++i) {
-                // TODO get texcoord and color
-                Vertex vertex{};
-                vertex.pos = loadAccessor<glm::vec3>(accessor, i);
-                vertex.texCoord = {0, 0};
-                vertex.color = {1.0f, 1.0f, 1.0f};
-                vertices.push_back(vertex);
-            }
-        }
-        if (mesh.primitives->attributes->tangent.has_value()) {
-            accessor =
-                &gltf_model
-                     ->accessors[mesh.primitives->attributes->tangent.value()];
-            for (int i = 0; i < accessor->count; ++i) {
-                // TODO load into buffer
-            }
-        }
-        for (int texcoord : mesh.primitives->attributes->texcoords) {
-        }
-        for (int color : mesh.primitives->attributes->colors) {
-        }
-        for (int joint : mesh.primitives->attributes->joints) {
-        }
-        for (int weight : mesh.primitives->attributes->weights) {
-        }
-        if (mesh.primitives->indices.has_value()) {
-            accessor = &gltf_model->accessors[mesh.primitives->indices.value()];
-            for (int i = 0; i < accessor->count; ++i) {
-                indices.push_back(loadAccessor<unsigned short>(accessor, i) +
-                                  indicesOffset);
-            }
-        }
-        // If no index buffer on mesh, generate one
-        if ((indices.size() - indicesOffset) == 0) {
-            for (Vertex vertex : vertices) {
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] =
-                        static_cast<uint32_t>(uniqueVertices.size());
+    for (gltf::Scene scene : gltf_model->scenes) {
+        for (int nodeNum : scene.nodes) {
+            gltf::Node* node = &gltf_model->nodes[nodeNum];
+            if (node->mesh.has_value()) {
+                gltf::Mesh* mesh = &gltf_model->meshes[node->mesh.value()];
+                gltf::Accessor* accessor;
+                gltf::BufferView* bufferView;
+                gltf::Buffer* buffer;
+                // TODO
+                // Take max and min into account
+                if (mesh->primitives->attributes->normal.has_value()) {
+                    accessor =
+                        &gltf_model->accessors[mesh->primitives->attributes
+                                                   ->normal.value()];
+                    for (int i = 0; i < accessor->count; ++i) {
+                        // TODO load into buffer
+                    }
                 }
-                indices.push_back(uniqueVertices[vertex]);
+                if (mesh->primitives->attributes->position.has_value()) {
+                    accessor =
+                        &gltf_model->accessors[mesh->primitives->attributes
+                                                   ->position.value()];
+                    for (int i = 0; i < accessor->count; ++i) {
+                        // TODO get texcoord and color
+                        Vertex vertex{};
+                        vertex.pos = loadAccessor<glm::vec3>(accessor, i);
+                        vertex.texCoord = {0, 0};
+                        vertex.color = {1.0f, 1.0f, 1.0f};
+                        vertices.push_back(vertex);
+                    }
+                }
+                if (mesh->primitives->attributes->tangent.has_value()) {
+                    accessor =
+                        &gltf_model->accessors[mesh->primitives->attributes
+                                                   ->tangent.value()];
+                    for (int i = 0; i < accessor->count; ++i) {
+                        // TODO load into buffer
+                    }
+                }
+                for (int texcoord : mesh->primitives->attributes->texcoords) {
+                }
+                for (int color : mesh->primitives->attributes->colors) {
+                }
+                for (int joint : mesh->primitives->attributes->joints) {
+                }
+                for (int weight : mesh->primitives->attributes->weights) {
+                }
+                if (mesh->primitives->indices.has_value()) {
+                    accessor =
+                        &gltf_model
+                             ->accessors[mesh->primitives->indices.value()];
+                    for (int i = 0; i < accessor->count; ++i) {
+                        indices.push_back(
+                            loadAccessor<unsigned short>(accessor, i) +
+                            indicesOffset);
+                    }
+                }
+                // If no index buffer on mesh, generate one
+                if ((indices.size() - indicesOffset) == 0) {
+                    for (Vertex vertex : vertices) {
+                        if (uniqueVertices.count(vertex) == 0) {
+                            uniqueVertices[vertex] =
+                                static_cast<uint32_t>(uniqueVertices.size());
+                        }
+                        indices.push_back(uniqueVertices[vertex]);
+                    }
+                }
+                // Update indices offset
+                indicesOffset += indices.size() - indicesOffset;
             }
         }
-        // Update indices offset
-        indicesOffset += indices.size() - indicesOffset;
     }
 
     vertexBuffer = new StagedBuffer(device, (void*)vertices.data(),
