@@ -11,6 +11,8 @@
 #include "vulkan_buffer.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
+#include <set>
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
 struct Vertex {
@@ -226,17 +228,21 @@ class VulkanModel {
         }
     }
 
+    std::unordered_map<gltf::Accessor*, std::unordered_map<int, int>>
+        sparseIndices;
+
     template <typename T>
     T loadAccessor(gltf::Accessor* accessor, int count_index) {
-        std::optional<int> sparseIndex;
+        // Load sparse accessor indices if this accessor has a sparse
+        // and if it has not already processed the indices
+        if (accessor->sparse.has_value() &&
+            (sparseIndices.count(accessor) == 0)) {
 
-        // TODO
-        // Don't run this every call, only run it once per count_index loop
-        if (accessor->sparse.has_value()) {
             gltf::BufferView* sparseIndicesBufferView =
                 &gltf_model->bufferViews[accessor->sparse->indices->bufferView];
             gltf::Buffer* sparseIndicesBuffer =
                 &gltf_model->buffers[sparseIndicesBufferView->buffer];
+
             for (int sparseCount = 0; sparseCount < accessor->sparse->count;
                  ++sparseCount) {
                 int sparseIndexOffset =
@@ -247,33 +253,34 @@ class VulkanModel {
                                        accessor->sparse->count);
                 // TODO
                 // Might not be unsigned short
-                if (count_index == getComponent<unsigned short>(
-                                       accessor->sparse->indices->componentType,
-                                       sparseIndicesBuffer->data.data(),
-                                       sparseIndexOffset)) {
-                    sparseIndex = sparseCount;
-                    break;
-                }
+                sparseIndices[accessor][getComponent<unsigned short>(
+                    accessor->sparse->indices->componentType,
+                    sparseIndicesBuffer->data.data(), sparseIndexOffset)] =
+                    sparseCount;
             }
         }
 
         gltf::BufferView* bufferView;
         gltf::Buffer* buffer;
         int offset;
-
-        if (!sparseIndex.has_value()) {
-            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            offset = accessor->byteOffset + bufferView->byteOffset +
-                     count_index * (bufferView->byteStride +
-                                    bufferView->byteLength / accessor->count);
-        } else {
+        // If the accessor has a sparse
+        // get it and use it for the data
+        // There should only be 1 sparseCount per count_index per accessor
+        if (accessor->sparse.has_value() &&
+            (sparseIndices[accessor].count(count_index) == 1)) {
             bufferView =
                 &gltf_model->bufferViews[accessor->sparse->values->bufferView];
             offset = accessor->sparse->indices->byteOffset +
                      bufferView->byteOffset +
-                     sparseIndex.value() *
+                     sparseIndices[accessor][count_index] *
                          (bufferView->byteStride +
                           bufferView->byteLength / accessor->sparse->count);
+        } else {
+
+            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
+            offset = accessor->byteOffset + bufferView->byteOffset +
+                     count_index * (bufferView->byteStride +
+                                    bufferView->byteLength / accessor->count);
         }
         buffer = &gltf_model->buffers[bufferView->buffer];
         return getComponent<T>(accessor->componentType, buffer->data.data(),
