@@ -15,8 +15,6 @@
 #include <unordered_map>
 
 void VulkanModel::loadAccessors() {
-    // TODO
-    // Use component type and type
     int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     for (gltf::Mesh mesh : gltf_model->meshes) {
@@ -27,8 +25,6 @@ void VulkanModel::loadAccessors() {
             accessor =
                 &gltf_model
                      ->accessors[mesh.primitives->attributes->normal.value()];
-            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO load into buffer
             }
@@ -69,16 +65,17 @@ void VulkanModel::loadAccessors() {
                                   indicesOffset);
             }
         }
-    }
-    // If no index buffer on mesh, generate one
-    if ((indices.size() - indicesOffset) == 0) {
-        for (Vertex vertex : vertices) {
-            if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] =
-                    static_cast<uint32_t>(uniqueVertices.size());
+        // If no index buffer on mesh, generate one
+        if ((indices.size() - indicesOffset) == 0) {
+            for (Vertex vertex : vertices) {
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] =
+                        static_cast<uint32_t>(uniqueVertices.size());
+                }
+                indices.push_back(uniqueVertices[vertex]);
             }
-            indices.push_back(uniqueVertices[vertex]);
-        } // Update indices offset
+        }
+        // Update indices offset
         indicesOffset += indices.size() - indicesOffset;
     }
 
