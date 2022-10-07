@@ -11,7 +11,6 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../../external/tiny_obj_loader.h"
 #include "common.hpp"
-#include "glm/gtx/string_cast.hpp"
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
@@ -32,25 +31,16 @@ void VulkanModel::loadAccessors() {
             buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO load into buffer
-                getVec3(buffer->data.data(),
-                        accessor->byteOffset + i * bufferView->byteStride);
             }
         }
         if (mesh.primitives->attributes->position.has_value()) {
             accessor =
                 &gltf_model
                      ->accessors[mesh.primitives->attributes->position.value()];
-            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO get texcoord and color
-                int accessorOffset =
-                    accessor->byteOffset + i * (3 * sizeof(float));
-                int bufferViewOffset =
-                    bufferView->byteOffset + i * bufferView->byteStride;
                 Vertex vertex{};
-                vertex.pos = getVec3(buffer->data.data(),
-                                     accessorOffset + bufferViewOffset);
+                vertex.pos = loadAccessor<glm::vec3>(accessor, i);
                 vertex.texCoord = {0, 0};
                 vertex.color = {1.0f, 1.0f, 1.0f};
                 vertices.push_back(vertex);
@@ -60,12 +50,8 @@ void VulkanModel::loadAccessors() {
             accessor =
                 &gltf_model
                      ->accessors[mesh.primitives->attributes->tangent.value()];
-            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
                 // TODO load into buffer
-                getVec3(buffer->data.data(),
-                        accessor->byteOffset + i * bufferView->byteStride);
             }
         }
         for (int texcoord : mesh.primitives->attributes->texcoords) {
@@ -78,18 +64,9 @@ void VulkanModel::loadAccessors() {
         }
         if (mesh.primitives->indices.has_value()) {
             accessor = &gltf_model->accessors[mesh.primitives->indices.value()];
-            bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            buffer = &gltf_model->buffers[bufferView->buffer];
             for (int i = 0; i < accessor->count; ++i) {
-                int accessorOffset =
-                    accessor->byteOffset + i * sizeof(unsigned short);
-                int bufferViewOffset =
-                    bufferView->byteOffset + i * bufferView->byteStride;
-                indices.push_back(
-                    getComponent<int>(accessor->componentType,
-                                      buffer->data.data(),
-                                      accessorOffset + bufferViewOffset) +
-                    indicesOffset);
+                indices.push_back(loadAccessor<int>(accessor, i) +
+                                  indicesOffset);
             }
         }
     }

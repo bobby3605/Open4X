@@ -7,8 +7,8 @@
 #include <cstdint>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
+#include "glm/gtx/string_cast.hpp"
 #include "vulkan_buffer.hpp"
-#include <any>
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 #include <vulkan/vulkan.hpp>
@@ -98,22 +98,22 @@ class VulkanModel {
 
     void loadAccessors();
 
-    glm::vec2 getVec2(unsigned char* ptr, int offset);
-    glm::vec3 getVec3(unsigned char* ptr, int offset);
-    glm::vec4 getVec4(unsigned char* ptr, int offset);
-
-    template <typename T> T getBufferData(unsigned char* ptr, int offset) {
-        return *reinterpret_cast<T*>(ptr + offset);
+    template <typename T>
+    static T getBufferData(unsigned char* ptr, int offset) {
+        T tmp = *reinterpret_cast<T*>(ptr + offset);
+        return tmp;
     }
 
-    template <typename T> glm::vec2 getVec2(unsigned char* ptr, int offset) {
+    template <typename T>
+    static glm::vec2 getVec2(unsigned char* ptr, int offset) {
 
         float x = getBufferData<T>(ptr, offset);
         float y = getBufferData<T>(ptr, offset + sizeof(T));
         return glm::vec2(x, y);
     }
 
-    template <typename T> glm::vec3 getVec3(unsigned char* ptr, int offset) {
+    template <typename T>
+    static glm::vec3 getVec3(unsigned char* ptr, int offset) {
 
         float x = getBufferData<T>(ptr, offset);
         float y = getBufferData<T>(ptr, offset + sizeof(T));
@@ -121,7 +121,8 @@ class VulkanModel {
         return glm::vec3(x, y, z);
     }
 
-    template <typename T> glm::vec4 getVec4(unsigned char* ptr, int offset) {
+    template <typename T>
+    static glm::vec4 getVec4(unsigned char* ptr, int offset) {
 
         float x = getBufferData<T>(ptr, offset);
         float y = getBufferData<T>(ptr, offset + sizeof(T));
@@ -130,59 +131,107 @@ class VulkanModel {
         return glm::vec4(x, y, z, w);
     }
 
-    template <typename glm::vec2, typename T>
-    glm::vec2 getAccessorValue(unsigned char* ptr, int offset) {
-        return getVec2<T>(ptr, offset);
-    }
+    template <typename RT, typename T> struct AccessorLoaders {
+        static RT getAccessorValue(unsigned char* ptr, int offset) {
+            return getBufferData<T>(ptr, offset);
+        }
+    };
 
-    template <typename glm::vec3, typename T>
-    glm::vec3 getAccessorValue(unsigned char* ptr, int offset) {
-        return getVec3<T>(ptr, offset);
-    }
+    template <typename T> struct AccessorLoaders<glm::vec2, T> {
+        static glm::vec2 getAccessorValue(unsigned char* ptr, int offset) {
+            return getVec2<T>(ptr, offset);
+        }
+    };
 
-    template <typename glm::vec4, typename T>
-    glm::vec3 getAccessorValue(unsigned char* ptr, int offset) {
-        return getVec4<T>(ptr, offset);
-    }
+    template <typename T> struct AccessorLoaders<glm::vec3, T> {
+        static glm::vec3 getAccessorValue(unsigned char* ptr, int offset) {
+            return getVec3<T>(ptr, offset);
+        }
+    };
 
-    template <typename RT, typename T>
-    RT getAccessorValue(unsigned char* ptr, int offset) {
-        return getBufferData<T>(ptr, offset);
-    }
+    template <typename T> struct AccessorLoaders<glm::vec4, T> {
+        static glm::vec4 getAccessorValue(unsigned char* ptr, int offset) {
+            return getVec4<T>(ptr, offset);
+        }
+    };
+
+    template <typename T> struct AccessorLoaders<glm::mat2, T> {
+        static glm::mat2 getAccessorValue(unsigned char* ptr, int offset) {
+            glm::vec2 x =
+                AccessorLoaders<glm::vec2, T>::getAccessorValue(ptr, offset);
+            glm::vec2 y = AccessorLoaders<glm::vec2, T>::getAccessorValue(
+                ptr, offset + 2 * sizeof(T));
+            // glm matrix constructors for vectors go by column
+            // the matrix data is being read by row
+            // so the transpose needs to be returned
+            return glm::transpose(glm::mat2(x, y));
+        }
+    };
+
+    template <typename T> struct AccessorLoaders<glm::mat3, T> {
+        static glm::mat3 getAccessorValue(unsigned char* ptr, int offset) {
+            glm::vec3 x =
+                AccessorLoaders<glm::vec3, T>::getAccessorValue(ptr, offset);
+            glm::vec3 y = AccessorLoaders<glm::vec3, T>::getAccessorValue(
+                ptr, offset + 3 * sizeof(T));
+            glm::vec3 z = AccessorLoaders<glm::vec3, T>::getAccessorValue(
+                ptr, offset + 2 * 3 * sizeof(T));
+            return glm::transpose(glm::mat3(x, y, z));
+        }
+    };
+
+    template <typename T> struct AccessorLoaders<glm::mat4, T> {
+        static glm::mat4 getAccessorValue(unsigned char* ptr, int offset) {
+            glm::vec4 x =
+                AccessorLoaders<glm::vec4, T>::getAccessorValue(ptr, offset);
+            glm::vec4 y = AccessorLoaders<glm::vec4, T>::getAccessorValue(
+                ptr, offset + 4 * sizeof(T));
+            glm::vec4 z = AccessorLoaders<glm::vec4, T>::getAccessorValue(
+                ptr, offset + 2 * 4 * sizeof(T));
+            glm::vec4 w = AccessorLoaders<glm::vec4, T>::getAccessorValue(
+                ptr, offset + 3 * 4 * sizeof(T));
+            return glm::transpose(glm::mat4(x, y, z, w));
+        }
+    };
 
     template <typename T>
     T loadAccessor(gltf::Accessor* accessor, int count_index) {
         gltf::BufferView* bufferView =
             &gltf_model->bufferViews[accessor->bufferView.value()];
         gltf::Buffer* buffer = &gltf_model->buffers[bufferView->buffer];
-        int offset =
-            accessor->byteOffset + bufferView->byteOffset +
-            count_index * (bufferView->byteLength + bufferView->byteStride);
+        int offset = accessor->byteOffset + bufferView->byteOffset +
+                     count_index * (bufferView->byteStride +
+                                    bufferView->byteLength / accessor->count);
+        // TODO
+        // Check if accessor->type == <T, type>
         switch (accessor->componentType) {
         case 5120:
-            return getAccessorValue<T, char>(buffer->data.data(), offset);
+            return AccessorLoaders<T, char>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         case 5121:
-            return getAccessorValue<T, unsigned char>(buffer->data.data(),
-                                                      offset);
+            return AccessorLoaders<T, unsigned char>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         case 5122:
-            return getAccessorValue<T, short>(buffer->data.data(), offset);
+            return AccessorLoaders<T, short>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         case 5123:
-            return getAccessorValue<T, unsigned short>(buffer->data.data(),
-                                                       offset);
+            return AccessorLoaders<T, unsigned short>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         case 5125:
-            return getAccessorValue<T, unsigned int>(buffer->data.data(),
-                                                     offset);
+            return AccessorLoaders<T, unsigned int>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         case 5126:
-            return getAccessorValue<T, float>(buffer->data.data(), offset);
+            return AccessorLoaders<T, float>::getAccessorValue(
+                buffer->data.data(), offset);
             break;
         default:
             throw std::runtime_error("Unknown component type: " +
-                                     accessor->componentType);
+                                     std::to_string(accessor->componentType));
             break;
         }
     }
