@@ -79,8 +79,6 @@ class VulkanModel {
     void draw(VulkanRenderer* renderer);
 
     gltf::GLTF* gltf_model;
-    std::vector<float> animationInputs;
-    std::vector<glm::quat> animationOutputs;
 
   private:
     StagedBuffer* vertexBuffer;

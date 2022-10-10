@@ -97,9 +97,11 @@ class Animation {
     class Sampler {
       public:
         Sampler(JSONnode jsonSampler);
-        int input;
+        int inputIndex;
+        std::vector<float> inputData;
         std::string interpolation;
-        int output;
+        int outputIndex;
+        std::vector<glm::mat4> outputData;
     };
     class Channel {
       public:

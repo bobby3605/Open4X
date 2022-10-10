@@ -85,10 +85,10 @@ Animation::Channel::Target::Target(JSONnode jsonTarget) {
 }
 
 Animation::Sampler::Sampler(JSONnode jsonSampler) {
-    input = find<int>(jsonSampler, "input");
+    inputIndex = find<int>(jsonSampler, "input");
     interpolation = findOptional<std::string>(jsonSampler, "interpolation")
                         .value_or("LINEAR");
-    output = find<int>(jsonSampler, "output");
+    outputIndex = find<int>(jsonSampler, "output");
 }
 
 Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> byteData) {
