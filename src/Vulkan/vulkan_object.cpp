@@ -1,4 +1,5 @@
 #include "vulkan_object.hpp"
+#include <chrono>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -20,7 +21,8 @@ void VulkanObject::draw() {
     model->draw(renderer);
 }
 
-VulkanObject::VulkanObject(VulkanRenderer* renderer) : renderer{renderer} {}
+VulkanObject::VulkanObject(VulkanRenderer* renderer)
+    : model{nullptr}, renderer{renderer} {}
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {
     isModelMatrixValid = false;
@@ -126,5 +128,43 @@ glm::mat4 const VulkanObject::mat4() {
         isModelMatrixValid = true;
     }
 
+    // TODO
+    // make this better and support multiple channels and samplers and
+    // animations
+
+    // Model may not be set
+    if (model != nullptr) {
+        // For some reason, model->gltf_model->animations.empty() segfaults
+        // .size() and .capacity segfault too
+        if (!model->animationInputs.empty()) {
+            for (gltf::Animation animation : model->gltf_model->animations) {
+                // TODO
+                // support multiple nodes
+
+                float nowMS =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+                // Get the time since the past second in seconds with 4
+                // significant digits
+                // TODO
+                // suppport more than just 1 second animations
+                float nowAnim = fmod(nowMS, model->animationInputs.back());
+                std::cout << "nowMS: " << nowMS << std::endl;
+                std::cout << "nowAnim: " << nowAnim << std::endl;
+                // Get the animation time
+                int animIndex = 0;
+                for (int i = 0; i < model->animationInputs.size(); ++i) {
+                    if (model->animationInputs[i] < nowAnim) {
+                        animIndex = i;
+                    } else {
+                        break;
+                    }
+                }
+                return glm::toMat4(model->animationOutputs[animIndex]) *
+                       cachedModelMatrix;
+            }
+        }
+    }
     return cachedModelMatrix;
 }

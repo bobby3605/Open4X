@@ -30,6 +30,9 @@ std::vector<unsigned char> GLTF::loadURI(std::string uri, int byteLength) {
 
 void GLTF::loadGLTF(std::string filePath) {
     std::ifstream file(filePath);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + filePath);
+    }
     // Remove extra data from the start of the file
     while (file.peek() != '{') {
         file.seekg(1, std::ios::cur);
@@ -59,6 +62,14 @@ void GLTF::loadGLTF(std::string filePath) {
         find<JSONnode::nodeVector>(jsonRoot, "accessors");
     for (JSONnode jsonAccessor : jsonAccessors) {
         accessors.push_back(Accessor(jsonAccessor));
+    }
+
+    std::optional<JSONnode::nodeVector> jsonAnimations =
+        findOptional<JSONnode::nodeVector>(jsonRoot, "animations");
+    if (jsonAnimations.has_value()) {
+        for (JSONnode jsonAnimation : jsonAnimations.value()) {
+            animations.push_back(Animation(jsonAnimation));
+        }
     }
 
     std::optional<int> jsonDefaultScene = findOptional<int>(jsonRoot, "scene");

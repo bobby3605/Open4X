@@ -24,6 +24,9 @@ class Open4X {
     VulkanModel* vikingRoomModel;
     VulkanModel* flatVaseModel;
     gltf::GLTF* basicTriangleGLTFModel;
+
+    std::vector<VulkanModel*> vulkanModels;
+    std::vector<gltf::GLTF*> gltfModels;
 };
 
 #endif // OPEN4X_H_

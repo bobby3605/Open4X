@@ -76,8 +76,11 @@ class VulkanModel {
                 std::string model_path, std::string texture_path);
     ~VulkanModel();
 
-    void loadImage(std::string path);
     void draw(VulkanRenderer* renderer);
+
+    gltf::GLTF* gltf_model;
+    std::vector<float> animationInputs;
+    std::vector<glm::quat> animationOutputs;
 
   private:
     StagedBuffer* vertexBuffer;
@@ -96,9 +99,10 @@ class VulkanModel {
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet materialSet;
 
-    gltf::GLTF* gltf_model;
+    void loadImage(std::string path);
 
     void loadAccessors();
+    void loadAnimations();
 
     template <typename T>
     static T getBufferData(unsigned char* ptr, int offset) {
@@ -281,6 +285,12 @@ class VulkanModel {
             offset = accessor->byteOffset + bufferView->byteOffset +
                      count_index * (bufferView->byteStride +
                                     bufferView->byteLength / accessor->count);
+            // TODO
+            // bufferView->byteLength / accessor->count
+            // might fail in the case of a byteStride
+            // since the byteLength is the total bytes in the bufferView, but
+            // accessor->count only refers to a single set of values in the
+            // bufferView
         }
         buffer = &gltf_model->buffers[bufferView->buffer];
         return getComponent<T>(accessor->componentType, buffer->data.data(),

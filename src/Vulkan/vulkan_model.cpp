@@ -14,6 +14,24 @@
 #include "vulkan_buffer.hpp"
 #include <unordered_map>
 
+void VulkanModel::loadAnimations() {
+    for (gltf::Animation animation : gltf_model->animations) {
+        // Currently only one sampler and channel per animation
+        gltf::Accessor* inputAccessor =
+            &gltf_model->accessors[animation.samplers[0].input];
+        for (int i = 0; i < inputAccessor->count; ++i) {
+            animationInputs.push_back(loadAccessor<float>(inputAccessor, i));
+        }
+        // Only supporting quat/vec4 for now
+        gltf::Accessor* outputAccessor =
+            &gltf_model->accessors[animation.samplers[0].output];
+        for (int i = 0; i < outputAccessor->count; ++i) {
+            animationOutputs.push_back(
+                glm::quat(loadAccessor<glm::vec4>(outputAccessor, i)));
+        }
+    }
+}
+
 void VulkanModel::loadAccessors() {
     int indicesOffset = 0;
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
@@ -106,6 +124,9 @@ VulkanModel::VulkanModel(VulkanDevice* device,
                                                                 gltf_model} {
 
     loadAccessors();
+    if (gltf_model->animations.size() > 0) {
+        loadAnimations();
+    }
 
     loadImage("assets/textures/white.png");
 }

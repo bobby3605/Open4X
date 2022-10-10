@@ -25,6 +25,7 @@ class GLTF {
     // Make private
     // Add const getters
     std::vector<Accessor> accessors;
+    std::vector<Animation> animations;
     std::vector<Buffer> buffers;
     std::vector<BufferView> bufferViews;
     int scene;

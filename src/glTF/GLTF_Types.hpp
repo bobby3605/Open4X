@@ -91,6 +91,34 @@ class Accessor {
     std::optional<std::string> name;
 };
 
+class Animation {
+  public:
+    Animation(JSONnode jsonAnimation);
+    class Sampler {
+      public:
+        Sampler(JSONnode jsonSampler);
+        int input;
+        std::string interpolation;
+        int output;
+    };
+    class Channel {
+      public:
+        Channel(JSONnode jsonChannel);
+        class Target {
+          public:
+            Target(JSONnode jsonTarget);
+            // Node may be defined by extension
+            int node;
+            std::string path;
+        };
+        int sampler;
+        std::shared_ptr<Target> target;
+    };
+    std::vector<Sampler> samplers;
+    std::vector<Channel> channels;
+    std::optional<std::string> name;
+};
+
 class Asset {
   public:
     Asset(JSONnode jsonAsset);

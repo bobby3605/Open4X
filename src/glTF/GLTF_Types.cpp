@@ -60,6 +60,37 @@ Accessor::Sparse::Sparse::Value::Value(JSONnode jsonValue) {
     byteOffset = findOptional<int>(jsonValue, "byteOffset").value_or(0);
 }
 
+Animation::Animation(JSONnode jsonAnimation) {
+    JSONnode::nodeVector jsonChannels =
+        find<JSONnode::nodeVector>(jsonAnimation, "channels");
+    for (JSONnode jsonChannel : jsonChannels) {
+        channels.push_back(Channel(jsonChannel));
+    }
+    JSONnode::nodeVector jsonSamplers =
+        find<JSONnode::nodeVector>(jsonAnimation, "samplers");
+    for (JSONnode jsonSampler : jsonSamplers) {
+        samplers.push_back(Sampler(jsonSampler));
+    }
+    name = findOptional<std::string>(jsonAnimation, "name");
+}
+
+Animation::Channel::Channel(JSONnode jsonChannel) {
+    sampler = find<int>(jsonChannel, "sampler");
+    target = std::unique_ptr<Target>(new Target(jsonChannel.find("target")));
+}
+
+Animation::Channel::Target::Target(JSONnode jsonTarget) {
+    node = find<int>(jsonTarget, "node");
+    path = find<std::string>(jsonTarget, "path");
+}
+
+Animation::Sampler::Sampler(JSONnode jsonSampler) {
+    input = find<int>(jsonSampler, "input");
+    interpolation = findOptional<std::string>(jsonSampler, "interpolation")
+                        .value_or("LINEAR");
+    output = find<int>(jsonSampler, "output");
+}
+
 Buffer::Buffer(JSONnode jsonBuffer, std::vector<unsigned char> byteData) {
     uri = find<std::string>(jsonBuffer, "uri");
     byteLength = find<int>(jsonBuffer, "byteLength");

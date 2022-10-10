@@ -49,10 +49,15 @@ Open4X::Open4X() {
 }
 
 Open4X::~Open4X() {
-    delete basicTriangleGLTFModel;
-    delete basicTriangleModel;
-    delete vikingRoomModel;
-    delete flatVaseModel;
+
+    for (gltf::GLTF* gltfModel : gltfModels) {
+        delete gltfModel;
+    }
+
+    for (VulkanModel* vulkanModel : vulkanModels) {
+        delete vulkanModel;
+    }
+
     delete vulkanRenderer;
     delete vulkanDevice;
     delete vulkanWindow;
@@ -65,14 +70,34 @@ void Open4X::run() {
     basicTriangleGLTFModel =
         new gltf::GLTF("assets/glTF/basic_sparse_triangles.gltf");
 
+    gltfModels.push_back(basicTriangleGLTFModel);
+
+    gltf::GLTF* animatedTriangleGLTFModel =
+        new gltf::GLTF("assets/glTF/animated_triangle.gltf");
+
+    gltfModels.push_back(animatedTriangleGLTFModel);
+
     basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                          basicTriangleGLTFModel);
+
+    vulkanModels.push_back(basicTriangleModel);
+
+    VulkanModel* animatedTriangleModel = new VulkanModel(
+        vulkanDevice, &descriptorManager, animatedTriangleGLTFModel);
+
+    vulkanModels.push_back(animatedTriangleModel);
+
     vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                       "assets/models/viking_room.obj",
                                       "assets/textures/viking_room.png");
+
+    vulkanModels.push_back(vikingRoomModel);
+
     flatVaseModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                     "assets/models/flat_vase.obj",
                                     "assets/textures/statue.jpg");
+
+    vulkanModels.push_back(flatVaseModel);
 
     vulkanRenderer =
         new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
@@ -108,6 +133,8 @@ void Open4X::run() {
     obj2.y(1.5f);
     VulkanObject obj3(flatVaseModel, vulkanRenderer);
     VulkanObject gltfObj(basicTriangleModel, vulkanRenderer);
+    VulkanObject animatedTriangleObj(animatedTriangleModel, vulkanRenderer);
+    animatedTriangleObj.y(-1.5f);
 
     camera = new VulkanObject(vulkanRenderer);
 
@@ -147,6 +174,8 @@ void Open4X::run() {
         obj2.draw();
 
         gltfObj.draw();
+
+        animatedTriangleObj.draw();
 
         vulkanRenderer->endSwapChainrenderPass();
 
