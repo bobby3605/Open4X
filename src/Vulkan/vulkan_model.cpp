@@ -12,6 +12,7 @@
 #include "../../external/tiny_obj_loader.h"
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
+#include <glm/gtc/type_ptr.hpp>
 #include <unordered_map>
 
 void VulkanModel::loadAnimations() {
@@ -26,8 +27,8 @@ void VulkanModel::loadAnimations() {
         gltf::Accessor* outputAccessor =
             &gltf_model->accessors[animation.samplers[0].output];
         for (int i = 0; i < outputAccessor->count; ++i) {
-            animationOutputs.push_back(
-                glm::quat(loadAccessor<glm::vec4>(outputAccessor, i)));
+            animationOutputs.push_back(glm::make_quat(
+                glm::value_ptr(loadAccessor<glm::vec4>(outputAccessor, i))));
         }
     }
 }

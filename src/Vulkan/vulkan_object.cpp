@@ -119,6 +119,8 @@ void VulkanObject::keyboardUpdate(float frameTime) {
 }
 
 glm::mat4 const VulkanObject::mat4() {
+    // TODO
+    // clean up this terrible logic
     if (!isModelMatrixValid) {
         glm::mat4 translationMatrix = glm::translate(
             glm::mat4(1.0f), {position.x, position.y, position.z});
@@ -141,28 +143,42 @@ glm::mat4 const VulkanObject::mat4() {
                 // TODO
                 // support multiple nodes
 
-                float nowMS =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::system_clock::now().time_since_epoch())
-                        .count();
+                float nowAnim =
+                    fmod(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch())
+                            .count(),
+                        1000 * model->animationInputs.back()) /
+                    1000;
                 // Get the time since the past second in seconds with 4
                 // significant digits
-                // TODO
-                // suppport more than just 1 second animations
-                float nowAnim = fmod(nowMS, model->animationInputs.back());
-                std::cout << "nowMS: " << nowMS << std::endl;
-                std::cout << "nowAnim: " << nowAnim << std::endl;
                 // Get the animation time
-                int animIndex = 0;
+                glm::quat lerp1 = model->animationOutputs[0];
+                glm::quat lerp2 = model->animationOutputs[0];
+                int smallerIndex = 0;
+                int largerIndex = 0;
                 for (int i = 0; i < model->animationInputs.size(); ++i) {
-                    if (model->animationInputs[i] < nowAnim) {
-                        animIndex = i;
-                    } else {
+                    if (model->animationInputs[i] <= nowAnim) {
+                        smallerIndex = i;
+                        lerp1 = model->animationOutputs[i];
+                    }
+                    if (model->animationInputs[i] >= nowAnim) {
+                        largerIndex = i % (model->animationOutputs.size() - 1);
+                        lerp2 = model->animationOutputs[largerIndex];
                         break;
                     }
                 }
-                return glm::toMat4(model->animationOutputs[animIndex]) *
-                       cachedModelMatrix;
+                glm::mat4 translationMatrix = glm::translate(
+                    glm::mat4(1.0f), {position.x, position.y, position.z});
+                float previousTime = model->animationInputs[smallerIndex];
+                float nextTime = model->animationInputs[largerIndex];
+                float interpolationValue =
+                    (nowAnim - previousTime) / (nextTime - previousTime);
+                glm::mat4 rotationMatrix = glm::toMat4(
+                    rotation * glm::slerp(lerp1, lerp2, interpolationValue));
+                glm::mat4 scaleMatrix = glm::scale(scale);
+                isModelMatrixValid = true;
+                return translationMatrix * rotationMatrix * scaleMatrix;
             }
         }
     }

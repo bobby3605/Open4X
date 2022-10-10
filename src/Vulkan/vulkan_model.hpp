@@ -277,20 +277,16 @@ class VulkanModel {
             offset = accessor->sparse->indices->byteOffset +
                      bufferView->byteOffset +
                      sparseIndices[accessor][count_index] *
-                         (bufferView->byteStride +
-                          bufferView->byteLength / accessor->sparse->count);
+                         (bufferView->byteStride + sizeof(T));
         } else {
 
             bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
             offset = accessor->byteOffset + bufferView->byteOffset +
-                     count_index * (bufferView->byteStride +
-                                    bufferView->byteLength / accessor->count);
+                     count_index * (bufferView->byteStride + sizeof(T));
             // TODO
-            // bufferView->byteLength / accessor->count
-            // might fail in the case of a byteStride
-            // since the byteLength is the total bytes in the bufferView, but
-            // accessor->count only refers to a single set of values in the
-            // bufferView
+            // sizeof(T) might not work for everything
+            // bufferView->byteLength / accessor->count fails for multiple
+            // accessors in one buffer
         }
         buffer = &gltf_model->buffers[bufferView->buffer];
         return getComponent<T>(accessor->componentType, buffer->data.data(),

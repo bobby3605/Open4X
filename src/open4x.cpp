@@ -135,6 +135,7 @@ void Open4X::run() {
     VulkanObject gltfObj(basicTriangleModel, vulkanRenderer);
     VulkanObject animatedTriangleObj(animatedTriangleModel, vulkanRenderer);
     animatedTriangleObj.y(-1.5f);
+    animatedTriangleObj.x(1.0f);
 
     camera = new VulkanObject(vulkanRenderer);
 
