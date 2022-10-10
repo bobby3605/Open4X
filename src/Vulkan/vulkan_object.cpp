@@ -155,23 +155,21 @@ glm::mat4 const VulkanObject::mat4() {
                 // Get the animation time
                 glm::quat lerp1 = model->animationOutputs[0];
                 glm::quat lerp2 = model->animationOutputs[0];
-                int smallerIndex = 0;
-                int largerIndex = 0;
+                float previousTime = 0;
+                float nextTime = 0;
                 for (int i = 0; i < model->animationInputs.size(); ++i) {
                     if (model->animationInputs[i] <= nowAnim) {
-                        smallerIndex = i;
+                        previousTime = model->animationInputs[i];
                         lerp1 = model->animationOutputs[i];
                     }
                     if (model->animationInputs[i] >= nowAnim) {
-                        largerIndex = i % (model->animationOutputs.size() - 1);
-                        lerp2 = model->animationOutputs[largerIndex];
+                        nextTime = model->animationInputs[i];
+                        lerp2 = model->animationOutputs[i];
                         break;
                     }
                 }
                 glm::mat4 translationMatrix = glm::translate(
                     glm::mat4(1.0f), {position.x, position.y, position.z});
-                float previousTime = model->animationInputs[smallerIndex];
-                float nextTime = model->animationInputs[largerIndex];
                 float interpolationValue =
                     (nowAnim - previousTime) / (nextTime - previousTime);
                 glm::mat4 rotationMatrix = glm::toMat4(
