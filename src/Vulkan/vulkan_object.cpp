@@ -138,45 +138,63 @@ glm::mat4 const VulkanObject::mat4() {
     if (model != nullptr) {
         // For some reason, model->gltf_model->animations.empty() segfaults
         // .size() and .capacity segfault too
-        if (!model->animationInputs.empty()) {
+        if (!model->gltf_model->animations.empty()) {
             for (gltf::Animation animation : model->gltf_model->animations) {
-                // TODO
-                // support multiple nodes
+                for (gltf::Animation::Channel channel : animation.channels) {
+                    gltf::Animation::Sampler sampler =
+                        animation.samplers[channel.sampler];
+                    // TODO
+                    // support multiple nodes
 
-                float nowAnim =
-                    fmod(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::system_clock::now().time_since_epoch())
-                            .count(),
-                        1000 * model->animationInputs.back()) /
-                    1000;
-                // Get the time since the past second in seconds with 4
-                // significant digits
-                // Get the animation time
-                glm::quat lerp1 = model->animationOutputs[0];
-                glm::quat lerp2 = model->animationOutputs[0];
-                float previousTime = 0;
-                float nextTime = 0;
-                for (int i = 0; i < model->animationInputs.size(); ++i) {
-                    if (model->animationInputs[i] <= nowAnim) {
-                        previousTime = model->animationInputs[i];
-                        lerp1 = model->animationOutputs[i];
+                    float nowAnim = fmod(std::chrono::duration_cast<
+                                             std::chrono::milliseconds>(
+                                             std::chrono::system_clock::now()
+                                                 .time_since_epoch())
+                                             .count(),
+                                         1000 * sampler.inputData.back()) /
+                                    1000;
+                    // Get the time since the past second in seconds with 4
+                    // significant digits
+                    // Get the animation time
+                    glm::quat lerp1 = sampler.outputData.front();
+                    glm::quat lerp2 = sampler.outputData.front();
+                    float previousTime = 0;
+                    float nextTime = 0;
+                    for (int i = 0; i < sampler.inputData.size(); ++i) {
+                        if (sampler.inputData[i] <= nowAnim) {
+                            previousTime = sampler.inputData[i];
+                            lerp1 = sampler.outputData[i];
+                        }
+                        if (sampler.inputData[i] >= nowAnim) {
+                            nextTime = sampler.inputData[i];
+                            lerp2 = sampler.outputData[i];
+                            break;
+                        }
                     }
-                    if (model->animationInputs[i] >= nowAnim) {
-                        nextTime = model->animationInputs[i];
-                        lerp2 = model->animationOutputs[i];
-                        break;
+                    float interpolationValue =
+                        (nowAnim - previousTime) / (nextTime - previousTime);
+                    glm::mat4 translationMatrix = glm::translate(
+                        glm::mat4(1.0f), {position.x, position.y, position.z});
+                    glm::mat4 rotationMatrix =
+                        glm::toMat4(rotation * glm::slerp(lerp1, lerp2,
+                                                          interpolationValue));
+                    glm::mat4 scaleMatrix = glm::scale(scale);
+
+                    if (channel.target->path.compare("translation") == 0) {
+
+                    } else if (channel.target->path.compare("rotation") == 0) {
+
+                    } else if (channel.target->path.compare("scale") == 0) {
+
+                    } else {
+                        std::cout
+                            << "Unknown channel type: " << channel.target->path
+                            << std::endl;
                     }
+
+                    isModelMatrixValid = true;
+                    return translationMatrix * rotationMatrix * scaleMatrix;
                 }
-                glm::mat4 translationMatrix = glm::translate(
-                    glm::mat4(1.0f), {position.x, position.y, position.z});
-                float interpolationValue =
-                    (nowAnim - previousTime) / (nextTime - previousTime);
-                glm::mat4 rotationMatrix = glm::toMat4(
-                    rotation * glm::slerp(lerp1, lerp2, interpolationValue));
-                glm::mat4 scaleMatrix = glm::scale(scale);
-                isModelMatrixValid = true;
-                return translationMatrix * rotationMatrix * scaleMatrix;
             }
         }
     }
