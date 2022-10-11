@@ -1,7 +1,9 @@
 #include "vulkan_object.hpp"
 #include <chrono>
+#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
@@ -131,66 +133,100 @@ glm::mat4 const VulkanObject::mat4() {
     }
 
     // TODO
-    // make this better and support multiple channels and samplers and
-    // animations
-
+    // Make this faster
     // Model may not be set
     if (model != nullptr) {
-        // For some reason, model->gltf_model->animations.empty() segfaults
-        // .size() and .capacity segfault too
-        if (!model->gltf_model->animations.empty()) {
-            for (gltf::Animation animation : model->gltf_model->animations) {
-                for (gltf::Animation::Channel channel : animation.channels) {
-                    gltf::Animation::Sampler sampler =
-                        animation.samplers[channel.sampler];
-                    // TODO
-                    // support multiple nodes
+        if (model->gltf_model != nullptr) {
+            if (!model->gltf_model->animations.empty()) {
+                for (gltf::Animation animation :
+                     model->gltf_model->animations) {
+                    glm::vec3 translationAnimation(1.0f);
+                    glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
+                    glm::vec3 scaleAnimation(1.0f);
+                    for (std::shared_ptr<gltf::Animation::Channel> channel :
+                         animation.channels) {
+                        // TODO
+                        // Support multiple nodes
+                        if (channel->target->node == 0) {
+                            std::shared_ptr<gltf::Animation::Sampler> sampler =
+                                animation.samplers[channel->sampler];
 
-                    float nowAnim = fmod(std::chrono::duration_cast<
-                                             std::chrono::milliseconds>(
-                                             std::chrono::system_clock::now()
-                                                 .time_since_epoch())
-                                             .count(),
-                                         1000 * sampler.inputData.back()) /
-                                    1000;
-                    // Get the time since the past second in seconds with 4
-                    // significant digits
-                    // Get the animation time
-                    glm::quat lerp1 = sampler.outputData.front();
-                    glm::quat lerp2 = sampler.outputData.front();
-                    float previousTime = 0;
-                    float nextTime = 0;
-                    for (int i = 0; i < sampler.inputData.size(); ++i) {
-                        if (sampler.inputData[i] <= nowAnim) {
-                            previousTime = sampler.inputData[i];
-                            lerp1 = sampler.outputData[i];
-                        }
-                        if (sampler.inputData[i] >= nowAnim) {
-                            nextTime = sampler.inputData[i];
-                            lerp2 = sampler.outputData[i];
-                            break;
+                            float nowAnim =
+                                fmod(std::chrono::duration_cast<
+                                         std::chrono::milliseconds>(
+                                         std::chrono::system_clock::now()
+                                             .time_since_epoch())
+                                         .count(),
+                                     1000 * sampler->inputData.back()) /
+                                1000;
+                            // Get the time since the past second in seconds
+                            // with 4 significant digits Get the animation time
+                            glm::mat4 lerp1 = sampler->outputData.front();
+                            glm::mat4 lerp2 = sampler->outputData.front();
+                            float previousTime = 0;
+                            float nextTime = 0;
+                            for (int i = 0; i < sampler->inputData.size();
+                                 ++i) {
+                                if (sampler->inputData[i] <= nowAnim) {
+                                    previousTime = sampler->inputData[i];
+                                    lerp1 = sampler->outputData[i];
+                                }
+                                if (sampler->inputData[i] >= nowAnim) {
+                                    nextTime = sampler->inputData[i];
+                                    lerp2 = sampler->outputData[i];
+                                    break;
+                                }
+                            }
+                            float interpolationValue =
+                                (nowAnim - previousTime) /
+                                (nextTime - previousTime);
+
+                            if (channel->target->path.compare("translation") ==
+                                0) {
+
+                                translationAnimation =
+                                    glm::make_vec3(glm::value_ptr(lerp1)) +
+                                    interpolationValue *
+                                        (glm::make_vec3(glm::value_ptr(lerp2)) -
+                                         glm::make_vec3(glm::value_ptr(lerp1)));
+
+                                std::cout
+                                    << "translationAnimation: "
+                                    << glm::to_string(translationAnimation)
+                                    << std::endl;
+
+                            } else if (channel->target->path.compare(
+                                           "rotation") == 0) {
+
+                                rotationAnimation = glm::slerp(
+                                    glm::make_quat(glm::value_ptr(lerp1)),
+                                    glm::make_quat(glm::value_ptr(lerp2)),
+                                    interpolationValue);
+
+                            } else if (channel->target->path.compare("scale") ==
+                                       0) {
+                                scaleAnimation =
+                                    glm::make_vec3(glm::value_ptr(lerp1)) +
+                                    interpolationValue *
+                                        (glm::make_vec3(glm::value_ptr(lerp2)) -
+                                         glm::make_vec3(glm::value_ptr(lerp1)));
+
+                            } else {
+                                std::cout << "Unknown channel type: "
+                                          << channel->target->path << std::endl;
+                            }
                         }
                     }
-                    float interpolationValue =
-                        (nowAnim - previousTime) / (nextTime - previousTime);
+
                     glm::mat4 translationMatrix = glm::translate(
-                        glm::mat4(1.0f), {position.x, position.y, position.z});
+                        glm::mat4(1.0f),
+                        translationAnimation *
+                            glm::vec3(position.x, position.y, position.z));
+
                     glm::mat4 rotationMatrix =
-                        glm::toMat4(rotation * glm::slerp(lerp1, lerp2,
-                                                          interpolationValue));
-                    glm::mat4 scaleMatrix = glm::scale(scale);
+                        glm::toMat4(rotationAnimation * rotation);
 
-                    if (channel.target->path.compare("translation") == 0) {
-
-                    } else if (channel.target->path.compare("rotation") == 0) {
-
-                    } else if (channel.target->path.compare("scale") == 0) {
-
-                    } else {
-                        std::cout
-                            << "Unknown channel type: " << channel.target->path
-                            << std::endl;
-                    }
+                    glm::mat4 scaleMatrix = glm::scale(scaleAnimation * scale);
 
                     isModelMatrixValid = true;
                     return translationMatrix * rotationMatrix * scaleMatrix;

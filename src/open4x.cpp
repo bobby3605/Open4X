@@ -73,7 +73,7 @@ void Open4X::run() {
     gltfModels.push_back(basicTriangleGLTFModel);
 
     gltf::GLTF* animatedTriangleGLTFModel =
-        new gltf::GLTF("assets/glTF/animated_triangle.gltf");
+        new gltf::GLTF("assets/glTF/simple_animation.gltf");
 
     gltfModels.push_back(animatedTriangleGLTFModel);
 

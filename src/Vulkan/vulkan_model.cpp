@@ -17,21 +17,22 @@
 
 void VulkanModel::loadAnimations() {
     for (gltf::Animation animation : gltf_model->animations) {
-        for (gltf::Animation::Channel channel : animation.channels) {
-            gltf::Accessor* inputAccessor =
-                &gltf_model->accessors[animation.samplers[channel.sampler]
-                                           .inputIndex];
-            for (int i = 0; i < inputAccessor->count; ++i) {
-                animation.samplers[channel.sampler].inputData.push_back(
-                    loadAccessor<float>(inputAccessor, i));
+        for (std::shared_ptr<gltf::Animation::Channel> channel :
+             animation.channels) {
+            gltf::Accessor inputAccessor =
+                gltf_model->accessors[animation.samplers[channel->sampler]
+                                          ->inputIndex];
+            for (int i = 0; i < inputAccessor.count; ++i) {
+                animation.samplers[channel->sampler]->inputData.push_back(
+                    loadAccessor<float>(&inputAccessor, i));
             }
-            gltf::Accessor* outputAccessor =
-                &gltf_model->accessors[animation.samplers[channel.sampler]
-                                           .outputIndex];
-            for (int i = 0; i < outputAccessor->count; ++i) {
-                animation.samplers[channel.sampler].outputData.push_back(
+            gltf::Accessor outputAccessor =
+                gltf_model->accessors[animation.samplers[channel->sampler]
+                                          ->outputIndex];
+            for (int i = 0; i < outputAccessor.count; ++i) {
+                animation.samplers[channel->sampler]->outputData.push_back(
                     glm::make_mat4(glm::value_ptr(
-                        loadAccessor<glm::vec4>(outputAccessor, i))));
+                        loadAccessor<glm::vec4>(&outputAccessor, i))));
             }
         }
     }
@@ -139,7 +140,8 @@ VulkanModel::VulkanModel(VulkanDevice* device,
 VulkanModel::VulkanModel(VulkanDevice* device,
                          VulkanDescriptors* descriptorManager,
                          std::string model_path, std::string texture_path)
-    : device{device}, descriptorManager{descriptorManager} {
+    : device{device}, descriptorManager{descriptorManager},
+      gltf_model(nullptr) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;

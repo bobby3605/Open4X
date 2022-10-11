@@ -116,8 +116,8 @@ class Animation {
         int sampler;
         std::shared_ptr<Target> target;
     };
-    std::vector<Sampler> samplers;
-    std::vector<Channel> channels;
+    std::vector<std::shared_ptr<Sampler>> samplers;
+    std::vector<std::shared_ptr<Channel>> channels;
     std::optional<std::string> name;
 };
 

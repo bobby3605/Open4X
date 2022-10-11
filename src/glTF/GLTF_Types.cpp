@@ -64,12 +64,14 @@ Animation::Animation(JSONnode jsonAnimation) {
     JSONnode::nodeVector jsonChannels =
         find<JSONnode::nodeVector>(jsonAnimation, "channels");
     for (JSONnode jsonChannel : jsonChannels) {
-        channels.push_back(Channel(jsonChannel));
+        channels.push_back(
+            std::unique_ptr<Animation::Channel>(new Channel(jsonChannel)));
     }
     JSONnode::nodeVector jsonSamplers =
         find<JSONnode::nodeVector>(jsonAnimation, "samplers");
     for (JSONnode jsonSampler : jsonSamplers) {
-        samplers.push_back(Sampler(jsonSampler));
+        samplers.push_back(
+            std::unique_ptr<Animation::Sampler>(new Sampler(jsonSampler)));
     }
     name = findOptional<std::string>(jsonAnimation, "name");
 }
