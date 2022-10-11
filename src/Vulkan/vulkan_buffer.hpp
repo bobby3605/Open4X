@@ -19,8 +19,13 @@ class VulkanBuffer {
   private:
     VulkanDevice* device;
     VkDeviceSize bufferSize;
-    void* mapped = nullptr;
     bool isMapped = false;
+    void* mapped = nullptr;
+
+  protected:
+    void* getMapped() { return mapped; }
+
+    friend class StorageBuffer;
 };
 
 class StagedBuffer {
@@ -49,6 +54,16 @@ class UniformBuffer {
   private:
     VulkanBuffer* uniformBuffer;
     VkDescriptorBufferInfo bufferInfo;
+};
+
+class StorageBuffer {
+  public:
+    StorageBuffer(VulkanDevice* device, VkDeviceSize size);
+    ~StorageBuffer();
+    void* mapped = nullptr;
+
+  private:
+    VulkanBuffer* storageBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

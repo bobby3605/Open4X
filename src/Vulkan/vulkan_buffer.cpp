@@ -74,3 +74,15 @@ UniformBuffer::~UniformBuffer() { delete uniformBuffer; }
 void UniformBuffer::write(void* data) {
     uniformBuffer->write(data, sizeof(UniformBufferObject), 0);
 }
+
+StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
+    storageBuffer =
+        new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    storageBuffer->map();
+    mapped = storageBuffer->getMapped();
+}
+
+StorageBuffer::~StorageBuffer() { delete storageBuffer; }

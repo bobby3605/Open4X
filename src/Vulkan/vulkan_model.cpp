@@ -118,7 +118,6 @@ void VulkanModel::loadAccessors() {
                 indirectDraw.vertexOffset = verticesOffset;
                 indirectDraw.firstInstance = 0;
                 indirectDraws.push_back(indirectDraw);
-
                 indicesOffset = indices.size();
             }
         }

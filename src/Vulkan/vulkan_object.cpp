@@ -25,6 +25,11 @@ void VulkanObject::draw() {
                                    VK_SHADER_STAGE_VERTEX_BIT |
                                        VK_SHADER_STAGE_FRAGMENT_BIT,
                                    0, sizeof(PushConstants), &push);
+                // TODO
+                // drawIndirect is running once for each node
+                // It should run once per gltf model
+                // push constants for model matrix should be converted into a
+                // SSBO, which is indexed into by instanceID
 
                 model->drawIndirect(renderer);
             }
