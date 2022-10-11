@@ -156,9 +156,9 @@ class Node {
     std::optional<std::string> name;
     std::optional<uint> mesh;
     std::vector<uint> children;
-    std::optional<glm::vec3> translation;
-    std::optional<glm::quat> rotation;
-    std::optional<glm::vec3> scale;
+    glm::vec3 translation;
+    glm::quat rotation;
+    glm::vec3 scale;
     std::optional<glm::mat4> matrix;
     std::optional<uint> skin;
     std::optional<uint> camera;

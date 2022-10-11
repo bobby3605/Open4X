@@ -77,6 +77,11 @@ void Open4X::run() {
 
     gltfModels.push_back(animatedTriangleGLTFModel);
 
+    gltf::GLTF* simpleMeshesGLTFModel =
+        new gltf::GLTF("assets/glTF/simple_meshes.gltf");
+
+    gltfModels.push_back(simpleMeshesGLTFModel);
+
     basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                          basicTriangleGLTFModel);
 
@@ -86,6 +91,11 @@ void Open4X::run() {
         vulkanDevice, &descriptorManager, animatedTriangleGLTFModel);
 
     vulkanModels.push_back(animatedTriangleModel);
+
+    VulkanModel* simpleMeshesModel = new VulkanModel(
+        vulkanDevice, &descriptorManager, simpleMeshesGLTFModel);
+
+    vulkanModels.push_back(simpleMeshesModel);
 
     vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager,
                                       "assets/models/viking_room.obj",
@@ -136,6 +146,8 @@ void Open4X::run() {
     VulkanObject animatedTriangleObj(animatedTriangleModel, vulkanRenderer);
     animatedTriangleObj.y(-1.5f);
     animatedTriangleObj.x(1.0f);
+    VulkanObject simpleMeshesObj(simpleMeshesModel, vulkanRenderer);
+    simpleMeshesObj.x(-2.0f);
 
     camera = new VulkanObject(vulkanRenderer);
 
@@ -177,6 +189,8 @@ void Open4X::run() {
         gltfObj.draw();
 
         animatedTriangleObj.draw();
+
+        simpleMeshesObj.draw();
 
         vulkanRenderer->endSwapChainrenderPass();
 

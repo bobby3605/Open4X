@@ -40,11 +40,12 @@ void VulkanModel::loadAnimations() {
 
 void VulkanModel::loadAccessors() {
     int indicesOffset = 0;
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+    int verticesOffset = 0;
     for (gltf::Scene scene : gltf_model->scenes) {
         for (int nodeNum : scene.nodes) {
             gltf::Node* node = &gltf_model->nodes[nodeNum];
             if (node->mesh.has_value()) {
+                std::unordered_map<Vertex, uint32_t> uniqueVertices{};
                 gltf::Mesh* mesh = &gltf_model->meshes[node->mesh.value()];
                 gltf::Accessor* accessor;
                 gltf::BufferView* bufferView;
@@ -63,6 +64,7 @@ void VulkanModel::loadAccessors() {
                     accessor =
                         &gltf_model->accessors[mesh->primitives->attributes
                                                    ->position.value()];
+                    verticesOffset = vertices.size();
                     for (int i = 0; i < accessor->count; ++i) {
                         // TODO get texcoord and color
                         Vertex vertex{};
@@ -94,8 +96,7 @@ void VulkanModel::loadAccessors() {
                              ->accessors[mesh->primitives->indices.value()];
                     for (int i = 0; i < accessor->count; ++i) {
                         indices.push_back(
-                            loadAccessor<unsigned short>(accessor, i) +
-                            indicesOffset);
+                            loadAccessor<unsigned short>(accessor, i));
                     }
                 }
                 // If no index buffer on mesh, generate one
@@ -108,12 +109,20 @@ void VulkanModel::loadAccessors() {
                         indices.push_back(uniqueVertices[vertex]);
                     }
                 }
-                // Update indices offset
-                indicesOffset += indices.size() - indicesOffset;
+                VkDrawIndexedIndirectCommand indirectDraw;
+                indirectDraw.indexCount = indices.size() - indicesOffset;
+                // TODO
+                // Increase instance count for multiple nodes with the same mesh
+                indirectDraw.instanceCount = 1;
+                indirectDraw.firstIndex = indicesOffset;
+                indirectDraw.vertexOffset = verticesOffset;
+                indirectDraw.firstInstance = 0;
+                indirectDraws.push_back(indirectDraw);
+
+                indicesOffset = indices.size();
             }
         }
     }
-
     vertexBuffer = new StagedBuffer(device, (void*)vertices.data(),
                                     sizeof(vertices[0]) * vertices.size(),
                                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
@@ -121,6 +130,11 @@ void VulkanModel::loadAccessors() {
     indexBuffer = new StagedBuffer(device, (void*)indices.data(),
                                    sizeof(indices[0]) * indices.size(),
                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+    indirectDrawsBuffer =
+        new StagedBuffer(device, (void*)indirectDraws.data(),
+                         sizeof(indirectDraws[0]) * indirectDraws.size(),
+                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 }
 
 VulkanModel::VulkanModel(VulkanDevice* device,
@@ -282,6 +296,24 @@ void VulkanModel::loadImage(std::string path) {
     vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
 }
 
+void VulkanModel::drawIndirect(VulkanRenderer* renderer) {
+
+    VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
+    VkDeviceSize offsets[] = {0};
+
+    renderer->bindDescriptorSet(1, materialSet);
+
+    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1,
+                           vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(),
+                         indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(),
+                             indirectDrawsBuffer->getBuffer(), 0,
+                             indirectDraws.size(), sizeof(indirectDraws[0]));
+}
+
 void VulkanModel::draw(VulkanRenderer* renderer) {
 
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
@@ -300,6 +332,9 @@ void VulkanModel::draw(VulkanRenderer* renderer) {
 }
 
 VulkanModel::~VulkanModel() {
+    if (indirectDrawsBuffer != nullptr) {
+        delete indirectDrawsBuffer;
+    }
     delete vertexBuffer;
     delete indexBuffer;
 

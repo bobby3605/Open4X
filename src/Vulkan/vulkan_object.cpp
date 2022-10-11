@@ -1,5 +1,6 @@
 #include "vulkan_object.hpp"
 #include <chrono>
+#include <cstdint>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -13,14 +14,31 @@ VulkanObject::VulkanObject(VulkanModel* model, VulkanRenderer* renderer)
     : model{model}, renderer{renderer} {}
 
 void VulkanObject::draw() {
-    PushConstants push{};
-    push.model = mat4();
-    vkCmdPushConstants(
-        renderer->getCurrentCommandBuffer(), renderer->getPipelineLayout(),
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-        sizeof(PushConstants), &push);
+    if (model->gltf_model != nullptr) {
+        for (gltf::Scene scene : model->gltf_model->scenes) {
+            for (int nodeID : scene.nodes) {
 
-    model->draw(renderer);
+                PushConstants push{};
+                push.model = mat4(nodeID);
+                vkCmdPushConstants(renderer->getCurrentCommandBuffer(),
+                                   renderer->getPipelineLayout(),
+                                   VK_SHADER_STAGE_VERTEX_BIT |
+                                       VK_SHADER_STAGE_FRAGMENT_BIT,
+                                   0, sizeof(PushConstants), &push);
+
+                model->drawIndirect(renderer);
+            }
+        }
+    } else {
+        PushConstants push{};
+        push.model = mat4();
+        vkCmdPushConstants(
+            renderer->getCurrentCommandBuffer(), renderer->getPipelineLayout(),
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+            sizeof(PushConstants), &push);
+
+        model->draw(renderer);
+    }
 }
 
 VulkanObject::VulkanObject(VulkanRenderer* renderer)
@@ -120,14 +138,24 @@ void VulkanObject::keyboardUpdate(float frameTime) {
                   << "Rotation: " << glm::to_string(getRotation()) << std::endl;
 }
 
-glm::mat4 const VulkanObject::mat4() {
+glm::mat4 const VulkanObject::mat4(uint32_t node) {
     // TODO
     // clean up this terrible logic
-    if (!isModelMatrixValid) {
-        glm::mat4 translationMatrix = glm::translate(
-            glm::mat4(1.0f), {position.x, position.y, position.z});
-        glm::mat4 rotationMatrix = glm::toMat4(rotation);
-        glm::mat4 scaleMatrix = glm::scale(scale);
+    if (!isModelMatrixValid || isModelMatrixValid) {
+        glm::vec3 modelTranslation(0.0f);
+        glm::quat modelRotation(0.0f, 0.0f, 0.0f, 0.0f);
+        glm::vec3 modelScale(0.0f);
+
+        if ((model != nullptr) && (model->gltf_model != nullptr)) {
+            modelTranslation = model->gltf_model->nodes[node].translation;
+            modelRotation = model->gltf_model->nodes[node].rotation;
+            modelScale = model->gltf_model->nodes[node].scale;
+        }
+
+        glm::mat4 translationMatrix =
+            glm::translate(glm::mat4(1.0f), position + modelTranslation);
+        glm::mat4 rotationMatrix = glm::toMat4(rotation + modelRotation);
+        glm::mat4 scaleMatrix = glm::scale(scale + modelScale);
         cachedModelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
         isModelMatrixValid = true;
     }
@@ -145,9 +173,7 @@ glm::mat4 const VulkanObject::mat4() {
                     glm::vec3 scaleAnimation(1.0f);
                     for (std::shared_ptr<gltf::Animation::Channel> channel :
                          animation.channels) {
-                        // TODO
-                        // Support multiple nodes
-                        if (channel->target->node == 0) {
+                        if (channel->target->node == node) {
                             std::shared_ptr<gltf::Animation::Sampler> sampler =
                                 animation.samplers[channel->sampler];
 
@@ -219,16 +245,13 @@ glm::mat4 const VulkanObject::mat4() {
                     }
 
                     glm::mat4 translationMatrix = glm::translate(
-                        glm::mat4(1.0f),
-                        translationAnimation *
-                            glm::vec3(position.x, position.y, position.z));
+                        glm::mat4(1.0f), translationAnimation * position);
 
                     glm::mat4 rotationMatrix =
                         glm::toMat4(rotationAnimation * rotation);
 
                     glm::mat4 scaleMatrix = glm::scale(scaleAnimation * scale);
 
-                    isModelMatrixValid = true;
                     return translationMatrix * rotationMatrix * scaleMatrix;
                 }
             }

@@ -77,6 +77,7 @@ class VulkanModel {
     ~VulkanModel();
 
     void draw(VulkanRenderer* renderer);
+    void drawIndirect(VulkanRenderer* renderer);
 
     gltf::GLTF* gltf_model;
 
@@ -87,6 +88,8 @@ class VulkanModel {
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
+    StagedBuffer* indirectDrawsBuffer = nullptr;
 
     VkSampler imageSampler;
     VkImageView imageView;

@@ -190,7 +190,8 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
     return indices.isComplete() && extensionsSupported && swapChainAdequate &&
-           supportedFeatures.samplerAnisotropy;
+           supportedFeatures.samplerAnisotropy &&
+           supportedFeatures.multiDrawIndirect;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
@@ -378,6 +379,7 @@ void VulkanDevice::createLogicalDevice() {
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
     deviceFeatures.sampleRateShading = sampleShading;
+    deviceFeatures.multiDrawIndirect = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

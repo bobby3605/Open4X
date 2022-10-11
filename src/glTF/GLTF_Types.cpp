@@ -1,5 +1,6 @@
 #include "GLTF_Types.hpp"
 #include "JSON.hpp"
+#include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <memory>
 
@@ -142,16 +143,22 @@ Node::Node(JSONnode jsonNode) {
                             .value_or(JSONnode::nodeVector())) {
         rotationAcc.push_back(std::get<double>(val.value()));
     }
-    if (rotationAcc.size() == 4)
+    if (rotationAcc.size() == 4) {
         rotation = glm::make_quat(rotationAcc.data());
+    } else if (rotationAcc.size() == 0) {
+        rotation = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 
     std::vector<double> scaleAcc;
     for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "scale")
                             .value_or(JSONnode::nodeVector())) {
         scaleAcc.push_back(std::get<double>(val.value()));
     }
-    if (scaleAcc.size() == 3)
+    if (scaleAcc.size() == 3) {
         scale = glm::make_vec3(scaleAcc.data());
+    } else if (scaleAcc.size() == 0) {
+        scale = glm::vec3(0.0f);
+    }
 
     std::vector<double> translationAcc;
     for (JSONnode val :
@@ -159,8 +166,11 @@ Node::Node(JSONnode jsonNode) {
              .value_or(JSONnode::nodeVector())) {
         translationAcc.push_back(std::get<double>(val.value()));
     }
-    if (translationAcc.size() == 3)
+    if (translationAcc.size() == 3) {
         translation = glm::make_vec3(translationAcc.data());
+    } else if (translationAcc.size() == 0) {
+        translation = glm::vec3(0.0f);
+    }
 
     for (JSONnode weight :
          findOptional<JSONnode::nodeVector>(jsonNode, "weights")
