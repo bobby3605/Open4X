@@ -17,22 +17,15 @@
 
 void VulkanModel::loadAnimations() {
     for (gltf::Animation animation : gltf_model->animations) {
-        for (std::shared_ptr<gltf::Animation::Channel> channel :
-             animation.channels) {
-            gltf::Accessor inputAccessor =
-                gltf_model->accessors[animation.samplers[channel->sampler]
-                                          ->inputIndex];
+        for (std::shared_ptr<gltf::Animation::Channel> channel : animation.channels) {
+            gltf::Accessor inputAccessor = gltf_model->accessors[animation.samplers[channel->sampler]->inputIndex];
             for (int i = 0; i < inputAccessor.count; ++i) {
-                animation.samplers[channel->sampler]->inputData.push_back(
-                    loadAccessor<float>(&inputAccessor, i));
+                animation.samplers[channel->sampler]->inputData.push_back(loadAccessor<float>(&inputAccessor, i));
             }
-            gltf::Accessor outputAccessor =
-                gltf_model->accessors[animation.samplers[channel->sampler]
-                                          ->outputIndex];
+            gltf::Accessor outputAccessor = gltf_model->accessors[animation.samplers[channel->sampler]->outputIndex];
             for (int i = 0; i < outputAccessor.count; ++i) {
                 animation.samplers[channel->sampler]->outputData.push_back(
-                    glm::make_mat4(glm::value_ptr(
-                        loadAccessor<glm::vec4>(&outputAccessor, i))));
+                    glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(&outputAccessor, i))));
             }
         }
     }
@@ -53,17 +46,13 @@ void VulkanModel::loadAccessors() {
                 // TODO
                 // Take max and min into account
                 if (mesh->primitives->attributes->normal.has_value()) {
-                    accessor =
-                        &gltf_model->accessors[mesh->primitives->attributes
-                                                   ->normal.value()];
+                    accessor = &gltf_model->accessors[mesh->primitives->attributes->normal.value()];
                     for (int i = 0; i < accessor->count; ++i) {
                         // TODO load into buffer
                     }
                 }
                 if (mesh->primitives->attributes->position.has_value()) {
-                    accessor =
-                        &gltf_model->accessors[mesh->primitives->attributes
-                                                   ->position.value()];
+                    accessor = &gltf_model->accessors[mesh->primitives->attributes->position.value()];
                     verticesOffset = vertices.size();
                     for (int i = 0; i < accessor->count; ++i) {
                         // TODO get texcoord and color
@@ -75,9 +64,7 @@ void VulkanModel::loadAccessors() {
                     }
                 }
                 if (mesh->primitives->attributes->tangent.has_value()) {
-                    accessor =
-                        &gltf_model->accessors[mesh->primitives->attributes
-                                                   ->tangent.value()];
+                    accessor = &gltf_model->accessors[mesh->primitives->attributes->tangent.value()];
                     for (int i = 0; i < accessor->count; ++i) {
                         // TODO load into buffer
                     }
@@ -91,20 +78,16 @@ void VulkanModel::loadAccessors() {
                 for (int weight : mesh->primitives->attributes->weights) {
                 }
                 if (mesh->primitives->indices.has_value()) {
-                    accessor =
-                        &gltf_model
-                             ->accessors[mesh->primitives->indices.value()];
+                    accessor = &gltf_model->accessors[mesh->primitives->indices.value()];
                     for (int i = 0; i < accessor->count; ++i) {
-                        indices.push_back(
-                            loadAccessor<unsigned short>(accessor, i));
+                        indices.push_back(loadAccessor<unsigned short>(accessor, i));
                     }
                 }
                 // If no index buffer on mesh, generate one
                 if ((indices.size() - indicesOffset) == 0) {
                     for (Vertex vertex : vertices) {
                         if (uniqueVertices.count(vertex) == 0) {
-                            uniqueVertices[vertex] =
-                                static_cast<uint32_t>(uniqueVertices.size());
+                            uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
                         }
                         indices.push_back(uniqueVertices[vertex]);
                     }
@@ -122,25 +105,17 @@ void VulkanModel::loadAccessors() {
             }
         }
     }
-    vertexBuffer = new StagedBuffer(device, (void*)vertices.data(),
-                                    sizeof(vertices[0]) * vertices.size(),
-                                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    vertexBuffer =
+        new StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
-    indexBuffer = new StagedBuffer(device, (void*)indices.data(),
-                                   sizeof(indices[0]) * indices.size(),
-                                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    indexBuffer = new StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    indirectDrawsBuffer =
-        new StagedBuffer(device, (void*)indirectDraws.data(),
-                         sizeof(indirectDraws[0]) * indirectDraws.size(),
-                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+    indirectDrawsBuffer = new StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
+                                           VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 }
 
-VulkanModel::VulkanModel(VulkanDevice* device,
-                         VulkanDescriptors* descriptorManager,
-                         gltf::GLTF* gltf_model)
-    : device{device}, descriptorManager{descriptorManager}, gltf_model{
-                                                                gltf_model} {
+VulkanModel::VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, gltf::GLTF* gltf_model)
+    : device{device}, descriptorManager{descriptorManager}, gltf_model{gltf_model} {
 
     loadAccessors();
     if (gltf_model->animations.size() > 0) {
@@ -150,18 +125,14 @@ VulkanModel::VulkanModel(VulkanDevice* device,
     loadImage("assets/textures/white.png");
 }
 
-VulkanModel::VulkanModel(VulkanDevice* device,
-                         VulkanDescriptors* descriptorManager,
-                         std::string model_path, std::string texture_path)
-    : device{device}, descriptorManager{descriptorManager},
-      gltf_model(nullptr) {
+VulkanModel::VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path)
+    : device{device}, descriptorManager{descriptorManager}, gltf_model(nullptr) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
 
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                          model_path.c_str())) {
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, model_path.c_str())) {
         throw std::runtime_error(warn + err);
     }
 
@@ -171,13 +142,10 @@ VulkanModel::VulkanModel(VulkanDevice* device,
         for (const auto& index : shape.mesh.indices) {
             Vertex vertex{};
 
-            vertex.pos = {attrib.vertices[3 * index.vertex_index + 0],
-                          attrib.vertices[3 * index.vertex_index + 1],
+            vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
                           attrib.vertices[3 * index.vertex_index + 2]};
 
-            vertex.texCoord = {
-                attrib.texcoords[2 * index.texcoord_index + 0],
-                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+            vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0], 1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
             vertex.color = {1.0f, 1.0f, 1.0f};
 
@@ -190,13 +158,10 @@ VulkanModel::VulkanModel(VulkanDevice* device,
         }
     }
 
-    vertexBuffer = new StagedBuffer(device, (void*)vertices.data(),
-                                    sizeof(vertices[0]) * vertices.size(),
-                                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    vertexBuffer =
+        new StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
-    indexBuffer = new StagedBuffer(device, (void*)indices.data(),
-                                   sizeof(indices[0]) * indices.size(),
-                                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    indexBuffer = new StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     loadImage(texture_path);
 }
@@ -204,22 +169,17 @@ VulkanModel::VulkanModel(VulkanDevice* device,
 void VulkanModel::loadImage(std::string path) {
 
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight,
-                                &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
         throw std::runtime_error("failed to load texture image");
     }
 
-    mipLevels = static_cast<uint32_t>(
-                    std::floor(std::log2(std::max(texWidth, texHeight)))) +
-                1;
+    mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
-    VulkanBuffer stagingBuffer(device, imageSize,
-                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    VulkanBuffer stagingBuffer(device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     stagingBuffer.map();
     stagingBuffer.write(pixels, imageSize);
@@ -227,28 +187,19 @@ void VulkanModel::loadImage(std::string path) {
 
     stbi_image_free(pixels);
 
-    device->createImage(
-        texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT,
-        VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-            VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
+    device->createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
     device->singleTimeCommands()
-        .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB,
-                               VK_IMAGE_LAYOUT_UNDEFINED,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels)
-        .copyBufferToImage(stagingBuffer.buffer, image,
-                           static_cast<uint32_t>(texWidth),
-                           static_cast<uint32_t>(texHeight))
+        .transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels)
+        .copyBufferToImage(stagingBuffer.buffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
         // TODO
         // Save and load mipmaps from a file
-        .generateMipmaps(image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight,
-                         mipLevels)
+        .generateMipmaps(image, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels)
         .run();
 
-    imageView = device->createImageView(image, VK_FORMAT_R8G8B8A8_SRGB,
-                                        VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+    imageView = device->createImageView(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -271,12 +222,9 @@ void VulkanModel::loadImage(std::string path) {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = static_cast<float>(mipLevels);
 
-    checkResult(
-        vkCreateSampler(device->device(), &samplerInfo, nullptr, &imageSampler),
-        "failed to create texture sampler!");
+    checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &imageSampler), "failed to create texture sampler!");
 
-    materialSet =
-        descriptorManager->allocateSet(descriptorManager->getMaterial());
+    materialSet = descriptorManager->allocateSet(descriptorManager->getMaterial());
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -302,15 +250,12 @@ void VulkanModel::drawIndirect(VulkanRenderer* renderer) {
 
     renderer->bindDescriptorSet(1, materialSet);
 
-    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1,
-                           vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(),
-                         indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(),
-                             indirectDrawsBuffer->getBuffer(), 0,
-                             indirectDraws.size(), sizeof(indirectDraws[0]));
+    vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
+                             sizeof(indirectDraws[0]));
 }
 
 void VulkanModel::draw(VulkanRenderer* renderer) {
@@ -320,14 +265,11 @@ void VulkanModel::draw(VulkanRenderer* renderer) {
 
     renderer->bindDescriptorSet(1, materialSet);
 
-    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1,
-                           vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(),
-                         indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexed(renderer->getCurrentCommandBuffer(),
-                     static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(renderer->getCurrentCommandBuffer(), static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 
 VulkanModel::~VulkanModel() {

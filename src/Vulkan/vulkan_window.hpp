@@ -14,13 +14,10 @@ class VulkanWindow {
     bool framebufferResized = false;
     GLFWwindow* getGLFWwindow() { return window; }
     bool shouldClose() { return glfwWindowShouldClose(window); }
-    VkExtent2D getExtent() {
-        return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
-    }
+    VkExtent2D getExtent() { return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}; }
 
   private:
-    static void framebufferResizeCallback(GLFWwindow* window, int width,
-                                          int height);
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     void initWindow();
 
     GLFWwindow* window;

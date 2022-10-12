@@ -7,8 +7,7 @@
 class VulkanBuffer {
 
   public:
-    VulkanBuffer(VulkanDevice* device, VkDeviceSize size,
-                 VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
     void map();
     void unmap();
     void write(void* data, VkDeviceSize size, VkDeviceSize offset = 0);
@@ -30,8 +29,7 @@ class VulkanBuffer {
 
 class StagedBuffer {
   public:
-    StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
-                 VkMemoryPropertyFlags type);
+    StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkMemoryPropertyFlags type);
     ~StagedBuffer();
     VkBuffer getBuffer() { return stagedBuffer->buffer; }
 

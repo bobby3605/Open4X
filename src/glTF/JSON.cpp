@@ -47,9 +47,7 @@ JSONnode::JSONnode(std::ifstream& file) {
     _value = parse(jsonString);
 }
 
-JSONnode::JSONnode(std::stringstream& jsonString) {
-    _value = parse(jsonString);
-}
+JSONnode::JSONnode(std::stringstream& jsonString) { _value = parse(jsonString); }
 
 std::string JSONnode::getString(std::stringstream& jsonString) {
     char c;
@@ -176,8 +174,7 @@ std::optional<JSONnode> JSONnode::findOptional(std::string key) {
         }
     } else {
 #ifndef NDEBUG
-        std::cout << "Find: Node " + _key + " does not hold JSONnode"
-                  << std::endl;
+        std::cout << "Find: Node " + _key + " does not hold JSONnode" << std::endl;
 #endif
         return {};
     }

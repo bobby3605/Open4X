@@ -19,8 +19,7 @@ struct PushConstants {
 
 class VulkanRenderer {
   public:
-    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef,
-                   VulkanDescriptors* descriptorManager);
+    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager);
     ~VulkanRenderer();
     void recordCommandBuffer(uint32_t imageIndex);
     void startFrame();
@@ -32,8 +31,7 @@ class VulkanRenderer {
     void bindPipeline();
     VulkanDescriptors* descriptorManager;
     void bindDescriptorSet(uint32_t setNum, VkDescriptorSet set);
-    void loadImage(std::string path, VkSampler& sampler,
-                   VkImageView& imageView);
+    void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);
     VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
     const VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
     VulkanWindow* getWindow() { return vulkanWindow; }

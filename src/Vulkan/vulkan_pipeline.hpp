@@ -7,8 +7,7 @@
 
 class VulkanPipeline {
   public:
-    VulkanPipeline(VulkanDevice* deviceRef,
-                   VkGraphicsPipelineCreateInfo pipelineInfo);
+    VulkanPipeline(VulkanDevice* deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo);
     ~VulkanPipeline();
     static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
     VkPipeline getPipeline() { return graphicsPipeline; }

@@ -11,18 +11,14 @@ class VulkanDescriptors {
     std::vector<VkDescriptorSet> descriptorSets;
 
     VkDescriptorPool createPool();
-    VkDescriptorSetLayout
-    createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings);
+    VkDescriptorSetLayout createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings);
     VkDescriptorSet allocateSet(VkDescriptorSetLayout layout);
-    void createSets(VkDescriptorSetLayout layout,
-                    std::vector<VkDescriptorSet>& sets);
+    void createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
 
     VkDescriptorSetLayout getGlobal() const { return globalL; }
     VkDescriptorSetLayout getMaterial() const { return materialL; }
 
-    std::vector<VkDescriptorSetLayout> const& getLayouts() const {
-        return descriptorLayouts;
-    }
+    std::vector<VkDescriptorSetLayout> const& getLayouts() const { return descriptorLayouts; }
 
   private:
     void createDescriptorSetLayout();
@@ -41,18 +37,17 @@ class VulkanDescriptors {
 
     std::vector<VkDescriptorSetLayout> descriptorLayouts;
 
-    std::vector<VkDescriptorType> descriptorTypes = {
-        VK_DESCRIPTOR_TYPE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-        VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-        VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT};
+    std::vector<VkDescriptorType> descriptorTypes = {VK_DESCRIPTOR_TYPE_SAMPLER,
+                                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                     VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                                                     VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                     VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+                                                     VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+                                                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                     VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                                     VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                                                     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT};
 };
 
 #endif // VULKAN_DESCRIPTORS_H_

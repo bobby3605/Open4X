@@ -22,17 +22,14 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action,
-                  int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, 1);
     }
 }
 
-glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio,
-                                float near, float far) {
-    assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) >
-           0.0f);
+glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float near, float far) {
+    assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
     const float tanHalfFovy = tan(glm::radians(vertical_fov) / 2.f);
     glm::mat4 projectionMatrix{0.0f};
     projectionMatrix[0][0] = 1.f / (aspect_ratio * tanHalfFovy);
@@ -61,17 +58,14 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    vulkanRenderer =
-        new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
+    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
     std::vector<VkDescriptorSet> globalSets;
 
     descriptorManager.createSets(descriptorManager.getGlobal(), globalSets);
 
-    std::vector<UniformBuffer*> uniformBuffers(
-        VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    std::vector<VkDescriptorBufferInfo> bufferInfos(
-        VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    std::vector<VkDescriptorBufferInfo> bufferInfos(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice);
@@ -86,19 +80,15 @@ void Open4X::run() {
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfos[i];
 
-        vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0,
-                               nullptr);
+        vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0, nullptr);
     }
 
     camera = new VulkanObject(vulkanRenderer);
 
     UniformBufferObject ubo{};
 
-    ubo.proj = perspectiveProjection(
-        45.0f,
-        vulkanRenderer->getSwapChainExtent().width /
-            (float)vulkanRenderer->getSwapChainExtent().height,
-        0.001f, 100.0f);
+    ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
+                                     0.001f, 100.0f);
 
     VulkanObjects objects;
 
@@ -107,16 +97,12 @@ void Open4X::run() {
         glfwPollEvents();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
-        float frameTime =
-            std::chrono::duration<float, std::chrono::seconds::period>(
-                startTime - currentTime)
-                .count();
+        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
         startTime = currentTime;
         camera->keyboardUpdate(frameTime);
 
         glm::mat4 cameraModel =
-            glm::translate(glm::mat4(1.0f), camera->getPosition()) *
-            glm::toMat4(camera->getRotation()) * glm::scale(camera->getScale());
+            glm::translate(glm::mat4(1.0f), camera->getPosition()) * glm::toMat4(camera->getRotation()) * glm::scale(camera->getScale());
 
         ubo.view = glm::inverse(cameraModel);
 
@@ -127,17 +113,13 @@ void Open4X::run() {
         vulkanRenderer->beginSwapChainrenderPass();
         vulkanRenderer->bindPipeline();
 
-        vulkanRenderer->bindDescriptorSet(
-            0, globalSets[vulkanRenderer->getCurrentFrame()]);
+        vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
         vulkanRenderer->endSwapChainrenderPass();
 
         if (vulkanRenderer->endFrame()) {
             ubo.proj = perspectiveProjection(
-                45.0f,
-                vulkanRenderer->getSwapChainExtent().width /
-                    (float)vulkanRenderer->getSwapChainExtent().height,
-                0.001f, 100.0f);
+                45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 100.0f);
         }
     }
     vkDeviceWaitIdle(vulkanDevice->device());

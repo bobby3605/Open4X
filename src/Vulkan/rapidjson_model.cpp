@@ -118,8 +118,7 @@ RapidJSON_Model::Mesh::Primitive::Primitive(Value& primitiveJSON) {
     }
 }
 
-RapidJSON_Model::Mesh::Primitive::Attributes::Attributes(
-    Value& attributesJSON) {
+RapidJSON_Model::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
     if (attributesJSON.HasMember("POSITION")) {
         Value& positionJSON = attributesJSON["POSITION"];
         if (positionJSON.IsInt()) {
@@ -205,8 +204,7 @@ RapidJSON_Model::Accessor::Accessor(Value& accessorJSON) {
     if (accessorJSON.HasMember("max")) {
         Value& maxJSON = accessorJSON["max"];
         if (maxJSON.IsArray()) {
-            for (Value::ValueIterator itr = maxJSON.Begin();
-                 itr != maxJSON.End(); ++itr) {
+            for (Value::ValueIterator itr = maxJSON.Begin(); itr != maxJSON.End(); ++itr) {
                 max.push_back(itr->GetFloat());
             }
         }
@@ -214,8 +212,7 @@ RapidJSON_Model::Accessor::Accessor(Value& accessorJSON) {
     if (accessorJSON.HasMember("min")) {
         Value& minJSON = accessorJSON["min"];
         if (minJSON.IsArray()) {
-            for (Value::ValueIterator itr = minJSON.Begin();
-                 itr != minJSON.End(); ++itr) {
+            for (Value::ValueIterator itr = minJSON.Begin(); itr != minJSON.End(); ++itr) {
                 min.push_back(itr->GetFloat());
             }
         }

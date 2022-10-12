@@ -14,8 +14,7 @@ Accessor::Accessor(JSONnode jsonAccessor) {
     count = find<int>(jsonAccessor, "count");
     type = find<std::string>(jsonAccessor, "type");
 
-    std::optional<JSONnode::nodeVector> maxNodes =
-        findOptional<JSONnode::nodeVector>(jsonAccessor, "max").value();
+    std::optional<JSONnode::nodeVector> maxNodes = findOptional<JSONnode::nodeVector>(jsonAccessor, "max").value();
     for (JSONnode m : maxNodes.value()) {
         if (std::holds_alternative<double>(m.value())) {
             max.push_back(std::get<double>(m.value()));
@@ -23,8 +22,7 @@ Accessor::Accessor(JSONnode jsonAccessor) {
             max.push_back(std::get<int>(m.value()));
         }
     }
-    std::optional<JSONnode::nodeVector> minNodes =
-        findOptional<JSONnode::nodeVector>(jsonAccessor, "min").value();
+    std::optional<JSONnode::nodeVector> minNodes = findOptional<JSONnode::nodeVector>(jsonAccessor, "min").value();
     for (JSONnode m : minNodes.value()) {
         if (std::holds_alternative<double>(m.value())) {
             min.push_back(std::get<double>(m.value()));
@@ -43,11 +41,9 @@ Accessor::Accessor(JSONnode jsonAccessor) {
 Accessor::Sparse::Sparse(JSONnode jsonSparse) {
     count = find<int>(jsonSparse, "count");
     JSONnode jsonSparseIndices = jsonSparse.find("indices");
-    indices =
-        std::unique_ptr<Accessor::Sparse::Index>(new Index(jsonSparseIndices));
+    indices = std::unique_ptr<Accessor::Sparse::Index>(new Index(jsonSparseIndices));
     JSONnode jsonSparseValues = jsonSparse.find("values");
-    values =
-        std::unique_ptr<Accessor::Sparse::Value>(new Value(jsonSparseValues));
+    values = std::unique_ptr<Accessor::Sparse::Value>(new Value(jsonSparseValues));
 }
 
 Accessor::Sparse::Sparse::Index::Index(JSONnode jsonIndex) {
@@ -62,17 +58,13 @@ Accessor::Sparse::Sparse::Value::Value(JSONnode jsonValue) {
 }
 
 Animation::Animation(JSONnode jsonAnimation) {
-    JSONnode::nodeVector jsonChannels =
-        find<JSONnode::nodeVector>(jsonAnimation, "channels");
+    JSONnode::nodeVector jsonChannels = find<JSONnode::nodeVector>(jsonAnimation, "channels");
     for (JSONnode jsonChannel : jsonChannels) {
-        channels.push_back(
-            std::unique_ptr<Animation::Channel>(new Channel(jsonChannel)));
+        channels.push_back(std::unique_ptr<Animation::Channel>(new Channel(jsonChannel)));
     }
-    JSONnode::nodeVector jsonSamplers =
-        find<JSONnode::nodeVector>(jsonAnimation, "samplers");
+    JSONnode::nodeVector jsonSamplers = find<JSONnode::nodeVector>(jsonAnimation, "samplers");
     for (JSONnode jsonSampler : jsonSamplers) {
-        samplers.push_back(
-            std::unique_ptr<Animation::Sampler>(new Sampler(jsonSampler)));
+        samplers.push_back(std::unique_ptr<Animation::Sampler>(new Sampler(jsonSampler)));
     }
     name = findOptional<std::string>(jsonAnimation, "name");
 }
@@ -89,8 +81,7 @@ Animation::Channel::Target::Target(JSONnode jsonTarget) {
 
 Animation::Sampler::Sampler(JSONnode jsonSampler) {
     inputIndex = find<int>(jsonSampler, "input");
-    interpolation = findOptional<std::string>(jsonSampler, "interpolation")
-                        .value_or("LINEAR");
+    interpolation = findOptional<std::string>(jsonSampler, "interpolation").value_or("LINEAR");
     outputIndex = find<int>(jsonSampler, "output");
 }
 
@@ -122,15 +113,13 @@ BufferView::BufferView(JSONnode jsonBufferView) {
 
 Node::Node(JSONnode jsonNode) {
     camera = findOptional<int>(jsonNode, "camera");
-    for (JSONnode child : findOptional<JSONnode::nodeVector>(jsonNode, "nodes")
-                              .value_or(JSONnode::nodeVector())) {
+    for (JSONnode child : findOptional<JSONnode::nodeVector>(jsonNode, "nodes").value_or(JSONnode::nodeVector())) {
         children.push_back(std::get<int>(child.value()));
     }
     skin = findOptional<int>(jsonNode, "skin");
 
     std::vector<double> matrixAcc;
-    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "matrix")
-                            .value_or(JSONnode::nodeVector())) {
+    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "matrix").value_or(JSONnode::nodeVector())) {
         matrixAcc.push_back(std::get<double>(val.value()));
     }
     if (matrixAcc.size() == 16)
@@ -139,8 +128,7 @@ Node::Node(JSONnode jsonNode) {
     mesh = findOptional<int>(jsonNode, "mesh");
 
     std::vector<double> rotationAcc;
-    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "rotation")
-                            .value_or(JSONnode::nodeVector())) {
+    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "rotation").value_or(JSONnode::nodeVector())) {
         rotationAcc.push_back(std::get<double>(val.value()));
     }
     if (rotationAcc.size() == 4) {
@@ -150,8 +138,7 @@ Node::Node(JSONnode jsonNode) {
     }
 
     std::vector<double> scaleAcc;
-    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "scale")
-                            .value_or(JSONnode::nodeVector())) {
+    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "scale").value_or(JSONnode::nodeVector())) {
         scaleAcc.push_back(std::get<double>(val.value()));
     }
     if (scaleAcc.size() == 3) {
@@ -161,9 +148,7 @@ Node::Node(JSONnode jsonNode) {
     }
 
     std::vector<double> translationAcc;
-    for (JSONnode val :
-         findOptional<JSONnode::nodeVector>(jsonNode, "translation")
-             .value_or(JSONnode::nodeVector())) {
+    for (JSONnode val : findOptional<JSONnode::nodeVector>(jsonNode, "translation").value_or(JSONnode::nodeVector())) {
         translationAcc.push_back(std::get<double>(val.value()));
     }
     if (translationAcc.size() == 3) {
@@ -172,9 +157,7 @@ Node::Node(JSONnode jsonNode) {
         translation = glm::vec3(0.0f);
     }
 
-    for (JSONnode weight :
-         findOptional<JSONnode::nodeVector>(jsonNode, "weights")
-             .value_or(JSONnode::nodeVector())) {
+    for (JSONnode weight : findOptional<JSONnode::nodeVector>(jsonNode, "weights").value_or(JSONnode::nodeVector())) {
         weights.push_back(std::get<double>(weight.value()));
     }
 
@@ -182,14 +165,11 @@ Node::Node(JSONnode jsonNode) {
 }
 
 Mesh::Mesh(JSONnode jsonMesh) {
-    for (JSONnode jsonPrimitive :
-         find<JSONnode::nodeVector>(jsonMesh, "primitives")) {
+    for (JSONnode jsonPrimitive : find<JSONnode::nodeVector>(jsonMesh, "primitives")) {
         primitives = std::unique_ptr<Primitive>(new Primitive(jsonPrimitive));
     }
 
-    for (JSONnode weight :
-         findOptional<JSONnode::nodeVector>(jsonMesh, "weights")
-             .value_or(JSONnode::nodeVector())) {
+    for (JSONnode weight : findOptional<JSONnode::nodeVector>(jsonMesh, "weights").value_or(JSONnode::nodeVector())) {
         weights.push_back(std::get<double>(weight.value()));
     }
 
@@ -197,16 +177,14 @@ Mesh::Mesh(JSONnode jsonMesh) {
 }
 
 Mesh::Mesh::Primitive::Primitive(JSONnode jsonPrimitive) {
-    attributes = std::unique_ptr<Attributes>(new Attributes(
-        find<JSONnode::nodeVector>(jsonPrimitive, "attributes")));
+    attributes = std::unique_ptr<Attributes>(new Attributes(find<JSONnode::nodeVector>(jsonPrimitive, "attributes")));
     indices = findOptional<int>(jsonPrimitive, "indices");
     material = findOptional<int>(jsonPrimitive, "material");
     mode = findOptional<int>(jsonPrimitive, "mode");
     // TODO targets
 }
 
-Mesh::Mesh::Primitive::Primitive::Attributes::Attributes(
-    JSONnode::nodeVector jsonAttributes) {
+Mesh::Mesh::Primitive::Primitive::Attributes::Attributes(JSONnode::nodeVector jsonAttributes) {
     for (JSONnode attribute : jsonAttributes) {
         std::string key = attribute.key();
         // TODO finish filling this out
@@ -223,8 +201,7 @@ Mesh::Mesh::Primitive::Primitive::Attributes::Attributes(
 }
 
 Scene::Scene(JSONnode jsonScene) {
-    JSONnode::nodeVector jsonNodes =
-        findOptional<JSONnode::nodeVector>(jsonScene, "nodes").value();
+    JSONnode::nodeVector jsonNodes = findOptional<JSONnode::nodeVector>(jsonScene, "nodes").value();
     for (JSONnode node : jsonNodes) {
         nodes.push_back(std::get<int>(node.value()));
     }

@@ -9,15 +9,13 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef)
-    : device{deviceRef} {
+VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} {
     pool = createPool();
     globalL = createLayout(globalLayout());
     materialL = createLayout(materialLayout());
 }
 
-void VulkanDescriptors::createSets(VkDescriptorSetLayout layout,
-                                   std::vector<VkDescriptorSet>& sets) {
+void VulkanDescriptors::createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         sets.push_back(allocateSet(layout));
     }
@@ -48,8 +46,7 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout() {
     VkDescriptorSetLayoutBinding samplerLayoutBinding{};
     samplerLayoutBinding.binding = 0;
     samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.descriptorType =
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(samplerLayoutBinding);
@@ -62,17 +59,14 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     return bindings;
 }
 
-VkDescriptorSetLayout VulkanDescriptors::createLayout(
-    std::vector<VkDescriptorSetLayoutBinding> bindings) {
+VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings) {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data();
 
     VkDescriptorSetLayout layout;
-    checkResult(vkCreateDescriptorSetLayout(device->device(), &layoutInfo,
-                                            nullptr, &layout),
-                "failed to create descriptor set layout");
+    checkResult(vkCreateDescriptorSetLayout(device->device(), &layoutInfo, nullptr, &layout), "failed to create descriptor set layout");
 
     // createLayout should always be given a unique binding because the unique
     // layouts and number of them is needed to create the pipeline
@@ -97,9 +91,7 @@ VkDescriptorPool VulkanDescriptors::createPool() {
     poolInfo.maxSets = count * poolSizes.size();
 
     VkDescriptorPool pool;
-    checkResult(
-        vkCreateDescriptorPool(device->device(), &poolInfo, nullptr, &pool),
-        "failed to create descriptor pool");
+    checkResult(vkCreateDescriptorPool(device->device(), &poolInfo, nullptr, &pool), "failed to create descriptor pool");
     return pool;
 }
 
@@ -112,8 +104,7 @@ VkDescriptorSet VulkanDescriptors::allocateSet(VkDescriptorSetLayout layout) {
 
     VkDescriptorSet set;
 
-    checkResult(vkAllocateDescriptorSets(device->device(), &allocInfo, &set),
-                "failed to allocate descriptor sets");
+    checkResult(vkAllocateDescriptorSets(device->device(), &allocInfo, &set), "failed to allocate descriptor sets");
     return set;
 }
 

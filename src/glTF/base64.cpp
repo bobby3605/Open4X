@@ -21,17 +21,12 @@ std::vector<unsigned char> base64ToUChar(std::string base64) {
         }
         if (index == 24) {
             index = 0;
-            output.push_back(
-                (unsigned char)std::bitset<8>(buffer.substr(0, 8)).to_ulong());
+            output.push_back((unsigned char)std::bitset<8>(buffer.substr(0, 8)).to_ulong());
             if (padding == 1 || padding == 0) {
-                output.push_back(
-                    (unsigned char)std::bitset<8>(buffer.substr(8, 8))
-                        .to_ulong());
+                output.push_back((unsigned char)std::bitset<8>(buffer.substr(8, 8)).to_ulong());
             }
             if (padding == 0) {
-                output.push_back(
-                    (unsigned char)std::bitset<8>(buffer.substr(16, 8))
-                        .to_ulong());
+                output.push_back((unsigned char)std::bitset<8>(buffer.substr(16, 8)).to_ulong());
             }
             buffer.clear();
         }
