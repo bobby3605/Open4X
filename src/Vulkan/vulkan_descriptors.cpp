@@ -13,6 +13,7 @@ VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef
     pool = createPool();
     globalL = createLayout(globalLayout());
     materialL = createLayout(materialLayout());
+    objectL = createLayout(objectLayout());
 }
 
 void VulkanDescriptors::createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
@@ -56,6 +57,15 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout() {
 
 std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+    VkDescriptorSetLayoutBinding SSBOLayoutBinding{};
+    SSBOLayoutBinding.binding = 0;
+    SSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    SSBOLayoutBinding.descriptorCount = 1;
+    SSBOLayoutBinding.pImmutableSamplers = nullptr;
+    SSBOLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings.push_back(SSBOLayoutBinding);
+
     return bindings;
 }
 

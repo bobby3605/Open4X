@@ -58,6 +58,7 @@ class StorageBuffer {
   public:
     StorageBuffer(VulkanDevice* device, VkDeviceSize size);
     ~StorageBuffer();
+    VkBuffer buffer() { return storageBuffer->buffer; }
     void* mapped = nullptr;
 
   private:

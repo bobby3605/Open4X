@@ -4,6 +4,8 @@
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 
 RapidJSON_Model::RapidJSON_Model(std::string filePath) {
     std::ifstream file(filePath);
@@ -94,6 +96,7 @@ RapidJSON_Model::Node::Node(Value& nodeJSON) {
             scale = glm::make_vec3(scaleJSONBuffer.data());
         }
     }
+    matrix = glm::translate(glm::mat4(1.0f), translation) * glm::toMat4(rotation) * glm::scale(scale);
 }
 
 RapidJSON_Model::Mesh::Mesh(Value& meshJSON) {

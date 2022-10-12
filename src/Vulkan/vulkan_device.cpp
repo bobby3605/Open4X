@@ -165,11 +165,15 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 
-    VkPhysicalDeviceFeatures supportedFeatures;
-    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+    VkPhysicalDeviceShaderDrawParameterFeatures ext_feature = {};
+    VkPhysicalDeviceFeatures2 supportedFeatures;
+    supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supportedFeatures.pNext = &ext_feature;
 
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy &&
-           supportedFeatures.multiDrawIndirect;
+    vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
+
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.features.samplerAnisotropy &&
+           supportedFeatures.features.multiDrawIndirect && ext_feature.shaderDrawParameters;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -269,7 +273,7 @@ void VulkanDevice::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Open 4X Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_1;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -336,16 +340,20 @@ void VulkanDevice::createLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.sampleRateShading = sampleShading;
-    deviceFeatures.multiDrawIndirect = VK_TRUE;
+    VkPhysicalDeviceShaderDrawParameterFeatures ext_feature{};
+    ext_feature.shaderDrawParameters = VK_TRUE;
+
+    VkPhysicalDeviceFeatures2 deviceFeatures{};
+    deviceFeatures.features.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.features.sampleRateShading = sampleShading;
+    deviceFeatures.features.multiDrawIndirect = VK_TRUE;
+    deviceFeatures.pNext = &ext_feature;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.pNext = &deviceFeatures;
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();

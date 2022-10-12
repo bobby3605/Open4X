@@ -17,6 +17,7 @@ class VulkanDescriptors {
 
     VkDescriptorSetLayout getGlobal() const { return globalL; }
     VkDescriptorSetLayout getMaterial() const { return materialL; }
+    VkDescriptorSetLayout getObject() const { return objectL; }
 
     std::vector<VkDescriptorSetLayout> const& getLayouts() const { return descriptorLayouts; }
 
@@ -34,6 +35,7 @@ class VulkanDescriptors {
     VkDescriptorPool pool;
     VkDescriptorSetLayout globalL;
     VkDescriptorSetLayout materialL;
+    VkDescriptorSetLayout objectL;
 
     std::vector<VkDescriptorSetLayout> descriptorLayouts;
 

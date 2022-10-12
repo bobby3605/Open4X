@@ -83,14 +83,15 @@ void Open4X::run() {
         vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0, nullptr);
     }
 
-    camera = new VulkanObject(vulkanRenderer);
+    camera = new VulkanObject();
 
     UniformBufferObject ubo{};
 
     ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
                                      0.001f, 100.0f);
 
-    VulkanObjects objects;
+    VulkanObjects objects(vulkanDevice, vulkanRenderer, &descriptorManager);
+    objects.bind();
 
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
@@ -99,10 +100,10 @@ void Open4X::run() {
         auto currentTime = std::chrono::high_resolution_clock::now();
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
         startTime = currentTime;
-        camera->keyboardUpdate(frameTime);
+        camera->keyboardUpdate(vulkanRenderer, frameTime);
 
         glm::mat4 cameraModel =
-            glm::translate(glm::mat4(1.0f), camera->getPosition()) * glm::toMat4(camera->getRotation()) * glm::scale(camera->getScale());
+            glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
 
         ubo.view = glm::inverse(cameraModel);
 
@@ -114,6 +115,8 @@ void Open4X::run() {
         vulkanRenderer->bindPipeline();
 
         vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
+
+        objects.drawIndirect();
 
         vulkanRenderer->endSwapChainrenderPass();
 
