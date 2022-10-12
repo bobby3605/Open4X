@@ -166,6 +166,9 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
     }
 
     VkPhysicalDeviceShaderDrawParameterFeatures ext_feature = {};
+    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+    ext_feature.pNext = nullptr;
+    ext_feature.shaderDrawParameters = VK_TRUE;
     VkPhysicalDeviceFeatures2 supportedFeatures;
     supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     supportedFeatures.pNext = &ext_feature;
@@ -341,6 +344,8 @@ void VulkanDevice::createLogicalDevice() {
     }
 
     VkPhysicalDeviceShaderDrawParameterFeatures ext_feature{};
+    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+    ext_feature.pNext = nullptr;
     ext_feature.shaderDrawParameters = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures{};
