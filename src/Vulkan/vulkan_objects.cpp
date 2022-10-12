@@ -9,6 +9,7 @@
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
 #include <filesystem>
+#include <glm/gtx/string_cast.hpp>
 #include <iterator>
 #include <memory>
 #include <vulkan/vulkan_core.h>
@@ -51,6 +52,18 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             firstIndex = indices.size();
             instanceOffset += instanceCounter;
         }
+    }
+    std::cout << "Vertex Buffer:" << std::endl;
+    int i = 0;
+    for (Vertex vertex : vertices) {
+        std::cout << i << ": " << glm::to_string(vertex.pos) << std::endl;
+        ++i;
+    }
+    std::cout << "Index Buffer:" << std::endl;
+    i = 0;
+    for (int index : indices) {
+        std::cout << i << ": " << index << std::endl;
+        ++i;
     }
     // TODO
     // Optimize final vertex and index buffers

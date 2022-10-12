@@ -33,20 +33,22 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                             int offset =
                                 accessor->byteOffset + bufferView->byteOffset + count_index * (bufferView->byteStride + sizeof(glm::vec3));
                             Vertex vertex{};
-                            vertex.pos = *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data()) + offset);
+                            vertex.pos = *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset));
                             vertex.texCoord = {0.0, 0.0};
                             vertex.color = {1.0f, 1.0f, 1.0f};
                             vertices.push_back(vertex);
+                            std::cout << "Got vertex: " << glm::to_string(vertex.pos) << " At: " << offset << std::endl;
                         }
                     }
                     if (primitive.indices.has_value()) {
                         accessor = &model->accessors[primitive.indices.value()];
                         bufferView = &model->bufferViews[accessor->bufferView.value()];
                         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-                            int offset =
-                                accessor->byteOffset + bufferView->byteOffset + count_index * (bufferView->byteStride + sizeof(glm::vec3));
+                            int offset = accessor->byteOffset + bufferView->byteOffset +
+                                         count_index * (bufferView->byteStride + sizeof(unsigned short));
                             indices.push_back(
                                 *(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                            std::cout << "Got index: " << indices.back() << " At: " << offset << std::endl;
                         }
                     }
                     // TODO
