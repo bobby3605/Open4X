@@ -18,6 +18,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/transform.hpp>
 #include <iostream>
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action,
@@ -50,14 +51,6 @@ Open4X::Open4X() {
 
 Open4X::~Open4X() {
 
-    for (gltf::GLTF* gltfModel : gltfModels) {
-        delete gltfModel;
-    }
-
-    for (VulkanModel* vulkanModel : vulkanModels) {
-        delete vulkanModel;
-    }
-
     delete vulkanRenderer;
     delete vulkanDevice;
     delete vulkanWindow;
@@ -66,48 +59,6 @@ Open4X::~Open4X() {
 void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
-
-    basicTriangleGLTFModel =
-        new gltf::GLTF("assets/glTF/basic_sparse_triangles.gltf");
-
-    gltfModels.push_back(basicTriangleGLTFModel);
-
-    gltf::GLTF* animatedTriangleGLTFModel =
-        new gltf::GLTF("assets/glTF/simple_animation.gltf");
-
-    gltfModels.push_back(animatedTriangleGLTFModel);
-
-    gltf::GLTF* simpleMeshesGLTFModel =
-        new gltf::GLTF("assets/glTF/simple_meshes.gltf");
-
-    gltfModels.push_back(simpleMeshesGLTFModel);
-
-    basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                         basicTriangleGLTFModel);
-
-    vulkanModels.push_back(basicTriangleModel);
-
-    VulkanModel* animatedTriangleModel = new VulkanModel(
-        vulkanDevice, &descriptorManager, animatedTriangleGLTFModel);
-
-    vulkanModels.push_back(animatedTriangleModel);
-
-    VulkanModel* simpleMeshesModel = new VulkanModel(
-        vulkanDevice, &descriptorManager, simpleMeshesGLTFModel);
-
-    vulkanModels.push_back(simpleMeshesModel);
-
-    vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                      "assets/models/viking_room.obj",
-                                      "assets/textures/viking_room.png");
-
-    vulkanModels.push_back(vikingRoomModel);
-
-    flatVaseModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                    "assets/models/flat_vase.obj",
-                                    "assets/textures/statue.jpg");
-
-    vulkanModels.push_back(flatVaseModel);
 
     vulkanRenderer =
         new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
@@ -138,17 +89,6 @@ void Open4X::run() {
                                nullptr);
     }
 
-    VulkanObject obj1(vikingRoomModel, vulkanRenderer);
-    VulkanObject obj2(flatVaseModel, vulkanRenderer);
-    obj2.y(1.5f);
-    VulkanObject obj3(flatVaseModel, vulkanRenderer);
-    VulkanObject gltfObj(basicTriangleModel, vulkanRenderer);
-    VulkanObject animatedTriangleObj(animatedTriangleModel, vulkanRenderer);
-    animatedTriangleObj.y(-1.5f);
-    animatedTriangleObj.x(1.0f);
-    VulkanObject simpleMeshesObj(simpleMeshesModel, vulkanRenderer);
-    simpleMeshesObj.x(-2.0f);
-
     camera = new VulkanObject(vulkanRenderer);
 
     UniformBufferObject ubo{};
@@ -158,6 +98,8 @@ void Open4X::run() {
         vulkanRenderer->getSwapChainExtent().width /
             (float)vulkanRenderer->getSwapChainExtent().height,
         0.001f, 100.0f);
+
+    loadObjects();
 
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
@@ -171,7 +113,11 @@ void Open4X::run() {
         startTime = currentTime;
         camera->keyboardUpdate(frameTime);
 
-        ubo.view = glm::inverse(camera->mat4());
+        glm::mat4 cameraModel =
+            glm::translate(glm::mat4(1.0f), camera->getPosition()) *
+            glm::toMat4(camera->getRotation()) * glm::scale(camera->getScale());
+
+        ubo.view = glm::inverse(cameraModel);
 
         vulkanRenderer->startFrame();
 
@@ -182,15 +128,6 @@ void Open4X::run() {
 
         vulkanRenderer->bindDescriptorSet(
             0, globalSets[vulkanRenderer->getCurrentFrame()]);
-
-        //    obj1.draw();
-        obj2.draw();
-
-        gltfObj.draw();
-
-        animatedTriangleObj.draw();
-
-        simpleMeshesObj.draw();
 
         vulkanRenderer->endSwapChainrenderPass();
 
@@ -208,3 +145,5 @@ void Open4X::run() {
         delete uniformBuffers[i];
     }
 }
+
+void Open4X::loadObjects() {}

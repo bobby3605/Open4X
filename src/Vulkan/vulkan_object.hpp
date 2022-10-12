@@ -13,8 +13,6 @@ class VulkanObject {
     VulkanObject(VulkanModel* model, VulkanRenderer* renderer);
     VulkanObject(VulkanRenderer* renderer);
     void keyboardUpdate(float frameTime);
-    void draw();
-    glm::mat4 const mat4(uint32_t node = 0);
     glm::vec3 const getPosition() const { return position; }
     glm::quat const getRotation() const { return rotation; }
     glm::vec3 const getScale() const { return scale; }

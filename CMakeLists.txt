@@ -28,6 +28,7 @@ file(GLOB SOURCES
   src/glTF/*.hpp
   src/glTF/*.cpp
   external/*.h
+  external/rapidjson/*
   )
 
 add_executable(Open4X ${SOURCES})
