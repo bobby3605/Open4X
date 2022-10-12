@@ -60,7 +60,7 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
 
     VkDescriptorSetLayoutBinding SSBOLayoutBinding{};
     SSBOLayoutBinding.binding = 0;
-    SSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    SSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     SSBOLayoutBinding.descriptorCount = 1;
     SSBOLayoutBinding.pImmutableSamplers = nullptr;
     SSBOLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;

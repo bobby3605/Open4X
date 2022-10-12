@@ -16,9 +16,10 @@ struct SSBOData {
 
 class VulkanObjects {
   public:
-    VulkanObjects(VulkanDevice* device, VulkanRenderer* renderer, VulkanDescriptors* descriptorManager);
-    void bind();
-    void drawIndirect();
+    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
+    ~VulkanObjects();
+    void bind(VulkanRenderer* renderer);
+    void drawIndirect(VulkanRenderer* renderer);
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;
@@ -33,7 +34,6 @@ class VulkanObjects {
     std::vector<SSBOData> objectStorage;
 
     VulkanDevice* device;
-    VulkanRenderer* renderer;
 
     void loadImage(std::string path);
     VkSampler imageSampler;

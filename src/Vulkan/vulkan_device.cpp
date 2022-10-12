@@ -349,6 +349,7 @@ void VulkanDevice::createLogicalDevice() {
     ext_feature.shaderDrawParameters = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures{};
+    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures.features.samplerAnisotropy = VK_TRUE;
     deviceFeatures.features.sampleRateShading = sampleShading;
     deviceFeatures.features.multiDrawIndirect = VK_TRUE;

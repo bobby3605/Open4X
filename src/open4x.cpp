@@ -58,6 +58,7 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
+    VulkanObjects objects(vulkanDevice, &descriptorManager);
     vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
     std::vector<VkDescriptorSet> globalSets;
@@ -90,9 +91,6 @@ void Open4X::run() {
     ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
                                      0.001f, 100.0f);
 
-    VulkanObjects objects(vulkanDevice, vulkanRenderer, &descriptorManager);
-    objects.bind();
-
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
@@ -115,8 +113,9 @@ void Open4X::run() {
         vulkanRenderer->bindPipeline();
 
         vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
+        objects.bind(vulkanRenderer);
 
-        objects.drawIndirect();
+        objects.drawIndirect(vulkanRenderer);
 
         vulkanRenderer->endSwapChainrenderPass();
 

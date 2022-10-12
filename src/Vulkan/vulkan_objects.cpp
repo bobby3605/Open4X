@@ -15,8 +15,16 @@
 
 std::string getFileExtension(std::string filePath) { return filePath.substr(filePath.find_last_of(".")); }
 
-VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanRenderer* renderer, VulkanDescriptors* descriptorManager)
-    : device{device}, renderer{renderer}, descriptorManager{descriptorManager} {
+VulkanObjects::~VulkanObjects() {
+
+    vkDestroySampler(device->device(), imageSampler, nullptr);
+    vkDestroyImageView(device->device(), imageView, nullptr);
+    vkDestroyImage(device->device(), image, nullptr);
+    vkFreeMemory(device->device(), imageMemory, nullptr);
+}
+
+VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
+    : device{device}, descriptorManager{descriptorManager} {
     int vertexOffset = 0;
     int firstIndex = 0;
     int instanceOffset = 0;
@@ -66,9 +74,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanRenderer* renderer, Vul
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrite.dstSet = objectSet;
-    descriptorWrite.dstBinding = 1;
+    descriptorWrite.dstBinding = 0;
     descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     descriptorWrite.descriptorCount = 1;
     descriptorWrite.pBufferInfo = &ssboInfo;
 
@@ -78,11 +86,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanRenderer* renderer, Vul
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
 
     loadImage("assets/textures/white.png");
-
-    bind();
 }
 
-void VulkanObjects::bind() {
+void VulkanObjects::bind(VulkanRenderer* renderer) {
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
 
@@ -94,7 +100,7 @@ void VulkanObjects::bind() {
     vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 }
 
-void VulkanObjects::drawIndirect() {
+void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
     vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
                              sizeof(indirectDraws[0]));
 }

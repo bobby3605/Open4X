@@ -46,6 +46,12 @@ RapidJSON_Model::RapidJSON_Model(std::string filePath) {
     for (SizeType i = 0; i < bufferViewJSON.Size(); ++i) {
         bufferViews.push_back(bufferViewJSON[i]);
     }
+
+    Value& accessorJSON = d["accessors"];
+    assert(accessorJSON.IsArray());
+    for (SizeType i = 0; i < accessorJSON.Size(); ++i) {
+        accessors.push_back(accessorJSON[i]);
+    }
 }
 
 RapidJSON_Model::Scene::Scene(Value& sceneJSON) {
