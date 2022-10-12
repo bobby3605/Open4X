@@ -8,10 +8,12 @@
 
 using namespace rapidjson;
 class RapidJSON_Model {
+  private:
+    Document d;
+
   public:
     RapidJSON_Model(std::string filePath);
 
-    Document d;
     class Scene {
       public:
         Scene(Value& sceneJSON);
@@ -38,6 +40,7 @@ class RapidJSON_Model {
           public:
             Primitive(Value& primitiveJSON);
             class Attributes {
+              public:
                 Attributes(Value& attributesJSON);
                 std::optional<int> position;
                 std::optional<int> normal;
@@ -54,6 +57,7 @@ class RapidJSON_Model {
         Buffer(Value& bufferJSON);
         std::optional<std::string> uri;
         int byteLength;
+        std::vector<unsigned char> data;
     };
     std::vector<Buffer> buffers;
 
@@ -68,7 +72,18 @@ class RapidJSON_Model {
     };
     std::vector<BufferView> bufferViews;
 
-    class Accessor {};
+    class Accessor {
+      public:
+        Accessor(Value& accessorJSON);
+        std::optional<int> bufferView;
+        int byteOffset = 0;
+        int componentType;
+        bool normalized = false;
+        int count;
+        std::string type;
+        std::vector<float> max;
+        std::vector<float> min;
+    };
     std::vector<Accessor> accessors;
 };
 

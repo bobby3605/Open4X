@@ -1,4 +1,6 @@
 #include "rapidjson_model.hpp"
+#include "../../external/rapidjson/istreamwrapper.h"
+#include "../glTF/base64.hpp"
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,7 +11,9 @@ RapidJSON_Model::RapidJSON_Model(std::string filePath) {
         throw std::runtime_error("Failed to open file: " + filePath);
     }
 
-    d.ParseStream(file);
+    IStreamWrapper fileStream(file);
+
+    d.ParseStream(fileStream);
 
     Value& scenesJSON = d["scenes"];
     assert(scenesJSON.IsArray());
@@ -57,32 +61,38 @@ RapidJSON_Model::Node::Node(Value& nodeJSON) {
     if (meshJSON.IsInt()) {
         mesh = meshJSON.GetInt();
     }
-    Value& translationJSON = nodeJSON["translation"];
-    if (translationJSON.IsArray()) {
-        assert(translationJSON.Size() == 3);
-        std::vector<float> translationJSONBuffer;
-        for (SizeType i = 0; i < translationJSON.Size(); ++i) {
-            translationJSONBuffer.push_back(translationJSON[i].GetFloat());
+    if (nodeJSON.HasMember("translation")) {
+        Value& translationJSON = nodeJSON["translation"];
+        if (translationJSON.IsArray()) {
+            assert(translationJSON.Size() == 3);
+            std::vector<float> translationJSONBuffer;
+            for (SizeType i = 0; i < translationJSON.Size(); ++i) {
+                translationJSONBuffer.push_back(translationJSON[i].GetFloat());
+            }
+            translation = glm::make_vec3(translationJSONBuffer.data());
         }
-        translation = glm::make_vec3(translationJSONBuffer.data());
     }
-    Value& rotationJSON = nodeJSON["rotation"];
-    if (rotationJSON.IsArray()) {
-        assert(rotationJSON.Size() == 4);
-        std::vector<float> rotationJSONBuffer;
-        for (SizeType i = 0; i < rotationJSON.Size(); ++i) {
-            rotationJSONBuffer.push_back(rotationJSON[i].GetFloat());
+    if (nodeJSON.HasMember("rotation")) {
+        Value& rotationJSON = nodeJSON["rotation"];
+        if (rotationJSON.IsArray()) {
+            assert(rotationJSON.Size() == 4);
+            std::vector<float> rotationJSONBuffer;
+            for (SizeType i = 0; i < rotationJSON.Size(); ++i) {
+                rotationJSONBuffer.push_back(rotationJSON[i].GetFloat());
+            }
+            rotation = glm::make_quat(rotationJSONBuffer.data());
         }
-        rotation = glm::make_quat(rotationJSONBuffer.data());
     }
-    Value& scaleJSON = nodeJSON["scale"];
-    if (scaleJSON.IsArray()) {
-        assert(scaleJSON.Size() == 3);
-        std::vector<float> scaleJSONBuffer;
-        for (SizeType i = 0; i < scaleJSON.Size(); ++i) {
-            scaleJSONBuffer.push_back(scaleJSON[i].GetFloat());
+    if (nodeJSON.HasMember("scale")) {
+        Value& scaleJSON = nodeJSON["scale"];
+        if (scaleJSON.IsArray()) {
+            assert(scaleJSON.Size() == 3);
+            std::vector<float> scaleJSONBuffer;
+            for (SizeType i = 0; i < scaleJSON.Size(); ++i) {
+                scaleJSONBuffer.push_back(scaleJSON[i].GetFloat());
+            }
+            scale = glm::make_vec3(scaleJSONBuffer.data());
         }
-        scale = glm::make_vec3(scaleJSONBuffer.data());
     }
 }
 
@@ -96,33 +106,45 @@ RapidJSON_Model::Mesh::Mesh(Value& meshJSON) {
 }
 
 RapidJSON_Model::Mesh::Primitive::Primitive(Value& primitiveJSON) {
-    assert(primitiveJSON.IsArray());
+    assert(primitiveJSON.IsObject());
     Value& attributesJSON = primitiveJSON["attributes"];
     assert(attributesJSON.IsObject());
     attributes = std::make_shared<Attributes>(attributesJSON);
-    Value& indicesJSON = primitiveJSON["indices"];
-    if (indicesJSON.IsInt()) {
-        indices = indicesJSON.GetInt();
+    if (primitiveJSON.HasMember("indices")) {
+        Value& indicesJSON = primitiveJSON["indices"];
+        if (indicesJSON.IsInt()) {
+            indices = indicesJSON.GetInt();
+        }
     }
 }
 
 RapidJSON_Model::Mesh::Primitive::Attributes::Attributes(
     Value& attributesJSON) {
-    Value& positionJSON = attributesJSON["POSITION"];
-    if (positionJSON.IsInt()) {
-        position = positionJSON.GetInt();
+    if (attributesJSON.HasMember("POSITION")) {
+        Value& positionJSON = attributesJSON["POSITION"];
+        if (positionJSON.IsInt()) {
+            position = positionJSON.GetInt();
+        }
     }
-    Value& normalJSON = attributesJSON["NORMAL"];
-    if (normalJSON.IsInt()) {
-        normal = normalJSON.GetInt();
+    if (attributesJSON.HasMember("NORMAL")) {
+        Value& normalJSON = attributesJSON["NORMAL"];
+        if (normalJSON.IsInt()) {
+            normal = normalJSON.GetInt();
+        }
     }
 }
 
 RapidJSON_Model::Buffer::Buffer(Value& bufferJSON) {
     assert(bufferJSON.IsObject());
-    Value& uriJSON = bufferJSON["uri"];
-    if (uriJSON.IsString()) {
-        uri = uriJSON.GetString();
+    if (bufferJSON.HasMember("uri")) {
+        Value& uriJSON = bufferJSON["uri"];
+        if (uriJSON.IsString()) {
+            uri = uriJSON.GetString();
+            std::string::size_type pos;
+            if ((pos = uri->find("base64,")) != std::string::npos) {
+                data = base64ToUChar(uri->substr(pos + 7));
+            }
+        }
     }
     Value& byteLengthJSON = bufferJSON["byteLength"];
     assert(byteLengthJSON.IsInt());
@@ -134,19 +156,68 @@ RapidJSON_Model::BufferView::BufferView(Value& bufferViewJSON) {
     Value& bufferJSON = bufferViewJSON["buffer"];
     assert(bufferJSON.IsInt());
     buffer = bufferJSON.GetInt();
-    Value& byteOffsetJSON = bufferViewJSON["byteOffset"];
-    if (byteOffsetJSON.IsInt()) {
-        byteOffset = byteOffsetJSON.GetInt();
+    if (bufferViewJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = bufferViewJSON["byteOffset"];
+        if (byteOffsetJSON.IsInt()) {
+            byteOffset = byteOffsetJSON.GetInt();
+        }
     }
     Value& byteLengthJSON = bufferViewJSON["byteLength"];
     assert(byteLengthJSON.IsInt());
     byteLength = byteLengthJSON.GetInt();
-    Value& byteStrideJSON = bufferViewJSON["byteStride"];
-    if (byteStrideJSON.IsInt()) {
-        byteStride = byteStrideJSON.GetInt();
+    if (bufferViewJSON.HasMember("byteStride")) {
+        Value& byteStrideJSON = bufferViewJSON["byteStride"];
+        if (byteStrideJSON.IsInt()) {
+            byteStride = byteStrideJSON.GetInt();
+        }
     }
-    Value& targetJSON = bufferViewJSON["target"];
-    if (targetJSON.IsInt()) {
-        target = targetJSON.GetInt();
+    if (bufferViewJSON.HasMember("target")) {
+        Value& targetJSON = bufferViewJSON["target"];
+        if (targetJSON.IsInt()) {
+            target = targetJSON.GetInt();
+        }
+    }
+}
+
+RapidJSON_Model::Accessor::Accessor(Value& accessorJSON) {
+    assert(accessorJSON.IsObject());
+    if (accessorJSON.HasMember("bufferView")) {
+        Value& bufferViewJSON = accessorJSON["bufferView"];
+        if (bufferViewJSON.IsInt()) {
+            bufferView = bufferViewJSON.GetInt();
+        }
+    }
+    if (accessorJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = accessorJSON["byteOffset"];
+        if (byteOffsetJSON.IsInt()) {
+            byteOffset = byteOffsetJSON.GetInt();
+        }
+    }
+    Value& componentTypeJSON = accessorJSON["componentType"];
+    assert(componentTypeJSON.IsInt());
+    componentType = componentTypeJSON.GetInt();
+    Value& countJSON = accessorJSON["count"];
+    assert(countJSON.IsInt());
+    count = countJSON.GetInt();
+    Value& typeJSON = accessorJSON["type"];
+    assert(typeJSON.IsString());
+    type = typeJSON.GetString();
+    if (accessorJSON.HasMember("max")) {
+        Value& maxJSON = accessorJSON["max"];
+        if (maxJSON.IsArray()) {
+            for (Value::ValueIterator itr = maxJSON.Begin();
+                 itr != maxJSON.End(); ++itr) {
+                max.push_back(itr->GetFloat());
+            }
+        }
+    }
+    if (accessorJSON.HasMember("min")) {
+        Value& minJSON = accessorJSON["min"];
+        if (minJSON.IsArray()) {
+            for (Value::ValueIterator itr = minJSON.Begin();
+                 itr != minJSON.End(); ++itr) {
+                min.push_back(itr->GetFloat());
+            }
+        }
     }
 }

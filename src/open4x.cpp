@@ -7,6 +7,7 @@
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
+#include "Vulkan/vulkan_objects.hpp"
 #include "Vulkan/vulkan_swapchain.hpp"
 #include "open4x.hpp"
 #include <GLFW/glfw3.h>
@@ -99,7 +100,7 @@ void Open4X::run() {
             (float)vulkanRenderer->getSwapChainExtent().height,
         0.001f, 100.0f);
 
-    loadObjects();
+    VulkanObjects objects;
 
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
@@ -145,5 +146,3 @@ void Open4X::run() {
         delete uniformBuffers[i];
     }
 }
-
-void Open4X::loadObjects() {}

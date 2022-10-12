@@ -1,4 +1,6 @@
 #include "vulkan_object.hpp"
+#include "rapidjson_model.hpp"
+#include "vulkan_renderer.hpp"
 #include <chrono>
 #include <cstdint>
 #include <glm/glm.hpp>
@@ -10,11 +12,28 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
-VulkanObject::VulkanObject(VulkanModel* model, VulkanRenderer* renderer)
-    : model{model}, renderer{renderer} {}
-
-VulkanObject::VulkanObject(VulkanRenderer* renderer)
-    : model{nullptr}, renderer{renderer} {}
+VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
+    for (RapidJSON_Model::Scene scene : model->scenes) {
+        for (int nodeID : scene.nodes) {
+            RapidJSON_Model::Node node = model->nodes[nodeID];
+            if (node.mesh.has_value()) {
+                RapidJSON_Model::Mesh mesh = model->meshes[node.mesh.value()];
+                for (RapidJSON_Model::Mesh::Primitive primitive :
+                     mesh.primitives) {
+                    if (primitive.attributes->position.has_value()) {
+                        for (uint32_t i = 0;
+                             i < model
+                                     ->accessors[primitive.attributes->position
+                                                     .value()]
+                                     .count;
+                             ++i) {
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {
     isModelMatrixValid = false;
@@ -42,7 +61,9 @@ void VulkanObject::z(float newZ) {
     position.z = newZ;
 }
 
-void VulkanObject::keyboardUpdate(float frameTime) {
+// TODO
+// Take glfwWindow instead of renderer
+void VulkanObject::keyboardUpdate(VulkanRenderer* renderer, float frameTime) {
     glm::vec3 rotate{0};
     float speedUp = 1;
     if (glfwGetKey(renderer->getWindow()->getGLFWwindow(), keys.yawRight) ==

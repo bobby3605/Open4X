@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
+#include "rapidjson_model.hpp"
 #include "vulkan_model.hpp"
 #include "vulkan_renderer.hpp"
 #include <glm/glm.hpp>
@@ -10,9 +11,8 @@
 
 class VulkanObject {
   public:
-    VulkanObject(VulkanModel* model, VulkanRenderer* renderer);
-    VulkanObject(VulkanRenderer* renderer);
-    void keyboardUpdate(float frameTime);
+    VulkanObject(RapidJSON_Model* model);
+    void keyboardUpdate(VulkanRenderer* renderer, float frameTime);
     glm::vec3 const getPosition() const { return position; }
     glm::quat const getRotation() const { return rotation; }
     glm::vec3 const getScale() const { return scale; }
@@ -24,8 +24,7 @@ class VulkanObject {
     void z(float newZ);
 
   private:
-    VulkanModel* model;
-    VulkanRenderer* renderer;
+    RapidJSON_Model* model;
 
     glm::vec3 position{0.0f, 0.0f, 0.0f};
     glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
