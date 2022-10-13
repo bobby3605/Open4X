@@ -105,6 +105,18 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
+    for (VulkanObject object : objects) {
+        if (object.hasAnimation()) {
+            for (int i = 0; i < object.indirectDraws.size(); ++i) {
+                SSBOData ssbo{};
+                // TODO
+                // Fails with multiple primitives in a mesh
+                ssbo.modelMatrix = object.nodeModelMatrix(i);
+                reinterpret_cast<SSBOData*>(SSBO->mapped)[i] = ssbo;
+            }
+        }
+    }
+
     vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
                              sizeof(indirectDraws[0]));
 }

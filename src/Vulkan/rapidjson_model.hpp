@@ -109,6 +109,35 @@ class RapidJSON_Model {
         std::optional<Sparse> sparse;
     };
     std::vector<Accessor> accessors;
+
+    class Animation {
+      public:
+        Animation(Value& animationJSON);
+        class Sampler {
+          public:
+            Sampler(Value& samplerJSON);
+            int inputIndex;
+            std::vector<float> inputData;
+            std::string interpolation;
+            int outputIndex;
+            std::vector<glm::mat4> outputData;
+        };
+        class Channel {
+          public:
+            Channel(Value& channelJSON);
+            int sampler;
+            class Target {
+              public:
+                Target(Value& targetJSON);
+                int node;
+                std::string path;
+            };
+            std::shared_ptr<Target> target;
+        };
+        std::vector<std::shared_ptr<Sampler>> samplers;
+        std::vector<std::shared_ptr<Channel>> channels;
+    };
+    std::vector<Animation> animations;
 };
 
 #endif // RAPIDJSON_MODEL_H_

@@ -23,7 +23,6 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                 RapidJSON_Model::Mesh mesh = model->meshes[node.mesh.value()];
                 for (RapidJSON_Model::Mesh::Primitive primitive : mesh.primitives) {
                     RapidJSON_Model::Accessor* accessor;
-                    RapidJSON_Model::BufferView* bufferView;
                     int vertexOffset = 0;
                     int firstIndex = 0;
                     if (primitive.attributes->position.has_value()) {
@@ -33,6 +32,7 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                         // Vector of vertices to replace with
                         std::vector<glm::vec3> sparseValues;
                         if (accessor->sparse.has_value()) {
+                            RapidJSON_Model::BufferView* bufferView;
                             for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
                                 // load the index
                                 bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
@@ -48,18 +48,15 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                                     *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset)));
                             }
                         }
-                        bufferView = &model->bufferViews[accessor->bufferView.value()];
                         std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
 
                         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-                            int offset =
-                                accessor->byteOffset + bufferView->byteOffset + count_index * (bufferView->byteStride + sizeof(glm::vec3));
                             Vertex vertex{};
                             if (sparseIndices.count(count_index) == 1) {
                                 vertex.pos = *sparseValuesIterator;
                                 ++sparseValuesIterator;
                             } else {
-                                vertex.pos = *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset));
+                                vertex.pos = loadAccessor<glm::vec3>(accessor, count_index);
                             }
                             vertex.texCoord = {0.0, 0.0};
                             vertex.color = {1.0f, 1.0f, 1.0f};
@@ -68,12 +65,8 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                     }
                     if (primitive.indices.has_value()) {
                         accessor = &model->accessors[primitive.indices.value()];
-                        bufferView = &model->bufferViews[accessor->bufferView.value()];
                         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-                            int offset = accessor->byteOffset + bufferView->byteOffset +
-                                         count_index * (bufferView->byteStride + sizeof(unsigned short));
-                            indices.push_back(
-                                *(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                            indices.push_back(loadAccessor<unsigned short>(accessor, count_index));
                         }
                     }
                     // TODO
@@ -90,6 +83,19 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                     firstIndex = indices.size();
                     vertexOffset = vertices.size();
                 }
+            }
+        }
+    }
+    // Load animation data
+    for (RapidJSON_Model::Animation animation : model->animations) {
+        for (std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler : animation.samplers) {
+            RapidJSON_Model::Accessor inputAccessor = model->accessors[sampler->inputIndex];
+            for (int i = 0; i < inputAccessor.count; ++i) {
+                sampler->inputData.push_back(loadAccessor<float>(&inputAccessor, i));
+            }
+            RapidJSON_Model::Accessor outputAccessor = model->accessors[sampler->outputIndex];
+            for (int i = 0; i < outputAccessor.count; ++i) {
+                sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(&outputAccessor, i))));
             }
         }
     }
@@ -127,7 +133,73 @@ void VulkanObject::updateModelMatrix() {
     _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
 }
 
-glm::mat4 const VulkanObject::nodeModelMatrix(int nodeID) { return _modelMatrix * model->nodes[nodeID].matrix; }
+glm::mat4 const VulkanObject::nodeModelMatrix(int nodeID) { return _modelMatrix * getAnimation(nodeID) * model->nodes[nodeID].matrix; }
+
+glm::mat4 const VulkanObject::getAnimation(int nodeID) {
+    for (RapidJSON_Model::Animation animation : model->animations) {
+        for (std::shared_ptr<RapidJSON_Model::Animation::Channel> channel : animation.channels) {
+            if (channel->target->node == nodeID) {
+                _hasAnimation = 1;
+                glm::vec3 translationAnimation(1.0f);
+                glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
+                glm::vec3 scaleAnimation(1.0f);
+                std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler = animation.samplers[channel->sampler];
+                float nowAnim =
+                    fmod(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count(),
+                         1000 * sampler->inputData.back()) /
+                    1000;
+                // Get the time since the past second in seconds
+                // with 4 significant digits Get the animation time
+                glm::mat4 lerp1 = sampler->outputData.front();
+                glm::mat4 lerp2 = sampler->outputData.front();
+                float previousTime = 0;
+                float nextTime = 0;
+                for (int i = 0; i < sampler->inputData.size(); ++i) {
+                    if (sampler->inputData[i] <= nowAnim) {
+                        previousTime = sampler->inputData[i];
+                        lerp1 = sampler->outputData[i];
+                    }
+                    if (sampler->inputData[i] >= nowAnim) {
+                        nextTime = sampler->inputData[i];
+                        lerp2 = sampler->outputData[i];
+                        break;
+                    }
+                }
+                float interpolationValue = (nowAnim - previousTime) / (nextTime - previousTime);
+
+                if (channel->target->path.compare("translation") == 0) {
+
+                    translationAnimation =
+                        glm::make_vec3(glm::value_ptr(lerp1)) +
+                        interpolationValue * (glm::make_vec3(glm::value_ptr(lerp2)) - glm::make_vec3(glm::value_ptr(lerp1)));
+
+                    std::cout << "translationAnimation: " << glm::to_string(translationAnimation) << std::endl;
+
+                } else if (channel->target->path.compare("rotation") == 0) {
+
+                    rotationAnimation =
+                        glm::slerp(glm::make_quat(glm::value_ptr(lerp1)), glm::make_quat(glm::value_ptr(lerp2)), interpolationValue);
+
+                } else if (channel->target->path.compare("scale") == 0) {
+                    scaleAnimation = glm::make_vec3(glm::value_ptr(lerp1)) +
+                                     interpolationValue * (glm::make_vec3(glm::value_ptr(lerp2)) - glm::make_vec3(glm::value_ptr(lerp1)));
+
+                } else {
+                    std::cout << "Unknown channel type: " << channel->target->path << std::endl;
+                }
+
+                glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), translationAnimation * position());
+
+                glm::mat4 rotationMatrix = glm::toMat4(rotationAnimation * rotation());
+
+                glm::mat4 scaleMatrix = glm::scale(scaleAnimation * scale());
+
+                return translationMatrix * rotationMatrix * scaleMatrix;
+            }
+        }
+    }
+    return glm::mat4(1.0f);
+}
 
 // TODO
 // Take glfwWindow instead of renderer

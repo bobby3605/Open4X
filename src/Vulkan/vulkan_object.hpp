@@ -26,7 +26,9 @@ class VulkanObject {
     void z(float newZ);
     glm::mat4 const modelMatrix() { return _modelMatrix; }
     void draw();
+    glm::mat4 const getAnimation(int nodeID);
     glm::mat4 const nodeModelMatrix(int nodeID);
+    bool const hasAnimation() { return _hasAnimation; }
 
     void draw(VulkanRenderer* renderer);
 
@@ -36,6 +38,11 @@ class VulkanObject {
 
   private:
     RapidJSON_Model* model;
+    template <typename T> T loadAccessor(RapidJSON_Model::Accessor* accessor, int count_index) {
+        RapidJSON_Model::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
+        int offset = accessor->byteOffset + bufferView.byteOffset + count_index * (bufferView.byteStride + sizeof(T));
+        return *(reinterpret_cast<T*>(model->buffers[bufferView.buffer].data.data() + offset));
+    }
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
@@ -43,6 +50,7 @@ class VulkanObject {
 
     glm::mat4 _modelMatrix{1.0f};
     void updateModelMatrix();
+    bool _hasAnimation = 0;
 
     std::vector<glm::mat4> _nodeMatrices;
 

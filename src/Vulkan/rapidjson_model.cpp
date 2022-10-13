@@ -53,6 +53,14 @@ RapidJSON_Model::RapidJSON_Model(std::string filePath) {
     for (SizeType i = 0; i < accessorJSON.Size(); ++i) {
         accessors.push_back(accessorJSON[i]);
     }
+
+    if (d.HasMember("animations")) {
+        Value& animationJSON = d["animations"];
+        assert(animationJSON.IsArray());
+        for (SizeType i = 0; i < animationJSON.Size(); ++i) {
+            animations.push_back(animationJSON[i]);
+        }
+    }
 }
 
 RapidJSON_Model::Scene::Scene(Value& sceneJSON) {
@@ -274,4 +282,51 @@ RapidJSON_Model::Accessor::Sparse::SparseValue::SparseValue(Value& valueJSON) {
     } else {
         byteOffset = 0;
     }
+}
+
+RapidJSON_Model::Animation::Animation(Value& animationJSON) {
+    assert(animationJSON.IsObject());
+    Value& samplersJSON = animationJSON["samplers"];
+    assert(samplersJSON.IsArray());
+    for (SizeType i = 0; i < samplersJSON.Size(); ++i) {
+        samplers.push_back(std::make_shared<Animation::Sampler>(samplersJSON[i]));
+    }
+    Value& channelsJSON = animationJSON["channels"];
+    assert(channelsJSON.IsArray());
+    for (SizeType i = 0; i < channelsJSON.Size(); ++i) {
+        channels.push_back(std::make_shared<Animation::Channel>(channelsJSON[i]));
+    }
+}
+
+RapidJSON_Model::Animation::Sampler::Sampler(Value& samplerJSON) {
+    assert(samplerJSON.IsObject());
+    Value& inputJSON = samplerJSON["input"];
+    assert(inputJSON.IsInt());
+    inputIndex = inputJSON.GetInt();
+    Value& interpolationJSON = samplerJSON["interpolation"];
+    assert(interpolationJSON.IsString());
+    interpolation = interpolationJSON.GetString();
+    Value& outputJSON = samplerJSON["output"];
+    assert(outputJSON.IsInt());
+    outputIndex = outputJSON.GetInt();
+}
+
+RapidJSON_Model::Animation::Channel::Channel(Value& channelJSON) {
+    assert(channelJSON.IsObject());
+    Value& samplerJSON = channelJSON["sampler"];
+    assert(samplerJSON.IsInt());
+    sampler = samplerJSON.GetInt();
+    Value& targetJSON = channelJSON["target"];
+    assert(targetJSON.IsObject());
+    target = std::make_shared<Target>(targetJSON);
+}
+
+RapidJSON_Model::Animation::Channel::Target::Target(Value& targetJSON) {
+    assert(targetJSON.IsObject());
+    Value& nodeJSON = targetJSON["node"];
+    assert(nodeJSON.IsInt());
+    node = nodeJSON.GetInt();
+    Value& pathJSON = targetJSON["path"];
+    assert(pathJSON.IsString());
+    path = pathJSON.GetString();
 }
