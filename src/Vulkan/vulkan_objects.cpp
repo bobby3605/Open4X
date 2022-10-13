@@ -36,29 +36,23 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
                 objects.back().x(3.0f);
             }
-            if (objects.back().hasAnimation()) {
-                animatedObjects.push_back(objects.size() - 1);
+            for (std::shared_ptr<VulkanNode> node : objects.back().nodes) {
+                for (std::pair<int, std::shared_ptr<Mesh>> mesh : *node->meshIDMap) {
+                    for (std::shared_ptr<Mesh::Primitive> primitive : mesh.second->primitives) {
+                        primitive->indirectDraw.vertexOffset = vertices.size();
+                        primitive->indirectDraw.firstIndex = indices.size();
+                        vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
+                        indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
+                        // TODO
+                        // Use an index buffer instead of 1 modelMatrix per primitive per instance
+                        // TODO
+                        // node->modelMatrix should be a pointer to the SSBO buffer
+                        SSBOData ssbo{};
+                        ssbo.modelMatrix = objects.back().modelMatrix() * node->modelMatrix();
+                        objectStorage.push_back(ssbo);
+                    }
+                }
             }
-            vertices.insert(std::end(vertices), std::begin(objects.back().vertices), std::end(objects.back().vertices));
-            indices.insert(std::end(indices), std::begin(objects.back().indices), std::end(objects.back().indices));
-            int instanceCounter = 0;
-            for (int i = 0; i < objects.back().indirectDraws.size(); ++i) {
-                indirectDraws.push_back(objects.back().indirectDraws[i]);
-                indirectDraws.back().vertexOffset += vertexOffset;
-                indirectDraws.back().firstIndex += firstIndex;
-                indirectDraws.back().firstInstance += instanceOffset;
-                instanceCounter += indirectDraws.back().instanceCount;
-                SSBOData ssbo{};
-                // TODO
-                // Fails with multiple primitives in a mesh
-                // Fails with children nodes
-                ssbo.modelMatrix = objects.back().nodeModelMatrix(1);
-                objectStorage.push_back(ssbo);
-                instanceMap.insert({{objects.size() - 1, i}, (int)objectStorage.size() - 1});
-            }
-            vertexOffset = vertices.size();
-            firstIndex = indices.size();
-            instanceOffset += instanceCounter;
         }
     }
     // TODO
@@ -110,6 +104,7 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
+    /*
     for (int objectID : animatedObjects) {
         for (int i = 0; i < objects[objectID].indirectDraws.size(); ++i) {
             SSBOData ssbo{};
@@ -119,6 +114,7 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
             reinterpret_cast<SSBOData*>(SSBO->mapped)[instanceMap[{objectID, i}]] = ssbo;
         }
     }
+    */
 
     vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
                              sizeof(indirectDraws[0]));

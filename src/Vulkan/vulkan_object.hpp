@@ -6,6 +6,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include "rapidjson_model.hpp"
 #include "vulkan_model.hpp"
+#include "vulkan_node.hpp"
 #include "vulkan_renderer.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -26,24 +27,13 @@ class VulkanObject {
     void z(float newZ);
     glm::mat4 const modelMatrix() { return _modelMatrix; }
     void draw();
-    glm::mat4 const getAnimation(int nodeID);
-    glm::mat4 const nodeModelMatrix(int nodeID);
-    bool const hasAnimation() { return _hasAnimation; }
 
     void draw(VulkanRenderer* renderer);
-
-    std::vector<Vertex> vertices;
-    std::vector<int> indices;
-    std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
+    RapidJSON_Model* model;
+    std::vector<std::shared_ptr<VulkanNode>> nodes;
 
   private:
-    RapidJSON_Model* model;
-    template <typename T> T loadAccessor(RapidJSON_Model::Accessor* accessor, int count_index) {
-        RapidJSON_Model::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
-        int offset = accessor->byteOffset + bufferView.byteOffset +
-                     count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value() : sizeof(T));
-        return *(reinterpret_cast<T*>(model->buffers[bufferView.buffer].data.data() + offset));
-    }
+    std::shared_ptr<std::map<int, std::shared_ptr<Mesh>>> meshIDMap = std::make_shared<std::map<int, std::shared_ptr<Mesh>>>();
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
@@ -51,11 +41,6 @@ class VulkanObject {
 
     glm::mat4 _modelMatrix{1.0f};
     void updateModelMatrix();
-    bool _hasAnimation = 0;
-
-    void loadMesh(int meshID, int nodeID);
-
-    std::vector<glm::mat4> _nodeMatrices;
 
     struct KeyMappings {
         int moveLeft = GLFW_KEY_A;
