@@ -53,6 +53,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 // Fails with multiple primitives in a mesh
                 ssbo.modelMatrix = objects.back().nodeModelMatrix(i);
                 objectStorage.push_back(ssbo);
+                instanceMap.insert({{objects.size() - 1, i}, (int)objectStorage.size() - 1});
             }
             vertexOffset = vertices.size();
             firstIndex = indices.size();
@@ -114,7 +115,7 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
             // TODO
             // Fails with multiple primitives in a mesh
             ssbo.modelMatrix = objects[objectID].nodeModelMatrix(i);
-            reinterpret_cast<SSBOData*>(SSBO->mapped)[i] = ssbo;
+            reinterpret_cast<SSBOData*>(SSBO->mapped)[instanceMap[{objectID, i}]] = ssbo;
         }
     }
 

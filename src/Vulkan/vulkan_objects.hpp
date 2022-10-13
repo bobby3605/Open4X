@@ -6,6 +6,7 @@
 #include "vulkan_device.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include <map>
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -33,6 +34,7 @@ class VulkanObjects {
     std::vector<int> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
     std::vector<SSBOData> objectStorage;
+    std::map<std::pair<int, int>, int> instanceMap;
 
     VulkanDevice* device;
 
