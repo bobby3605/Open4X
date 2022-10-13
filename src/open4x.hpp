@@ -4,6 +4,7 @@
 #include "Vulkan/vulkan_device.hpp"
 #include "Vulkan/vulkan_model.hpp"
 #include "Vulkan/vulkan_object.hpp"
+#include "Vulkan/vulkan_objects.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 #include "glTF/GLTF.hpp"
@@ -20,13 +21,8 @@ class Open4X {
     VulkanWindow* vulkanWindow;
     VulkanDevice* vulkanDevice;
     VulkanRenderer* vulkanRenderer;
-    VulkanModel* basicTriangleModel;
-    VulkanModel* vikingRoomModel;
-    VulkanModel* flatVaseModel;
-    gltf::GLTF* basicTriangleGLTFModel;
 
-    std::vector<VulkanModel*> vulkanModels;
-    std::vector<gltf::GLTF*> gltfModels;
+    std::shared_ptr<VulkanObjects> objects;
 };
 
 #endif // OPEN4X_H_

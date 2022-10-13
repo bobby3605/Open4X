@@ -6,9 +6,7 @@
 
 using namespace gltf;
 
-std::string GLTF::getFileExtension(std::string filePath) {
-    return filePath.substr(filePath.find_last_of("."));
-}
+std::string GLTF::getFileExtension(std::string filePath) { return filePath.substr(filePath.find_last_of(".")); }
 
 std::vector<unsigned char> GLTF::loadURI(std::string uri, int byteLength) {
     // Check what type of buffer
@@ -44,28 +42,22 @@ void GLTF::loadGLTF(std::string filePath) {
     // Get data from GLTF JSON
     // For some reason, I need this extra variable, otherwise I crash with
     // basic_string::_M_create
-    JSONnode::nodeVector jsonBuffers =
-        find<JSONnode::nodeVector>(jsonRoot, "buffers");
+    JSONnode::nodeVector jsonBuffers = find<JSONnode::nodeVector>(jsonRoot, "buffers");
     for (JSONnode jsonBuffer : jsonBuffers) {
-        buffers.push_back(
-            Buffer(jsonBuffer, loadURI(find<std::string>(jsonBuffer, "uri"),
-                                       find<int>(jsonBuffer, "byteLength"))));
+        buffers.push_back(Buffer(jsonBuffer, loadURI(find<std::string>(jsonBuffer, "uri"), find<int>(jsonBuffer, "byteLength"))));
     }
 
-    JSONnode::nodeVector jsonBufferViews =
-        find<JSONnode::nodeVector>(jsonRoot, "bufferViews");
+    JSONnode::nodeVector jsonBufferViews = find<JSONnode::nodeVector>(jsonRoot, "bufferViews");
     for (JSONnode jsonBufferView : jsonBufferViews) {
         bufferViews.push_back(BufferView(jsonBufferView));
     }
 
-    JSONnode::nodeVector jsonAccessors =
-        find<JSONnode::nodeVector>(jsonRoot, "accessors");
+    JSONnode::nodeVector jsonAccessors = find<JSONnode::nodeVector>(jsonRoot, "accessors");
     for (JSONnode jsonAccessor : jsonAccessors) {
         accessors.push_back(Accessor(jsonAccessor));
     }
 
-    std::optional<JSONnode::nodeVector> jsonAnimations =
-        findOptional<JSONnode::nodeVector>(jsonRoot, "animations");
+    std::optional<JSONnode::nodeVector> jsonAnimations = findOptional<JSONnode::nodeVector>(jsonRoot, "animations");
     if (jsonAnimations.has_value()) {
         for (JSONnode jsonAnimation : jsonAnimations.value()) {
             animations.push_back(Animation(jsonAnimation));
@@ -76,24 +68,21 @@ void GLTF::loadGLTF(std::string filePath) {
     if (jsonDefaultScene)
         scene = jsonDefaultScene.value();
 
-    std::optional<JSONnode::nodeVector> jsonScenes =
-        findOptional<JSONnode::nodeVector>(jsonRoot, "scenes");
+    std::optional<JSONnode::nodeVector> jsonScenes = findOptional<JSONnode::nodeVector>(jsonRoot, "scenes");
     if (jsonScenes) {
         for (JSONnode jsonScene : jsonScenes.value()) {
             scenes.push_back(Scene(jsonScene));
         }
     }
 
-    std::optional<JSONnode::nodeVector> jsonNodes =
-        findOptional<JSONnode::nodeVector>(jsonRoot, "nodes");
+    std::optional<JSONnode::nodeVector> jsonNodes = findOptional<JSONnode::nodeVector>(jsonRoot, "nodes");
     if (jsonNodes) {
         for (JSONnode jsonNode : jsonNodes.value()) {
             nodes.push_back(Node(jsonNode));
         }
     }
 
-    std::optional<JSONnode::nodeVector> jsonMeshes =
-        findOptional<JSONnode::nodeVector>(jsonRoot, "meshes");
+    std::optional<JSONnode::nodeVector> jsonMeshes = findOptional<JSONnode::nodeVector>(jsonRoot, "meshes");
     if (jsonMeshes) {
         for (JSONnode jsonMesh : jsonMeshes.value()) {
             meshes.push_back(Mesh(jsonMesh));
@@ -148,8 +137,7 @@ void GLTF::loadGLB(std::string filePath) {
             //  Reset binaryChunk
             binaryChunk.clear();
         } else {
-            throw std::runtime_error("Unknown chunk type: " +
-                                     std::to_string(chunkType));
+            throw std::runtime_error("Unknown chunk type: " + std::to_string(chunkType));
         }
     }
     file.close();

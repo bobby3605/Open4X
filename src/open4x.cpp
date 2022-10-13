@@ -7,6 +7,7 @@
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
+#include "Vulkan/vulkan_objects.hpp"
 #include "Vulkan/vulkan_swapchain.hpp"
 #include "open4x.hpp"
 #include <GLFW/glfw3.h>
@@ -18,19 +19,17 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/transform.hpp>
 #include <iostream>
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action,
-                  int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, 1);
     }
 }
 
-glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio,
-                                float near, float far) {
-    assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) >
-           0.0f);
+glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float near, float far) {
+    assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
     const float tanHalfFovy = tan(glm::radians(vertical_fov) / 2.f);
     glm::mat4 projectionMatrix{0.0f};
     projectionMatrix[0][0] = 1.f / (aspect_ratio * tanHalfFovy);
@@ -50,14 +49,6 @@ Open4X::Open4X() {
 
 Open4X::~Open4X() {
 
-    for (gltf::GLTF* gltfModel : gltfModels) {
-        delete gltfModel;
-    }
-
-    for (VulkanModel* vulkanModel : vulkanModels) {
-        delete vulkanModel;
-    }
-
     delete vulkanRenderer;
     delete vulkanDevice;
     delete vulkanWindow;
@@ -67,59 +58,15 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    basicTriangleGLTFModel =
-        new gltf::GLTF("assets/glTF/basic_sparse_triangles.gltf");
-
-    gltfModels.push_back(basicTriangleGLTFModel);
-
-    gltf::GLTF* animatedTriangleGLTFModel =
-        new gltf::GLTF("assets/glTF/simple_animation.gltf");
-
-    gltfModels.push_back(animatedTriangleGLTFModel);
-
-    gltf::GLTF* simpleMeshesGLTFModel =
-        new gltf::GLTF("assets/glTF/simple_meshes.gltf");
-
-    gltfModels.push_back(simpleMeshesGLTFModel);
-
-    basicTriangleModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                         basicTriangleGLTFModel);
-
-    vulkanModels.push_back(basicTriangleModel);
-
-    VulkanModel* animatedTriangleModel = new VulkanModel(
-        vulkanDevice, &descriptorManager, animatedTriangleGLTFModel);
-
-    vulkanModels.push_back(animatedTriangleModel);
-
-    VulkanModel* simpleMeshesModel = new VulkanModel(
-        vulkanDevice, &descriptorManager, simpleMeshesGLTFModel);
-
-    vulkanModels.push_back(simpleMeshesModel);
-
-    vikingRoomModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                      "assets/models/viking_room.obj",
-                                      "assets/textures/viking_room.png");
-
-    vulkanModels.push_back(vikingRoomModel);
-
-    flatVaseModel = new VulkanModel(vulkanDevice, &descriptorManager,
-                                    "assets/models/flat_vase.obj",
-                                    "assets/textures/statue.jpg");
-
-    vulkanModels.push_back(flatVaseModel);
-
-    vulkanRenderer =
-        new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
+    VulkanObjects objects(vulkanDevice, &descriptorManager);
+    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
     std::vector<VkDescriptorSet> globalSets;
 
     descriptorManager.createSets(descriptorManager.getGlobal(), globalSets);
 
-    std::vector<UniformBuffer*> uniformBuffers(
-        VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    std::vector<VkDescriptorBufferInfo> bufferInfos(
-        VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    std::vector<VkDescriptorBufferInfo> bufferInfos(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice);
@@ -134,44 +81,34 @@ void Open4X::run() {
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfos[i];
 
-        vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0,
-                               nullptr);
+        vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0, nullptr);
     }
 
-    VulkanObject obj1(vikingRoomModel, vulkanRenderer);
-    VulkanObject obj2(flatVaseModel, vulkanRenderer);
-    obj2.y(1.5f);
-    VulkanObject obj3(flatVaseModel, vulkanRenderer);
-    VulkanObject gltfObj(basicTriangleModel, vulkanRenderer);
-    VulkanObject animatedTriangleObj(animatedTriangleModel, vulkanRenderer);
-    animatedTriangleObj.y(-1.5f);
-    animatedTriangleObj.x(1.0f);
-    VulkanObject simpleMeshesObj(simpleMeshesModel, vulkanRenderer);
-    simpleMeshesObj.x(-2.0f);
-
-    camera = new VulkanObject(vulkanRenderer);
+    camera = new VulkanObject();
 
     UniformBufferObject ubo{};
 
-    ubo.proj = perspectiveProjection(
-        45.0f,
-        vulkanRenderer->getSwapChainExtent().width /
-            (float)vulkanRenderer->getSwapChainExtent().height,
-        0.001f, 100.0f);
+    ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
+                                     0.001f, 100.0f);
+
+    VulkanModel vase(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
+
+    VulkanObject vaseObj;
+    vaseObj.y(-1.5f);
 
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
-        float frameTime =
-            std::chrono::duration<float, std::chrono::seconds::period>(
-                startTime - currentTime)
-                .count();
+        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
         startTime = currentTime;
-        camera->keyboardUpdate(frameTime);
+        camera->keyboardUpdate(vulkanRenderer, frameTime);
 
-        ubo.view = glm::inverse(camera->mat4());
+        glm::mat4 cameraModel =
+            glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
+
+        ubo.view = glm::inverse(cameraModel);
 
         vulkanRenderer->startFrame();
 
@@ -180,26 +117,20 @@ void Open4X::run() {
         vulkanRenderer->beginSwapChainrenderPass();
         vulkanRenderer->bindPipeline();
 
-        vulkanRenderer->bindDescriptorSet(
-            0, globalSets[vulkanRenderer->getCurrentFrame()]);
+        vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
-        //    obj1.draw();
-        obj2.draw();
+        objects.bind(vulkanRenderer);
+        vase.draw(vulkanRenderer, vaseObj.modelMatrix());
 
-        gltfObj.draw();
+        objects.bind(vulkanRenderer);
 
-        animatedTriangleObj.draw();
-
-        simpleMeshesObj.draw();
+        objects.drawIndirect(vulkanRenderer);
 
         vulkanRenderer->endSwapChainrenderPass();
 
         if (vulkanRenderer->endFrame()) {
             ubo.proj = perspectiveProjection(
-                45.0f,
-                vulkanRenderer->getSwapChainExtent().width /
-                    (float)vulkanRenderer->getSwapChainExtent().height,
-                0.001f, 100.0f);
+                45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 100.0f);
         }
     }
     vkDeviceWaitIdle(vulkanDevice->device());

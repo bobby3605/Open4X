@@ -14,10 +14,8 @@
 #include <iostream>
 #include <stdexcept>
 
-VulkanRenderer::VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef,
-                               VulkanDescriptors* descriptorManager)
-    : vulkanWindow{window}, device{deviceRef}, descriptorManager{
-                                                   descriptorManager} {
+VulkanRenderer::VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager)
+    : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager} {
     init();
 }
 
@@ -50,20 +48,14 @@ void VulkanRenderer::bindPipeline() {
 
     vkCmdSetScissor(getCurrentCommandBuffer(), 0, 1, &scissor);
 
-    vkCmdBindPipeline(commandBuffers[currentFrame],
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      graphicsPipeline->getPipeline());
+    vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
 }
 
 void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
-    vkCmdBindDescriptorSets(commandBuffers[currentFrame],
-                            VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout,
-                            setNum, 1, &set, 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
 }
 
-VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() {
-    return commandBuffers[currentFrame];
-};
+VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
 
 void VulkanRenderer::recreateSwapChain() {
     // pause on minimization
@@ -77,14 +69,12 @@ void VulkanRenderer::recreateSwapChain() {
 
     vkDeviceWaitIdle(device->device());
 
-    swapChain =
-        new VulkanSwapChain(device, vulkanWindow->getExtent(), swapChain);
+    swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent(), swapChain);
 }
 
 void VulkanRenderer::createPipeline() {
     VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags =
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(PushConstants);
 
@@ -95,13 +85,11 @@ void VulkanRenderer::createPipeline() {
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-    checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo,
-                                       nullptr, &pipelineLayout),
+    checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
                 "failed to create pipeline layout");
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
@@ -125,8 +113,7 @@ void VulkanRenderer::createPipeline() {
     viewportState.pScissors = &scissor;
 
     VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
@@ -140,8 +127,7 @@ void VulkanRenderer::createPipeline() {
     rasterizer.depthBiasSlopeFactor = 0.0f;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = device->getMsaaSamples();
     multisampling.sampleShadingEnable = device->getSampleShading();
@@ -152,8 +138,7 @@ void VulkanRenderer::createPipeline() {
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_FALSE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -163,8 +148,7 @@ void VulkanRenderer::createPipeline() {
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
     colorBlending.attachmentCount = 1;
@@ -174,18 +158,15 @@ void VulkanRenderer::createPipeline() {
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
-    std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT,
-                                                 VK_DYNAMIC_STATE_SCISSOR};
+    std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount =
-        static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
-    depthStencil.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
     depthStencil.depthWriteEnable = VK_TRUE;
     depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
@@ -233,9 +214,7 @@ void VulkanRenderer::createCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-    checkResult(vkAllocateCommandBuffers(device->device(), &allocInfo,
-                                         commandBuffers.data()),
-                "failed to create command buffers");
+    checkResult(vkAllocateCommandBuffers(device->device(), &allocInfo, commandBuffers.data()), "failed to create command buffers");
 }
 
 void VulkanRenderer::beginSwapChainrenderPass() {
@@ -252,13 +231,10 @@ void VulkanRenderer::beginSwapChainrenderPass() {
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
-    vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void VulkanRenderer::endSwapChainrenderPass() {
-    vkCmdEndRenderPass(commandBuffers[currentFrame]);
-}
+void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRenderPass(commandBuffers[currentFrame]); }
 
 void VulkanRenderer::startFrame() {
     VkResult result = swapChain->acquireNextImage(&imageIndex);
@@ -277,17 +253,13 @@ void VulkanRenderer::startFrame() {
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 
-    checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo),
-                "failed to begin recording command buffer");
+    checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo), "failed to begin recording command buffer");
 }
 
 bool VulkanRenderer::endFrame() {
-    checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]),
-                "failed to end command buffer");
-    VkResult result = swapChain->submitCommandBuffers(
-        &commandBuffers[currentFrame], &imageIndex);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-        vulkanWindow->framebufferResized) {
+    checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
+    VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
         recreateSwapChain();
         vulkanWindow->framebufferResized = false;
         // return true if framebuffer was resized

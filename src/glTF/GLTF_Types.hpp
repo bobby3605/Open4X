@@ -12,8 +12,7 @@
 
 namespace gltf {
 
-template <typename T>
-std::optional<T> findOptional(JSONnode node, std::string key) {
+template <typename T> std::optional<T> findOptional(JSONnode node, std::string key) {
     std::optional<JSONnode> nodeOptional = node.findOptional(key);
     // TODO
     // Make something better than this mess
@@ -25,13 +24,10 @@ std::optional<T> findOptional(JSONnode node, std::string key) {
     // Then wraps it back into optional
     // If it doesn't exist
     // Return a blank optional
-    return nodeOptional
-               ? std::optional<T>(std::get<T>(nodeOptional.value().value()))
-               : std::optional<T>();
+    return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().value())) : std::optional<T>();
 }
 
-template <typename T>
-std::optional<T> findOptional(JSONnode* node, std::string key) {
+template <typename T> std::optional<T> findOptional(JSONnode* node, std::string key) {
     std::optional<JSONnode> nodeOptional = node->findOptional(key);
     // TODO
     // Make something better than this mess
@@ -43,18 +39,12 @@ std::optional<T> findOptional(JSONnode* node, std::string key) {
     // Then wraps it back into optional
     // If it doesn't exist
     // Return a blank optional
-    return nodeOptional
-               ? std::optional<T>(std::get<T>(nodeOptional.value().value()))
-               : std::optional<T>();
+    return nodeOptional ? std::optional<T>(std::get<T>(nodeOptional.value().value())) : std::optional<T>();
 }
 
-template <typename T> T find(JSONnode node, std::string key) {
-    return std::get<T>(node.find(key).value());
-}
+template <typename T> T find(JSONnode node, std::string key) { return std::get<T>(node.find(key).value()); }
 
-template <typename T> T find(JSONnode* node, std::string key) {
-    return std::get<T>(node->find(key).value());
-}
+template <typename T> T find(JSONnode* node, std::string key) { return std::get<T>(node->find(key).value()); }
 
 class Accessor {
   public:

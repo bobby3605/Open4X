@@ -4,17 +4,13 @@
 #include <cstring>
 #include <iostream>
 
-VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size,
-                           VkBufferUsageFlags usage,
-                           VkMemoryPropertyFlags properties)
+VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
     : device{device}, bufferSize{size} {
     device->createBuffer(size, usage, properties, buffer, memory);
 }
 
 void VulkanBuffer::map() {
-    checkResult(
-        vkMapMemory(device->device(), memory, 0, bufferSize, 0, &mapped),
-        "memory map failed");
+    checkResult(vkMapMemory(device->device(), memory, 0, bufferSize, 0, &mapped), "memory map failed");
     isMapped = true;
 }
 
@@ -23,9 +19,7 @@ void VulkanBuffer::unmap() {
     isMapped = false;
 }
 
-void VulkanBuffer::write(void* data, VkDeviceSize size, VkDeviceSize offset) {
-    memcpy(((char*)mapped) + offset, data, size);
-}
+void VulkanBuffer::write(void* data, VkDeviceSize size, VkDeviceSize offset) { memcpy(((char*)mapped) + offset, data, size); }
 
 VulkanBuffer::~VulkanBuffer() {
     if (isMapped)
@@ -34,33 +28,25 @@ VulkanBuffer::~VulkanBuffer() {
     vkFreeMemory(device->device(), memory, nullptr);
 }
 
-StagedBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
-                           VkMemoryPropertyFlags type) {
+StagedBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkMemoryPropertyFlags type) {
 
     VulkanBuffer stagingBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     stagingBuffer.map();
     stagingBuffer.write(data, size, 0);
     stagingBuffer.unmap();
 
-    stagedBuffer =
-        new VulkanBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type,
-                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    stagedBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    device->singleTimeCommands()
-        .copyBuffer(stagingBuffer.buffer, stagedBuffer->buffer, size)
-        .run();
+    device->singleTimeCommands().copyBuffer(stagingBuffer.buffer, stagedBuffer->buffer, size).run();
 }
 
 StagedBuffer::~StagedBuffer() { delete stagedBuffer; }
 
 UniformBuffer::UniformBuffer(VulkanDevice* device) {
 
-    uniformBuffer = new VulkanBuffer(device, sizeof(UniformBufferObject),
-                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uniformBuffer = new VulkanBuffer(device, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     uniformBuffer->map();
 
@@ -71,15 +57,11 @@ UniformBuffer::UniformBuffer(VulkanDevice* device) {
 
 UniformBuffer::~UniformBuffer() { delete uniformBuffer; }
 
-void UniformBuffer::write(void* data) {
-    uniformBuffer->write(data, sizeof(UniformBufferObject), 0);
-}
+void UniformBuffer::write(void* data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
 
 StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
-    storageBuffer =
-        new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    storageBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     storageBuffer->map();
     mapped = storageBuffer->getMapped();
