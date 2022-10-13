@@ -40,7 +40,8 @@ class VulkanObject {
     RapidJSON_Model* model;
     template <typename T> T loadAccessor(RapidJSON_Model::Accessor* accessor, int count_index) {
         RapidJSON_Model::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
-        int offset = accessor->byteOffset + bufferView.byteOffset + count_index * (bufferView.byteStride + sizeof(T));
+        int offset = accessor->byteOffset + bufferView.byteOffset +
+                     count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value() : sizeof(T));
         return *(reinterpret_cast<T*>(model->buffers[bufferView.buffer].data.data() + offset));
     }
 
@@ -51,6 +52,8 @@ class VulkanObject {
     glm::mat4 _modelMatrix{1.0f};
     void updateModelMatrix();
     bool _hasAnimation = 0;
+
+    void loadMesh(int meshID, int nodeID);
 
     std::vector<glm::mat4> _nodeMatrices;
 

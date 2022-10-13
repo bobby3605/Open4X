@@ -74,9 +74,18 @@ RapidJSON_Model::Scene::Scene(Value& sceneJSON) {
 
 RapidJSON_Model::Node::Node(Value& nodeJSON) {
     assert(nodeJSON.IsObject());
-    Value& meshJSON = nodeJSON["mesh"];
-    if (meshJSON.IsInt()) {
-        mesh = meshJSON.GetInt();
+    if (nodeJSON.HasMember("mesh")) {
+        Value& meshJSON = nodeJSON["mesh"];
+        if (meshJSON.IsInt()) {
+            mesh = meshJSON.GetInt();
+        }
+    }
+    if (nodeJSON.HasMember("children")) {
+        Value& childrenJSON = nodeJSON["children"];
+        assert(childrenJSON.IsArray());
+        for (SizeType i = 0; i < childrenJSON.Size(); ++i) {
+            children.push_back(childrenJSON[i].GetInt());
+        }
     }
     if (nodeJSON.HasMember("translation")) {
         Value& translationJSON = nodeJSON["translation"];
@@ -112,6 +121,21 @@ RapidJSON_Model::Node::Node(Value& nodeJSON) {
         }
     }
     matrix = glm::translate(glm::mat4(1.0f), translation) * glm::toMat4(rotation) * glm::scale(scale);
+
+    if (nodeJSON.HasMember("matrix")) {
+        Value& matrixJSON = nodeJSON["matrix"];
+        if (matrixJSON.IsArray()) {
+            assert(matrixJSON.Size() == 16);
+            std::vector<float> matrixJSONBuffer(16);
+            for (SizeType i = 0; i < matrixJSON.Size(); ++i) {
+                matrixJSONBuffer.push_back(matrixJSON[i].GetFloat());
+            }
+            // TODO
+            // Might need glm::transpose
+            // need to test it
+            matrix = glm::make_mat4(matrixJSONBuffer.data());
+        }
+    }
 }
 
 RapidJSON_Model::Mesh::Mesh(Value& meshJSON) {
@@ -160,6 +184,23 @@ RapidJSON_Model::Buffer::Buffer(Value& bufferJSON) {
             std::string::size_type pos;
             if ((pos = uri->find("base64,")) != std::string::npos) {
                 data = base64ToUChar(uri->substr(pos + 7));
+            } else if (uri->substr(uri->find_last_of(".")).compare(".bin") == 0) {
+                std::ifstream file("assets/glTF/" + uri.value(), std::ios::binary);
+                if (!file.is_open()) {
+                    throw std::runtime_error("failed to open file: " + uri.value());
+                } else {
+                    // https://stackoverflow.com/a/21802936
+                    file.unsetf(std::ios::skipws);
+                    // get its size:
+                    std::streampos fileSize;
+                    file.seekg(0, std::ios::end);
+                    fileSize = file.tellg();
+                    file.seekg(0, std::ios::beg);
+                    // reserve capacity
+                    data.reserve(fileSize);
+                    // read the data:
+                    data.insert(data.begin(), std::istream_iterator<unsigned char>(file), std::istream_iterator<unsigned char>());
+                }
             }
         }
     }

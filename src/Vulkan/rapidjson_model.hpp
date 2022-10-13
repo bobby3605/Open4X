@@ -26,6 +26,7 @@ class RapidJSON_Model {
       public:
         Node(Value& nodeJSON);
 
+        std::vector<int> children;
         std::optional<int> mesh;
         glm::mat4 matrix = glm::mat4(1.0f);
 
@@ -70,7 +71,7 @@ class RapidJSON_Model {
         int buffer;
         int byteOffset = 0;
         int byteLength;
-        int byteStride = 0;
+        std::optional<int> byteStride;
         std::optional<int> target;
     };
     std::vector<BufferView> bufferViews;

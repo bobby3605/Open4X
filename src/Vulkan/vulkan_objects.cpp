@@ -29,7 +29,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     int vertexOffset = 0;
     int firstIndex = 0;
     int instanceOffset = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/single/")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
             gltf_models.insert({filePath.path(), RapidJSON_Model(filePath.path())});
             objects.push_back(VulkanObject(&gltf_models.find(filePath.path())->second));
@@ -51,7 +51,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 SSBOData ssbo{};
                 // TODO
                 // Fails with multiple primitives in a mesh
-                ssbo.modelMatrix = objects.back().nodeModelMatrix(i);
+                // Fails with children nodes
+                ssbo.modelMatrix = objects.back().nodeModelMatrix(1);
                 objectStorage.push_back(ssbo);
                 instanceMap.insert({{objects.size() - 1, i}, (int)objectStorage.size() - 1});
             }

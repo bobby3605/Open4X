@@ -20,69 +20,17 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
             RapidJSON_Model::Node node = model->nodes[nodeID];
             _nodeMatrices.push_back(node.matrix);
             if (node.mesh.has_value()) {
-                RapidJSON_Model::Mesh mesh = model->meshes[node.mesh.value()];
-                for (RapidJSON_Model::Mesh::Primitive primitive : mesh.primitives) {
-                    RapidJSON_Model::Accessor* accessor;
-                    int vertexOffset = 0;
-                    int firstIndex = 0;
-                    if (primitive.attributes->position.has_value()) {
-                        accessor = &model->accessors[primitive.attributes->position.value()];
-                        // Set of sparse indices
-                        std::set<unsigned short> sparseIndices;
-                        // Vector of vertices to replace with
-                        std::vector<glm::vec3> sparseValues;
-                        if (accessor->sparse.has_value()) {
-                            RapidJSON_Model::BufferView* bufferView;
-                            for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
-                                // load the index
-                                bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
-                                int offset = accessor->sparse->indices->byteOffset + bufferView->byteOffset +
-                                             count_index * (bufferView->byteStride + sizeof(unsigned short));
-                                sparseIndices.insert(
-                                    *(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
-                                // load the vertex
-                                bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
-                                offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
-                                         count_index * (bufferView->byteStride + sizeof(glm::vec3));
-                                sparseValues.push_back(
-                                    *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset)));
-                            }
-                        }
-                        std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
-
-                        for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-                            Vertex vertex{};
-                            if (sparseIndices.count(count_index) == 1) {
-                                vertex.pos = *sparseValuesIterator;
-                                ++sparseValuesIterator;
-                            } else {
-                                vertex.pos = loadAccessor<glm::vec3>(accessor, count_index);
-                            }
-                            vertex.texCoord = {0.0, 0.0};
-                            vertex.color = {1.0f, 1.0f, 1.0f};
-                            vertices.push_back(vertex);
-                        }
-                    }
-                    if (primitive.indices.has_value()) {
-                        accessor = &model->accessors[primitive.indices.value()];
-                        for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-                            indices.push_back(loadAccessor<unsigned short>(accessor, count_index));
-                        }
-                    }
-                    // TODO
-                    // Generate index buffer if it does not exist
-                    // Add instancing for duplicate meshes
-                    VkDrawIndexedIndirectCommand indirectDraw{};
-                    indirectDraw.indexCount = indices.size() - firstIndex;
-                    indirectDraw.instanceCount = 1;
-                    indirectDraw.firstIndex = firstIndex;
-                    indirectDraw.vertexOffset = vertexOffset;
-                    indirectDraw.firstInstance = nodeID;
-                    indirectDraws.push_back(indirectDraw);
-
-                    firstIndex = indices.size();
-                    vertexOffset = vertices.size();
+                loadMesh(nodeID, nodeID);
+            } else if (node.children.size() > 0) {
+                // TODO
+                // might fail with multiple meshes and instances,
+                // since gl_BaseInstance is the nodeID
+                for (int child : node.children) {
+                    loadMesh(model->nodes[child].mesh.value(), nodeID);
                 }
+                continue;
+            } else {
+                throw std::runtime_error("no mesh found on node: " + std::to_string(nodeID));
             }
         }
     }
@@ -101,6 +49,71 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                 }
             }
         }
+    }
+}
+
+void VulkanObject::loadMesh(int meshID, int nodeID) {
+    RapidJSON_Model::Mesh mesh = model->meshes[meshID];
+    for (RapidJSON_Model::Mesh::Primitive primitive : mesh.primitives) {
+        RapidJSON_Model::Accessor* accessor;
+        int vertexOffset = 0;
+        int firstIndex = 0;
+        if (primitive.attributes->position.has_value()) {
+            accessor = &model->accessors[primitive.attributes->position.value()];
+            // Set of sparse indices
+            std::set<unsigned short> sparseIndices;
+            // Vector of vertices to replace with
+            std::vector<glm::vec3> sparseValues;
+            if (accessor->sparse.has_value()) {
+                RapidJSON_Model::BufferView* bufferView;
+                for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
+                    // load the index
+                    bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
+                    int offset =
+                        accessor->sparse->indices->byteOffset + bufferView->byteOffset +
+                        count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(unsigned short));
+                    sparseIndices.insert(*(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                    // load the vertex
+                    bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
+                    offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
+                             count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(glm::vec3));
+                    sparseValues.push_back(*(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                }
+            }
+            std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
+
+            for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
+                Vertex vertex{};
+                if (sparseIndices.count(count_index) == 1) {
+                    vertex.pos = *sparseValuesIterator;
+                    ++sparseValuesIterator;
+                } else {
+                    vertex.pos = loadAccessor<glm::vec3>(accessor, count_index);
+                }
+                vertex.texCoord = {0.0, 0.0};
+                vertex.color = {1.0f, 1.0f, 1.0f};
+                vertices.push_back(vertex);
+            }
+        }
+        if (primitive.indices.has_value()) {
+            accessor = &model->accessors[primitive.indices.value()];
+            for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
+                indices.push_back(loadAccessor<unsigned short>(accessor, count_index));
+            }
+        }
+        // TODO
+        // Generate index buffer if it does not exist
+        // Add instancing for duplicate meshes
+        VkDrawIndexedIndirectCommand indirectDraw{};
+        indirectDraw.indexCount = indices.size() - firstIndex;
+        indirectDraw.instanceCount = 1;
+        indirectDraw.firstIndex = firstIndex;
+        indirectDraw.vertexOffset = vertexOffset;
+        indirectDraw.firstInstance = nodeID;
+        indirectDraws.push_back(indirectDraw);
+
+        firstIndex = indices.size();
+        vertexOffset = vertices.size();
     }
 }
 
