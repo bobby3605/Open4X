@@ -82,10 +82,8 @@ void VulkanRenderer::createPipeline() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = descriptorManager->getLayouts().size();
     pipelineLayoutInfo.pSetLayouts = descriptorManager->getLayouts().data();
-    /*
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-    */
 
     checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
                 "failed to create pipeline layout");

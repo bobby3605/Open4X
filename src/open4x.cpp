@@ -91,6 +91,11 @@ void Open4X::run() {
     ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
                                      0.001f, 100.0f);
 
+    VulkanModel vase(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
+
+    VulkanObject vaseObj;
+    vaseObj.y(-1.5f);
+
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
@@ -113,6 +118,10 @@ void Open4X::run() {
         vulkanRenderer->bindPipeline();
 
         vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
+
+        objects.bind(vulkanRenderer);
+        vase.draw(vulkanRenderer, vaseObj.modelMatrix());
+
         objects.bind(vulkanRenderer);
 
         objects.drawIndirect(vulkanRenderer);

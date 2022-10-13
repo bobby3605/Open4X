@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
+#include <iostream>
 
 RapidJSON_Model::RapidJSON_Model(std::string filePath) {
     std::ifstream file(filePath);
@@ -225,5 +226,52 @@ RapidJSON_Model::Accessor::Accessor(Value& accessorJSON) {
                 min.push_back(itr->GetFloat());
             }
         }
+    }
+    if (accessorJSON.HasMember("sparse")) {
+        Value& sparseJSON = accessorJSON["sparse"];
+        sparse = Sparse(sparseJSON);
+    }
+}
+
+RapidJSON_Model::Accessor::Sparse::Sparse(Value& sparseJSON) {
+    assert(sparseJSON.IsObject());
+    Value& countJSON = sparseJSON["count"];
+    assert(countJSON.IsInt());
+    count = countJSON.GetInt();
+    Value& indicesJSON = sparseJSON["indices"];
+    assert(indicesJSON.IsObject());
+    indices = std::make_shared<RapidJSON_Model::Accessor::Sparse::Index>(indicesJSON);
+    Value& valuesJSON = sparseJSON["values"];
+    values = std::make_shared<RapidJSON_Model::Accessor::Sparse::SparseValue>(valuesJSON);
+}
+
+RapidJSON_Model::Accessor::Sparse::Sparse::Index::Index(Value& indexJSON) {
+    assert(indexJSON.IsObject());
+    Value& bufferViewJSON = indexJSON["bufferView"];
+    assert(bufferViewJSON.IsInt());
+    bufferView = bufferViewJSON.GetInt();
+    if (indexJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = indexJSON["byteOffset"];
+        assert(byteOffsetJSON.IsInt());
+        byteOffset = byteOffsetJSON.GetInt();
+    } else {
+        byteOffset = 0;
+    }
+    Value& componentTypeJSON = indexJSON["componentType"];
+    assert(componentTypeJSON.IsInt());
+    componentType = componentTypeJSON.GetInt();
+}
+
+RapidJSON_Model::Accessor::Sparse::SparseValue::SparseValue(Value& valueJSON) {
+    assert(valueJSON.IsObject());
+    Value& bufferViewJSON = valueJSON["bufferView"];
+    assert(bufferViewJSON.IsInt());
+    bufferView = bufferViewJSON.GetInt();
+    if (valueJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = valueJSON["byteOffset"];
+        assert(byteOffsetJSON.IsInt());
+        byteOffset = byteOffsetJSON.GetInt();
+    } else {
+        byteOffset = 0;
     }
 }

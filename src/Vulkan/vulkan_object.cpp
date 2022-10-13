@@ -28,16 +28,42 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                     int firstIndex = 0;
                     if (primitive.attributes->position.has_value()) {
                         accessor = &model->accessors[primitive.attributes->position.value()];
+                        // Set of sparse indices
+                        std::set<unsigned short> sparseIndices;
+                        // Vector of vertices to replace with
+                        std::vector<glm::vec3> sparseValues;
+                        if (accessor->sparse.has_value()) {
+                            for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
+                                // load the index
+                                bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
+                                int offset = accessor->sparse->indices->byteOffset + bufferView->byteOffset +
+                                             count_index * (bufferView->byteStride + sizeof(unsigned short));
+                                sparseIndices.insert(
+                                    *(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                                // load the vertex
+                                bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
+                                offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
+                                         count_index * (bufferView->byteStride + sizeof(glm::vec3));
+                                sparseValues.push_back(
+                                    *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                            }
+                        }
                         bufferView = &model->bufferViews[accessor->bufferView.value()];
+                        std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
+
                         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
                             int offset =
                                 accessor->byteOffset + bufferView->byteOffset + count_index * (bufferView->byteStride + sizeof(glm::vec3));
                             Vertex vertex{};
-                            vertex.pos = *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset));
+                            if (sparseIndices.count(count_index) == 1) {
+                                vertex.pos = *sparseValuesIterator;
+                                ++sparseValuesIterator;
+                            } else {
+                                vertex.pos = *(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset));
+                            }
                             vertex.texCoord = {0.0, 0.0};
                             vertex.color = {1.0f, 1.0f, 1.0f};
                             vertices.push_back(vertex);
-                            std::cout << "Got vertex: " << glm::to_string(vertex.pos) << " At: " << offset << std::endl;
                         }
                     }
                     if (primitive.indices.has_value()) {
@@ -48,7 +74,6 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
                                          count_index * (bufferView->byteStride + sizeof(unsigned short));
                             indices.push_back(
                                 *(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
-                            std::cout << "Got index: " << indices.back() << " At: " << offset << std::endl;
                         }
                     }
                     // TODO

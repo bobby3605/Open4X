@@ -67,7 +67,7 @@ class VulkanModel {
     VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path);
     ~VulkanModel();
 
-    void draw(VulkanRenderer* renderer);
+    void draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix);
     void drawIndirect(VulkanRenderer* renderer);
 
     gltf::GLTF* gltf_model;

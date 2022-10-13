@@ -27,7 +27,7 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
     std::shared_ptr<StorageBuffer> SSBO;
     std::vector<VulkanObject> objects;
-    std::vector<RapidJSON_Model> gltf_models;
+    std::unordered_map<std::string, RapidJSON_Model> gltf_models;
     std::vector<Vertex> vertices;
     std::vector<int> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;

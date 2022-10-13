@@ -258,10 +258,16 @@ void VulkanModel::drawIndirect(VulkanRenderer* renderer) {
                              sizeof(indirectDraws[0]));
 }
 
-void VulkanModel::draw(VulkanRenderer* renderer) {
+void VulkanModel::draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix) {
 
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
+    PushConstants push{};
+
+    push.model = _modelMatrix;
+    push.indirect = 0;
+    vkCmdPushConstants(renderer->getCurrentCommandBuffer(), renderer->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &push);
 
     renderer->bindDescriptorSet(1, materialSet);
 
@@ -270,6 +276,10 @@ void VulkanModel::draw(VulkanRenderer* renderer) {
     vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdDrawIndexed(renderer->getCurrentCommandBuffer(), static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    push.indirect = 1;
+    vkCmdPushConstants(renderer->getCurrentCommandBuffer(), renderer->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &push);
 }
 
 VulkanModel::~VulkanModel() {

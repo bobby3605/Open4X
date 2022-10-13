@@ -29,10 +29,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     int vertexOffset = 0;
     int firstIndex = 0;
     int instanceOffset = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
-            gltf_models.push_back(RapidJSON_Model(filePath.path()));
-            objects.push_back(VulkanObject(&gltf_models.back()));
+            gltf_models.insert({filePath.path(), RapidJSON_Model(filePath.path())});
+            objects.push_back(VulkanObject(&gltf_models.find(filePath.path())->second));
+            if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
+                objects.back().x(3.0f);
+            }
             vertices.insert(std::end(vertices), std::begin(objects.back().vertices), std::end(objects.back().vertices));
             indices.insert(std::end(indices), std::begin(objects.back().indices), std::end(objects.back().indices));
             int instanceCounter = 0;
@@ -52,18 +55,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             firstIndex = indices.size();
             instanceOffset += instanceCounter;
         }
-    }
-    std::cout << "Vertex Buffer:" << std::endl;
-    int i = 0;
-    for (Vertex vertex : vertices) {
-        std::cout << i << ": " << glm::to_string(vertex.pos) << std::endl;
-        ++i;
-    }
-    std::cout << "Index Buffer:" << std::endl;
-    i = 0;
-    for (int index : indices) {
-        std::cout << i << ": " << index << std::endl;
-        ++i;
     }
     // TODO
     // Optimize final vertex and index buffers

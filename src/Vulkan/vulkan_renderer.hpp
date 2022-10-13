@@ -15,6 +15,7 @@
 
 struct PushConstants {
     glm::mat4 model{1.0f};
+    bool indirect = 1;
 };
 
 class VulkanRenderer {

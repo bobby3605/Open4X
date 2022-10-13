@@ -24,7 +24,11 @@ class VulkanObject {
     void x(float newX);
     void y(float newY);
     void z(float newZ);
+    glm::mat4 const modelMatrix() { return _modelMatrix; }
+    void draw();
     glm::mat4 const nodeModelMatrix(int nodeID);
+
+    void draw(VulkanRenderer* renderer);
 
     std::vector<Vertex> vertices;
     std::vector<int> indices;

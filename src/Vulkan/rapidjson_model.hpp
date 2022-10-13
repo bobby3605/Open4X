@@ -78,6 +78,26 @@ class RapidJSON_Model {
     class Accessor {
       public:
         Accessor(Value& accessorJSON);
+        class Sparse {
+          public:
+            Sparse(Value& sparseJSON);
+            class Index {
+              public:
+                Index(Value& indexJSON);
+                int bufferView;
+                int byteOffset;
+                int componentType;
+            };
+            class SparseValue {
+              public:
+                SparseValue(Value& valueJSON);
+                int bufferView;
+                int byteOffset;
+            };
+            int count;
+            std::shared_ptr<Index> indices;
+            std::shared_ptr<SparseValue> values;
+        };
         std::optional<int> bufferView;
         int byteOffset = 0;
         int componentType;
@@ -86,6 +106,7 @@ class RapidJSON_Model {
         std::string type;
         std::vector<float> max;
         std::vector<float> min;
+        std::optional<Sparse> sparse;
     };
     std::vector<Accessor> accessors;
 };
