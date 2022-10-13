@@ -87,15 +87,18 @@ VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
         }
     }
     // Load animation data
-    for (RapidJSON_Model::Animation animation : model->animations) {
-        for (std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler : animation.samplers) {
-            RapidJSON_Model::Accessor inputAccessor = model->accessors[sampler->inputIndex];
-            for (int i = 0; i < inputAccessor.count; ++i) {
-                sampler->inputData.push_back(loadAccessor<float>(&inputAccessor, i));
-            }
-            RapidJSON_Model::Accessor outputAccessor = model->accessors[sampler->outputIndex];
-            for (int i = 0; i < outputAccessor.count; ++i) {
-                sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(&outputAccessor, i))));
+    if (model->animations.size() > 0) {
+        _hasAnimation = 1;
+        for (RapidJSON_Model::Animation animation : model->animations) {
+            for (std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler : animation.samplers) {
+                RapidJSON_Model::Accessor inputAccessor = model->accessors[sampler->inputIndex];
+                for (int i = 0; i < inputAccessor.count; ++i) {
+                    sampler->inputData.push_back(loadAccessor<float>(&inputAccessor, i));
+                }
+                RapidJSON_Model::Accessor outputAccessor = model->accessors[sampler->outputIndex];
+                for (int i = 0; i < outputAccessor.count; ++i) {
+                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(&outputAccessor, i))));
+                }
             }
         }
     }
@@ -133,13 +136,18 @@ void VulkanObject::updateModelMatrix() {
     _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
 }
 
-glm::mat4 const VulkanObject::nodeModelMatrix(int nodeID) { return _modelMatrix * getAnimation(nodeID) * model->nodes[nodeID].matrix; }
+glm::mat4 const VulkanObject::nodeModelMatrix(int nodeID) {
+    if (hasAnimation()) {
+        return _modelMatrix * getAnimation(nodeID) * model->nodes[nodeID].matrix;
+    } else {
+        return _modelMatrix * model->nodes[nodeID].matrix;
+    }
+}
 
 glm::mat4 const VulkanObject::getAnimation(int nodeID) {
     for (RapidJSON_Model::Animation animation : model->animations) {
         for (std::shared_ptr<RapidJSON_Model::Animation::Channel> channel : animation.channels) {
             if (channel->target->node == nodeID) {
-                _hasAnimation = 1;
                 glm::vec3 translationAnimation(1.0f);
                 glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
                 glm::vec3 scaleAnimation(1.0f);

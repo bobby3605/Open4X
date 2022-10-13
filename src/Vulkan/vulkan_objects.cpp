@@ -29,12 +29,15 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     int vertexOffset = 0;
     int firstIndex = 0;
     int instanceOffset = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
             gltf_models.insert({filePath.path(), RapidJSON_Model(filePath.path())});
             objects.push_back(VulkanObject(&gltf_models.find(filePath.path())->second));
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
                 objects.back().x(3.0f);
+            }
+            if (objects.back().hasAnimation()) {
+                animatedObjects.push_back(objects.size() - 1);
             }
             vertices.insert(std::end(vertices), std::begin(objects.back().vertices), std::end(objects.back().vertices));
             indices.insert(std::end(indices), std::begin(objects.back().indices), std::end(objects.back().indices));
@@ -105,15 +108,13 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
-    for (VulkanObject object : objects) {
-        if (object.hasAnimation()) {
-            for (int i = 0; i < object.indirectDraws.size(); ++i) {
-                SSBOData ssbo{};
-                // TODO
-                // Fails with multiple primitives in a mesh
-                ssbo.modelMatrix = object.nodeModelMatrix(i);
-                reinterpret_cast<SSBOData*>(SSBO->mapped)[i] = ssbo;
-            }
+    for (int objectID : animatedObjects) {
+        for (int i = 0; i < objects[objectID].indirectDraws.size(); ++i) {
+            SSBOData ssbo{};
+            // TODO
+            // Fails with multiple primitives in a mesh
+            ssbo.modelMatrix = objects[objectID].nodeModelMatrix(i);
+            reinterpret_cast<SSBOData*>(SSBO->mapped)[i] = ssbo;
         }
     }
 
