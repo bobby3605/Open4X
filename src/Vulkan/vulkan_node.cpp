@@ -69,12 +69,12 @@ void VulkanNode::updateAnimation() {
             glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
             glm::vec3 scaleAnimation(1.0f);
             std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler = animationPair.value().second;
+            // Get the time since the past second in seconds
+            // with 4 significant digits Get the animation time
             float nowAnim =
                 fmod(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count(),
                      1000 * sampler->inputData.back()) /
                 1000;
-            // Get the time since the past second in seconds
-            // with 4 significant digits Get the animation time
             glm::mat4 lerp1 = sampler->outputData.front();
             glm::mat4 lerp2 = sampler->outputData.front();
             float previousTime = 0;
@@ -90,8 +90,10 @@ void VulkanNode::updateAnimation() {
                     break;
                 }
             }
-            float interpolationValue = (nowAnim - previousTime) / (nextTime - previousTime);
-
+            float interpolationValue = 1;
+            if (nextTime != previousTime) {
+                interpolationValue = (nowAnim - previousTime) / (nextTime - previousTime);
+            }
             if (channel->target->path.compare("translation") == 0) {
 
                 translationAnimation = glm::make_vec3(glm::value_ptr(lerp1)) +
