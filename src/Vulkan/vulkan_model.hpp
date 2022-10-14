@@ -63,14 +63,14 @@ template <> struct hash<Vertex> {
 class VulkanModel {
 
   public:
-    VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, gltf::GLTF* gltf_model);
+    VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, GLTF* gltf_model);
     VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path);
     ~VulkanModel();
 
     void draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix);
     void drawIndirect(VulkanRenderer* renderer);
 
-    gltf::GLTF* gltf_model;
+    GLTF* gltf_model;
 
   private:
     StagedBuffer* vertexBuffer;
@@ -196,20 +196,21 @@ class VulkanModel {
         }
     }
 
-    std::unordered_map<gltf::Accessor*, std::unordered_map<int, int>> sparseIndices;
+    std::unordered_map<GLTF::Accessor*, std::unordered_map<int, int>> sparseIndices;
 
-    template <typename T> T loadAccessor(gltf::Accessor* accessor, int count_index) {
+    template <typename T> T loadAccessor(GLTF::Accessor* accessor, int count_index) {
         // Load sparse accessor indices if this accessor has a sparse
         // and if it has not already processed the indices
         if (accessor->sparse.has_value() && (sparseIndices.count(accessor) == 0)) {
 
-            gltf::BufferView* sparseIndicesBufferView = &gltf_model->bufferViews[accessor->sparse->indices->bufferView];
-            gltf::Buffer* sparseIndicesBuffer = &gltf_model->buffers[sparseIndicesBufferView->buffer];
+            GLTF::BufferView* sparseIndicesBufferView = &gltf_model->bufferViews[accessor->sparse->indices->bufferView];
+            GLTF::Buffer* sparseIndicesBuffer = &gltf_model->buffers[sparseIndicesBufferView->buffer];
 
             for (int sparseCount = 0; sparseCount < accessor->sparse->count; ++sparseCount) {
-                int sparseIndexOffset =
-                    accessor->sparse->indices->byteOffset + sparseIndicesBufferView->byteOffset +
-                    sparseCount * (sparseIndicesBufferView->byteStride + sparseIndicesBufferView->byteLength / accessor->sparse->count);
+                int sparseIndexOffset = accessor->sparse->indices->byteOffset + sparseIndicesBufferView->byteOffset +
+                                        sparseCount * (sparseIndicesBufferView->byteStride.has_value()
+                                                           ? sparseIndicesBufferView->byteStride.value()
+                                                           : sparseIndicesBufferView->byteLength / accessor->sparse->count);
                 // TODO
                 // Might not be unsigned short
                 sparseIndices[accessor][getComponent<unsigned short>(accessor->sparse->indices->componentType,
@@ -217,20 +218,22 @@ class VulkanModel {
             }
         }
 
-        gltf::BufferView* bufferView;
-        gltf::Buffer* buffer;
+        GLTF::BufferView* bufferView;
+        GLTF::Buffer* buffer;
         int offset;
         // If the accessor has a sparse
         // get it and use it for the data
         // There should only be 1 sparseCount per count_index per accessor
         if (accessor->sparse.has_value() && (sparseIndices[accessor].count(count_index) == 1)) {
             bufferView = &gltf_model->bufferViews[accessor->sparse->values->bufferView];
-            offset = accessor->sparse->indices->byteOffset + bufferView->byteOffset +
-                     sparseIndices[accessor][count_index] * (bufferView->byteStride + sizeof(T));
+            offset =
+                accessor->sparse->indices->byteOffset + bufferView->byteOffset +
+                sparseIndices[accessor][count_index] * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(T));
         } else {
 
             bufferView = &gltf_model->bufferViews[accessor->bufferView.value()];
-            offset = accessor->byteOffset + bufferView->byteOffset + count_index * (bufferView->byteStride + sizeof(T));
+            offset = accessor->byteOffset + bufferView->byteOffset +
+                     count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(T));
             // TODO
             // sizeof(T) might not work for everything
             // bufferView->byteLength / accessor->count fails for multiple

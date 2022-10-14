@@ -4,7 +4,6 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
-#include "rapidjson_model.hpp"
 #include "vulkan_model.hpp"
 #include "vulkan_node.hpp"
 #include "vulkan_renderer.hpp"
@@ -13,9 +12,9 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<RapidJSON_Model> model, std::shared_ptr<SSBOBuffers> SSBOBuffers);
+    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> SSBOBuffers);
     VulkanObject();
-    void keyboardUpdate(VulkanRenderer* renderer, float frameTime);
+    void keyboardUpdate(GLFWwindow* window, float frameTime);
     glm::vec3 const position() const { return _position; }
     glm::quat const rotation() const { return _rotation; }
     glm::vec3 const scale() const { return _scale; }
@@ -29,7 +28,7 @@ class VulkanObject {
     void draw();
 
     void draw(VulkanRenderer* renderer);
-    std::shared_ptr<RapidJSON_Model> model;
+    std::shared_ptr<GLTF> model;
     std::vector<std::shared_ptr<VulkanNode>> rootNodes;
 
     std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);

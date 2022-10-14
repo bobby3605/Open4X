@@ -1,13 +1,13 @@
 #include "vulkan_node.hpp"
-#include "rapidjson_model.hpp"
 #include <chrono>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
+#include <iostream>
 #include <memory>
 
-VulkanNode::VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID,
-                       std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap, std::shared_ptr<SSBOBuffers> SSBOBuffers)
+VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
+                       std::shared_ptr<SSBOBuffers> SSBOBuffers)
     : model{model}, meshIDMap{meshIDMap}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -63,12 +63,12 @@ glm::mat4 const VulkanNode::modelMatrix() { return *_modelMatrix.value(); }
 
 void VulkanNode::updateAnimation() {
     if (animationPair.has_value()) {
-        std::shared_ptr<RapidJSON_Model::Animation::Channel> channel = animationPair.value().first;
+        std::shared_ptr<GLTF::Animation::Channel> channel = animationPair.value().first;
         if (channel->target->node == nodeID) {
             glm::vec3 translationAnimation(1.0f);
             glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
             glm::vec3 scaleAnimation(1.0f);
-            std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler = animationPair.value().second;
+            std::shared_ptr<GLTF::Animation::Sampler> sampler = animationPair.value().second;
             // Get the time since the past second in seconds
             // with 4 significant digits Get the animation time
             float nowAnim =
@@ -132,15 +132,14 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(std::shared_ptr<RapidJSON_Model> model, int meshID, int gl_BaseInstance) {
-    for (RapidJSON_Model::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
+VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance) {
+    for (GLTF::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
         primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, gl_BaseInstance));
     }
 }
 
-VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int meshID, RapidJSON_Model::Mesh::Primitive primitive,
-                                 int gl_BaseInstance) {
-    RapidJSON_Model::Accessor* accessor;
+VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance) {
+    GLTF::Accessor* accessor;
 
     if (primitive.attributes->position.has_value()) {
         accessor = &model->accessors[primitive.attributes->position.value()];
@@ -149,7 +148,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int mes
         // Vector of vertices to replace with
         std::vector<glm::vec3> sparseValues;
         if (accessor->sparse.has_value()) {
-            RapidJSON_Model::BufferView* bufferView;
+            GLTF::BufferView* bufferView;
             for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
                 // load the index
                 bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
@@ -165,6 +164,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int mes
         }
         std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
 
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             Vertex vertex{};
             if (sparseIndices.count(count_index) == 1) {
@@ -176,6 +176,14 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int mes
             vertex.texCoord = {0.0, 0.0};
             vertex.color = {1.0f, 1.0f, 1.0f};
             vertices.push_back(vertex);
+            // Generate indices if none exist
+            if (!primitive.indices.has_value()) {
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                    vertices.push_back(vertex);
+                }
+                indices.push_back(uniqueVertices[vertex]);
+            }
         }
     }
     if (primitive.indices.has_value()) {
@@ -184,8 +192,6 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int mes
             indices.push_back(loadAccessor<unsigned short>(model, accessor, count_index));
         }
     }
-    // TODO
-    // Generate index buffer if it does not exist
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;

@@ -1,156 +1,371 @@
 #include "GLTF.hpp"
-#include "GLTF_Types.hpp"
-#include "JSON.hpp"
+#include "../../external/rapidjson/istreamwrapper.h"
 #include "base64.hpp"
 #include <fstream>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/transform.hpp>
+#include <iostream>
 
-using namespace gltf;
-
-std::string GLTF::getFileExtension(std::string filePath) { return filePath.substr(filePath.find_last_of(".")); }
-
-std::vector<unsigned char> GLTF::loadURI(std::string uri, int byteLength) {
-    // Check what type of buffer
-    std::string::size_type pos;
-    if ((pos = uri.find("base64,")) != std::string::npos) {
-        return base64ToUChar(uri.substr(pos + 7));
-    } else if (getFileExtension(uri).compare(".bin") == 0) {
-        std::ifstream file(uri, std::ios::binary);
-        unsigned char dataBuffer;
-        std::vector<unsigned char> data;
-        while (file.tellg() < byteLength) {
-            file.read((char*)&dataBuffer, sizeof(dataBuffer));
-            data.push_back(dataBuffer);
-        }
-        return data;
-    }
-    throw std::runtime_error("Failed to parse uri: " + uri);
-}
-
-void GLTF::loadGLTF(std::string filePath) {
+GLTF::GLTF(std::string filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open file: " + filePath);
     }
-    // Remove extra data from the start of the file
-    while (file.peek() != '{') {
-        file.seekg(1, std::ios::cur);
-    }
-    // Get JSON of GLTF
-    jsonRoot = new JSONnode(file);
 
-    // TODO put this into a separate function so loadGLB can call it
-    // Get data from GLTF JSON
-    // For some reason, I need this extra variable, otherwise I crash with
-    // basic_string::_M_create
-    JSONnode::nodeVector jsonBuffers = find<JSONnode::nodeVector>(jsonRoot, "buffers");
-    for (JSONnode jsonBuffer : jsonBuffers) {
-        buffers.push_back(Buffer(jsonBuffer, loadURI(find<std::string>(jsonBuffer, "uri"), find<int>(jsonBuffer, "byteLength"))));
+    IStreamWrapper fileStream(file);
+
+    d.ParseStream(fileStream);
+
+    Value& scenesJSON = d["scenes"];
+    assert(scenesJSON.IsArray());
+    for (SizeType i = 0; i < scenesJSON.Size(); ++i) {
+        scenes.push_back(scenesJSON[i]);
     }
 
-    JSONnode::nodeVector jsonBufferViews = find<JSONnode::nodeVector>(jsonRoot, "bufferViews");
-    for (JSONnode jsonBufferView : jsonBufferViews) {
-        bufferViews.push_back(BufferView(jsonBufferView));
+    Value& nodesJSON = d["nodes"];
+    assert(nodesJSON.IsArray());
+    for (SizeType i = 0; i < nodesJSON.Size(); ++i) {
+        nodes.push_back(nodesJSON[i]);
     }
 
-    JSONnode::nodeVector jsonAccessors = find<JSONnode::nodeVector>(jsonRoot, "accessors");
-    for (JSONnode jsonAccessor : jsonAccessors) {
-        accessors.push_back(Accessor(jsonAccessor));
+    Value& meshesJSON = d["meshes"];
+    assert(meshesJSON.IsArray());
+    for (SizeType i = 0; i < meshesJSON.Size(); ++i) {
+        meshes.push_back(meshesJSON[i]);
     }
 
-    std::optional<JSONnode::nodeVector> jsonAnimations = findOptional<JSONnode::nodeVector>(jsonRoot, "animations");
-    if (jsonAnimations.has_value()) {
-        for (JSONnode jsonAnimation : jsonAnimations.value()) {
-            animations.push_back(Animation(jsonAnimation));
+    Value& buffersJSON = d["buffers"];
+    assert(buffersJSON.IsArray());
+    for (SizeType i = 0; i < buffersJSON.Size(); ++i) {
+        buffers.push_back(buffersJSON[i]);
+    }
+
+    Value& bufferViewJSON = d["bufferViews"];
+    assert(bufferViewJSON.IsArray());
+    for (SizeType i = 0; i < bufferViewJSON.Size(); ++i) {
+        bufferViews.push_back(bufferViewJSON[i]);
+    }
+
+    Value& accessorJSON = d["accessors"];
+    assert(accessorJSON.IsArray());
+    for (SizeType i = 0; i < accessorJSON.Size(); ++i) {
+        accessors.push_back(accessorJSON[i]);
+    }
+
+    if (d.HasMember("animations")) {
+        Value& animationJSON = d["animations"];
+        assert(animationJSON.IsArray());
+        for (SizeType i = 0; i < animationJSON.Size(); ++i) {
+            animations.push_back(animationJSON[i]);
         }
     }
-
-    std::optional<int> jsonDefaultScene = findOptional<int>(jsonRoot, "scene");
-    if (jsonDefaultScene)
-        scene = jsonDefaultScene.value();
-
-    std::optional<JSONnode::nodeVector> jsonScenes = findOptional<JSONnode::nodeVector>(jsonRoot, "scenes");
-    if (jsonScenes) {
-        for (JSONnode jsonScene : jsonScenes.value()) {
-            scenes.push_back(Scene(jsonScene));
-        }
-    }
-
-    std::optional<JSONnode::nodeVector> jsonNodes = findOptional<JSONnode::nodeVector>(jsonRoot, "nodes");
-    if (jsonNodes) {
-        for (JSONnode jsonNode : jsonNodes.value()) {
-            nodes.push_back(Node(jsonNode));
-        }
-    }
-
-    std::optional<JSONnode::nodeVector> jsonMeshes = findOptional<JSONnode::nodeVector>(jsonRoot, "meshes");
-    if (jsonMeshes) {
-        for (JSONnode jsonMesh : jsonMeshes.value()) {
-            meshes.push_back(Mesh(jsonMesh));
-        }
-    }
-
-    file.close();
 }
 
-uint32_t GLTF::readuint32(std::ifstream& file) {
-    uint32_t buffer;
-    file.read((char*)&buffer, sizeof(uint32_t));
-    return buffer;
+GLTF::Scene::Scene(Value& sceneJSON) {
+    assert(sceneJSON.IsObject());
+    Value& nodesJSON = sceneJSON["nodes"];
+    assert(nodesJSON.IsArray());
+    for (SizeType i = 0; i < nodesJSON.Size(); ++i) {
+        nodes.push_back(nodesJSON[i].GetInt());
+    }
 }
 
-void GLTF::loadGLB(std::string filePath) {
-    std::ifstream file(filePath, std::ios::binary);
-    // Get header
-    uint32_t magic = readuint32(file);
-    uint32_t version = readuint32(file);
-    uint32_t length = readuint32(file);
-
-    while (file.tellg() < length) {
-        // Get chunk header
-        uint32_t chunkLength = readuint32(file);
-        uint32_t chunkType = readuint32(file);
-
-        unsigned char dataBuffer;
-        if (chunkType == 0x4E4F534A) {
-            if (jsonRoot) {
-                throw std::runtime_error("Found second JSON chunk in glb");
-            }
-            // JSON chunk
-            std::stringstream jsonString;
-            for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
-                file.read((char*)&dataBuffer, sizeof(dataBuffer));
-                jsonString << dataBuffer;
-            }
-            // Remove any extra data at the start of the file
-            while (jsonString.peek() != '{') {
-                jsonString.seekp(1, std::ios::cur);
-            }
-            jsonRoot = new JSONnode(jsonString);
-        } else if (chunkType == 0x004E4942) {
-            // Binary chunk
-            std::vector<unsigned char> binaryChunk;
-            for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
-                file.read((char*)&dataBuffer, sizeof(dataBuffer));
-                binaryChunk.push_back(dataBuffer);
-            }
-            // buffers.push_back(binaryChunk);
-            //  Reset binaryChunk
-            binaryChunk.clear();
-        } else {
-            throw std::runtime_error("Unknown chunk type: " + std::to_string(chunkType));
+GLTF::Node::Node(Value& nodeJSON) {
+    assert(nodeJSON.IsObject());
+    if (nodeJSON.HasMember("mesh")) {
+        Value& meshJSON = nodeJSON["mesh"];
+        if (meshJSON.IsInt()) {
+            mesh = meshJSON.GetInt();
         }
     }
-    file.close();
+    if (nodeJSON.HasMember("children")) {
+        Value& childrenJSON = nodeJSON["children"];
+        assert(childrenJSON.IsArray());
+        for (SizeType i = 0; i < childrenJSON.Size(); ++i) {
+            children.push_back(childrenJSON[i].GetInt());
+        }
+    }
+    if (nodeJSON.HasMember("translation")) {
+        Value& translationJSON = nodeJSON["translation"];
+        if (translationJSON.IsArray()) {
+            assert(translationJSON.Size() == 3);
+            std::vector<float> translationJSONBuffer;
+            for (SizeType i = 0; i < translationJSON.Size(); ++i) {
+                translationJSONBuffer.push_back(translationJSON[i].GetFloat());
+            }
+            translation = glm::make_vec3(translationJSONBuffer.data());
+        }
+    }
+    if (nodeJSON.HasMember("rotation")) {
+        Value& rotationJSON = nodeJSON["rotation"];
+        if (rotationJSON.IsArray()) {
+            assert(rotationJSON.Size() == 4);
+            std::vector<float> rotationJSONBuffer;
+            for (SizeType i = 0; i < rotationJSON.Size(); ++i) {
+                rotationJSONBuffer.push_back(rotationJSON[i].GetFloat());
+            }
+            rotation = glm::make_quat(rotationJSONBuffer.data());
+        }
+    }
+    if (nodeJSON.HasMember("scale")) {
+        Value& scaleJSON = nodeJSON["scale"];
+        if (scaleJSON.IsArray()) {
+            assert(scaleJSON.Size() == 3);
+            std::vector<float> scaleJSONBuffer;
+            for (SizeType i = 0; i < scaleJSON.Size(); ++i) {
+                scaleJSONBuffer.push_back(scaleJSON[i].GetFloat());
+            }
+            scale = glm::make_vec3(scaleJSONBuffer.data());
+        }
+    }
+    matrix = glm::translate(glm::mat4(1.0f), translation) * glm::toMat4(rotation) * glm::scale(scale);
+
+    if (nodeJSON.HasMember("matrix")) {
+        Value& matrixJSON = nodeJSON["matrix"];
+        if (matrixJSON.IsArray()) {
+            assert(matrixJSON.Size() == 16);
+            std::vector<float> matrixJSONBuffer(16);
+            for (SizeType i = 0; i < matrixJSON.Size(); ++i) {
+                matrixJSONBuffer[i] = matrixJSON[i].GetFloat();
+            }
+            matrix = glm::make_mat4(matrixJSONBuffer.data());
+        }
+    }
 }
 
-GLTF::~GLTF() { delete jsonRoot; }
+GLTF::Mesh::Mesh(Value& meshJSON) {
+    assert(meshJSON.IsObject());
+    Value& primitivesJSON = meshJSON["primitives"];
+    assert(primitivesJSON.IsArray());
+    for (SizeType i = 0; i < primitivesJSON.Size(); ++i) {
+        primitives.push_back(primitivesJSON[i]);
+    }
+}
 
-GLTF::GLTF(std::string filePath) {
-    if (getFileExtension(filePath).compare(".gltf") == 0) {
-        loadGLTF(filePath);
-    } else if (getFileExtension(filePath).compare(".glb") == 0) {
-        loadGLB(filePath);
+GLTF::Mesh::Primitive::Primitive(Value& primitiveJSON) {
+    assert(primitiveJSON.IsObject());
+    Value& attributesJSON = primitiveJSON["attributes"];
+    assert(attributesJSON.IsObject());
+    attributes = std::make_shared<Attributes>(attributesJSON);
+    if (primitiveJSON.HasMember("indices")) {
+        Value& indicesJSON = primitiveJSON["indices"];
+        if (indicesJSON.IsInt()) {
+            indices = indicesJSON.GetInt();
+        }
+    }
+}
+
+GLTF::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
+    if (attributesJSON.HasMember("POSITION")) {
+        Value& positionJSON = attributesJSON["POSITION"];
+        if (positionJSON.IsInt()) {
+            position = positionJSON.GetInt();
+        }
+    }
+    if (attributesJSON.HasMember("NORMAL")) {
+        Value& normalJSON = attributesJSON["NORMAL"];
+        if (normalJSON.IsInt()) {
+            normal = normalJSON.GetInt();
+        }
+    }
+}
+
+GLTF::Buffer::Buffer(Value& bufferJSON) {
+    assert(bufferJSON.IsObject());
+    if (bufferJSON.HasMember("uri")) {
+        Value& uriJSON = bufferJSON["uri"];
+        if (uriJSON.IsString()) {
+            uri = uriJSON.GetString();
+            std::string::size_type pos;
+            if ((pos = uri->find("base64,")) != std::string::npos) {
+                data = base64ToUChar(uri->substr(pos + 7));
+            } else if (uri->substr(uri->find_last_of(".")).compare(".bin") == 0) {
+                std::ifstream file("assets/glTF/" + uri.value(), std::ios::binary);
+                if (!file.is_open()) {
+                    throw std::runtime_error("failed to open file: " + uri.value());
+                } else {
+                    // https://stackoverflow.com/a/21802936
+                    file.unsetf(std::ios::skipws);
+                    // get its size:
+                    std::streampos fileSize;
+                    file.seekg(0, std::ios::end);
+                    fileSize = file.tellg();
+                    file.seekg(0, std::ios::beg);
+                    // reserve capacity
+                    data.reserve(fileSize);
+                    // read the data:
+                    data.insert(data.begin(), std::istream_iterator<unsigned char>(file), std::istream_iterator<unsigned char>());
+                }
+            }
+        }
+    }
+    Value& byteLengthJSON = bufferJSON["byteLength"];
+    assert(byteLengthJSON.IsInt());
+    byteLength = byteLengthJSON.GetInt();
+}
+
+GLTF::BufferView::BufferView(Value& bufferViewJSON) {
+    assert(bufferViewJSON.IsObject());
+    Value& bufferJSON = bufferViewJSON["buffer"];
+    assert(bufferJSON.IsInt());
+    buffer = bufferJSON.GetInt();
+    if (bufferViewJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = bufferViewJSON["byteOffset"];
+        if (byteOffsetJSON.IsInt()) {
+            byteOffset = byteOffsetJSON.GetInt();
+        }
+    }
+    Value& byteLengthJSON = bufferViewJSON["byteLength"];
+    assert(byteLengthJSON.IsInt());
+    byteLength = byteLengthJSON.GetInt();
+    if (bufferViewJSON.HasMember("byteStride")) {
+        Value& byteStrideJSON = bufferViewJSON["byteStride"];
+        if (byteStrideJSON.IsInt()) {
+            byteStride = byteStrideJSON.GetInt();
+        }
+    }
+    if (bufferViewJSON.HasMember("target")) {
+        Value& targetJSON = bufferViewJSON["target"];
+        if (targetJSON.IsInt()) {
+            target = targetJSON.GetInt();
+        }
+    }
+}
+
+GLTF::Accessor::Accessor(Value& accessorJSON) {
+    assert(accessorJSON.IsObject());
+    if (accessorJSON.HasMember("bufferView")) {
+        Value& bufferViewJSON = accessorJSON["bufferView"];
+        if (bufferViewJSON.IsInt()) {
+            bufferView = bufferViewJSON.GetInt();
+        }
+    }
+    if (accessorJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = accessorJSON["byteOffset"];
+        if (byteOffsetJSON.IsInt()) {
+            byteOffset = byteOffsetJSON.GetInt();
+        }
+    }
+    Value& componentTypeJSON = accessorJSON["componentType"];
+    assert(componentTypeJSON.IsInt());
+    componentType = componentTypeJSON.GetInt();
+    Value& countJSON = accessorJSON["count"];
+    assert(countJSON.IsInt());
+    count = countJSON.GetInt();
+    Value& typeJSON = accessorJSON["type"];
+    assert(typeJSON.IsString());
+    type = typeJSON.GetString();
+    if (accessorJSON.HasMember("max")) {
+        Value& maxJSON = accessorJSON["max"];
+        if (maxJSON.IsArray()) {
+            for (Value::ValueIterator itr = maxJSON.Begin(); itr != maxJSON.End(); ++itr) {
+                max.push_back(itr->GetFloat());
+            }
+        }
+    }
+    if (accessorJSON.HasMember("min")) {
+        Value& minJSON = accessorJSON["min"];
+        if (minJSON.IsArray()) {
+            for (Value::ValueIterator itr = minJSON.Begin(); itr != minJSON.End(); ++itr) {
+                min.push_back(itr->GetFloat());
+            }
+        }
+    }
+    if (accessorJSON.HasMember("sparse")) {
+        Value& sparseJSON = accessorJSON["sparse"];
+        sparse = Sparse(sparseJSON);
+    }
+}
+
+GLTF::Accessor::Sparse::Sparse(Value& sparseJSON) {
+    assert(sparseJSON.IsObject());
+    Value& countJSON = sparseJSON["count"];
+    assert(countJSON.IsInt());
+    count = countJSON.GetInt();
+    Value& indicesJSON = sparseJSON["indices"];
+    assert(indicesJSON.IsObject());
+    indices = std::make_shared<GLTF::Accessor::Sparse::Index>(indicesJSON);
+    Value& valuesJSON = sparseJSON["values"];
+    values = std::make_shared<GLTF::Accessor::Sparse::SparseValue>(valuesJSON);
+}
+
+GLTF::Accessor::Sparse::Sparse::Index::Index(Value& indexJSON) {
+    assert(indexJSON.IsObject());
+    Value& bufferViewJSON = indexJSON["bufferView"];
+    assert(bufferViewJSON.IsInt());
+    bufferView = bufferViewJSON.GetInt();
+    if (indexJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = indexJSON["byteOffset"];
+        assert(byteOffsetJSON.IsInt());
+        byteOffset = byteOffsetJSON.GetInt();
     } else {
-        std::cout << "Unsupported file: " << filePath << std::endl;
+        byteOffset = 0;
     }
+    Value& componentTypeJSON = indexJSON["componentType"];
+    assert(componentTypeJSON.IsInt());
+    componentType = componentTypeJSON.GetInt();
+}
+
+GLTF::Accessor::Sparse::SparseValue::SparseValue(Value& valueJSON) {
+    assert(valueJSON.IsObject());
+    Value& bufferViewJSON = valueJSON["bufferView"];
+    assert(bufferViewJSON.IsInt());
+    bufferView = bufferViewJSON.GetInt();
+    if (valueJSON.HasMember("byteOffset")) {
+        Value& byteOffsetJSON = valueJSON["byteOffset"];
+        assert(byteOffsetJSON.IsInt());
+        byteOffset = byteOffsetJSON.GetInt();
+    } else {
+        byteOffset = 0;
+    }
+}
+
+GLTF::Animation::Animation(Value& animationJSON) {
+    assert(animationJSON.IsObject());
+    Value& samplersJSON = animationJSON["samplers"];
+    assert(samplersJSON.IsArray());
+    for (SizeType i = 0; i < samplersJSON.Size(); ++i) {
+        samplers.push_back(std::make_shared<Animation::Sampler>(samplersJSON[i]));
+    }
+    Value& channelsJSON = animationJSON["channels"];
+    assert(channelsJSON.IsArray());
+    for (SizeType i = 0; i < channelsJSON.Size(); ++i) {
+        channels.push_back(std::make_shared<Animation::Channel>(channelsJSON[i]));
+    }
+}
+
+GLTF::Animation::Sampler::Sampler(Value& samplerJSON) {
+    assert(samplerJSON.IsObject());
+    Value& inputJSON = samplerJSON["input"];
+    assert(inputJSON.IsInt());
+    inputIndex = inputJSON.GetInt();
+    Value& interpolationJSON = samplerJSON["interpolation"];
+    assert(interpolationJSON.IsString());
+    interpolation = interpolationJSON.GetString();
+    Value& outputJSON = samplerJSON["output"];
+    assert(outputJSON.IsInt());
+    outputIndex = outputJSON.GetInt();
+}
+
+GLTF::Animation::Channel::Channel(Value& channelJSON) {
+    assert(channelJSON.IsObject());
+    Value& samplerJSON = channelJSON["sampler"];
+    assert(samplerJSON.IsInt());
+    sampler = samplerJSON.GetInt();
+    Value& targetJSON = channelJSON["target"];
+    assert(targetJSON.IsObject());
+    target = std::make_shared<Target>(targetJSON);
+}
+
+GLTF::Animation::Channel::Target::Target(Value& targetJSON) {
+    assert(targetJSON.IsObject());
+    Value& nodeJSON = targetJSON["node"];
+    assert(nodeJSON.IsInt());
+    node = nodeJSON.GetInt();
+    Value& pathJSON = targetJSON["path"];
+    assert(pathJSON.IsString());
+    path = pathJSON.GetString();
 }

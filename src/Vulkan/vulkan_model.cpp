@@ -15,116 +15,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <unordered_map>
 
-void VulkanModel::loadAnimations() {
-    for (gltf::Animation animation : gltf_model->animations) {
-        for (std::shared_ptr<gltf::Animation::Channel> channel : animation.channels) {
-            gltf::Accessor inputAccessor = gltf_model->accessors[animation.samplers[channel->sampler]->inputIndex];
-            for (int i = 0; i < inputAccessor.count; ++i) {
-                animation.samplers[channel->sampler]->inputData.push_back(loadAccessor<float>(&inputAccessor, i));
-            }
-            gltf::Accessor outputAccessor = gltf_model->accessors[animation.samplers[channel->sampler]->outputIndex];
-            for (int i = 0; i < outputAccessor.count; ++i) {
-                animation.samplers[channel->sampler]->outputData.push_back(
-                    glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(&outputAccessor, i))));
-            }
-        }
-    }
-}
-
-void VulkanModel::loadAccessors() {
-    int indicesOffset = 0;
-    int verticesOffset = 0;
-    for (gltf::Scene scene : gltf_model->scenes) {
-        for (int nodeNum : scene.nodes) {
-            gltf::Node* node = &gltf_model->nodes[nodeNum];
-            if (node->mesh.has_value()) {
-                std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-                gltf::Mesh* mesh = &gltf_model->meshes[node->mesh.value()];
-                gltf::Accessor* accessor;
-                gltf::BufferView* bufferView;
-                gltf::Buffer* buffer;
-                // TODO
-                // Take max and min into account
-                if (mesh->primitives->attributes->normal.has_value()) {
-                    accessor = &gltf_model->accessors[mesh->primitives->attributes->normal.value()];
-                    for (int i = 0; i < accessor->count; ++i) {
-                        // TODO load into buffer
-                    }
-                }
-                if (mesh->primitives->attributes->position.has_value()) {
-                    accessor = &gltf_model->accessors[mesh->primitives->attributes->position.value()];
-                    verticesOffset = vertices.size();
-                    for (int i = 0; i < accessor->count; ++i) {
-                        // TODO get texcoord and color
-                        Vertex vertex{};
-                        vertex.pos = loadAccessor<glm::vec3>(accessor, i);
-                        vertex.texCoord = {0, 0};
-                        vertex.color = {1.0f, 1.0f, 1.0f};
-                        vertices.push_back(vertex);
-                    }
-                }
-                if (mesh->primitives->attributes->tangent.has_value()) {
-                    accessor = &gltf_model->accessors[mesh->primitives->attributes->tangent.value()];
-                    for (int i = 0; i < accessor->count; ++i) {
-                        // TODO load into buffer
-                    }
-                }
-                for (int texcoord : mesh->primitives->attributes->texcoords) {
-                }
-                for (int color : mesh->primitives->attributes->colors) {
-                }
-                for (int joint : mesh->primitives->attributes->joints) {
-                }
-                for (int weight : mesh->primitives->attributes->weights) {
-                }
-                if (mesh->primitives->indices.has_value()) {
-                    accessor = &gltf_model->accessors[mesh->primitives->indices.value()];
-                    for (int i = 0; i < accessor->count; ++i) {
-                        indices.push_back(loadAccessor<unsigned short>(accessor, i));
-                    }
-                }
-                // If no index buffer on mesh, generate one
-                if ((indices.size() - indicesOffset) == 0) {
-                    for (Vertex vertex : vertices) {
-                        if (uniqueVertices.count(vertex) == 0) {
-                            uniqueVertices[vertex] = static_cast<uint32_t>(uniqueVertices.size());
-                        }
-                        indices.push_back(uniqueVertices[vertex]);
-                    }
-                }
-                VkDrawIndexedIndirectCommand indirectDraw;
-                indirectDraw.indexCount = indices.size() - indicesOffset;
-                // TODO
-                // Increase instance count for multiple nodes with the same mesh
-                indirectDraw.instanceCount = 1;
-                indirectDraw.firstIndex = indicesOffset;
-                indirectDraw.vertexOffset = verticesOffset;
-                indirectDraw.firstInstance = 0;
-                indirectDraws.push_back(indirectDraw);
-                indicesOffset = indices.size();
-            }
-        }
-    }
-    vertexBuffer =
-        new StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-
-    indexBuffer = new StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-    indirectDrawsBuffer = new StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                           VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
-}
-
-VulkanModel::VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, gltf::GLTF* gltf_model)
-    : device{device}, descriptorManager{descriptorManager}, gltf_model{gltf_model} {
-
-    loadAccessors();
-    if (gltf_model->animations.size() > 0) {
-        loadAnimations();
-    }
-
-    loadImage("assets/textures/white.png");
-}
-
 VulkanModel::VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path)
     : device{device}, descriptorManager{descriptorManager}, gltf_model(nullptr) {
     tinyobj::attrib_t attrib;
@@ -243,21 +133,6 @@ void VulkanModel::loadImage(std::string path) {
     vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
 }
 
-void VulkanModel::drawIndirect(VulkanRenderer* renderer) {
-
-    VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
-    VkDeviceSize offsets[] = {0};
-
-    renderer->bindDescriptorSet(1, materialSet);
-
-    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-    vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
-                             sizeof(indirectDraws[0]));
-}
-
 void VulkanModel::draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix) {
 
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
@@ -283,9 +158,6 @@ void VulkanModel::draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix) {
 }
 
 VulkanModel::~VulkanModel() {
-    if (indirectDrawsBuffer != nullptr) {
-        delete indirectDrawsBuffer;
-    }
     delete vertexBuffer;
     delete indexBuffer;
 

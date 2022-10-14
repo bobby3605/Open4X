@@ -2,7 +2,6 @@
 #include "../../external/stb_image.h"
 #include "../glTF/base64.hpp"
 #include "common.hpp"
-#include "rapidjson_model.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
@@ -29,7 +28,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     SSBO = std::make_shared<SSBOBuffers>(device, sizeof(SSBOData) * 1000);
     for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
-            std::shared_ptr<RapidJSON_Model> model = std::make_shared<RapidJSON_Model>(filePath.path());
+            std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path());
             gltf_models.insert({filePath.path(), model});
             objects.push_back(std::make_shared<VulkanObject>(model, SSBO));
             if (model->animations.size() > 0) {
@@ -52,8 +51,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
                     primitive->indirectDraw.vertexOffset = vertices.size();
                     primitive->indirectDraw.firstIndex = indices.size();
-                    // TODO
-                    // use pointers instead
                     indirectDraws.push_back(primitive->indirectDraw);
                     vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                     indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));

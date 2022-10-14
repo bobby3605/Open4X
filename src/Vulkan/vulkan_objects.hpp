@@ -1,6 +1,5 @@
 #ifndef VULKAN_OBJECTS_H_
 #define VULKAN_OBJECTS_H_
-#include "rapidjson_model.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
@@ -25,7 +24,7 @@ class VulkanObjects {
     std::shared_ptr<SSBOBuffers> SSBO;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
-    std::unordered_map<std::string, std::shared_ptr<RapidJSON_Model>> gltf_models;
+    std::unordered_map<std::string, std::shared_ptr<GLTF>> gltf_models;
     std::vector<Vertex> vertices;
     std::vector<int> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;

@@ -103,7 +103,7 @@ void Open4X::run() {
         auto currentTime = std::chrono::high_resolution_clock::now();
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
         startTime = currentTime;
-        camera->keyboardUpdate(vulkanRenderer, frameTime);
+        camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
 
         glm::mat4 cameraModel =
             glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());

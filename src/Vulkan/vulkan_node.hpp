@@ -1,6 +1,6 @@
 #ifndef VULKAN_NODE_H_
 #define VULKAN_NODE_H_
-#include "rapidjson_model.hpp"
+#include "../glTF/GLTF.hpp"
 #include "vulkan_model.hpp"
 #include <map>
 #include <memory>
@@ -10,10 +10,10 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(std::shared_ptr<RapidJSON_Model> model, int meshID, int gl_BaseInstance);
+    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance);
     class Primitive {
       public:
-        Primitive(std::shared_ptr<RapidJSON_Model> model, int meshID, RapidJSON_Model::Mesh::Primitive primitive, int gl_BaseInstance);
+        Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance);
         std::vector<Vertex> vertices;
         std::vector<int> indices;
         VkDrawIndexedIndirectCommand indirectDraw;
@@ -23,14 +23,13 @@ class VulkanMesh {
 
 class VulkanNode {
   public:
-    VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
+    VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
                std::shared_ptr<SSBOBuffers> SSBOBuffers);
     void setLocationMatrix(glm::mat4 locationMatrix);
-    std::shared_ptr<RapidJSON_Model> model;
+    std::shared_ptr<GLTF> model;
     int nodeID;
     std::optional<int> meshID;
-    std::optional<std::pair<std::shared_ptr<RapidJSON_Model::Animation::Channel>, std::shared_ptr<RapidJSON_Model::Animation::Sampler>>>
-        animationPair;
+    std::optional<std::pair<std::shared_ptr<GLTF::Animation::Channel>, std::shared_ptr<GLTF::Animation::Sampler>>> animationPair;
     std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap;
     glm::mat4 const modelMatrix();
     std::vector<std::shared_ptr<VulkanNode>> children;
