@@ -25,7 +25,7 @@ class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
                std::shared_ptr<SSBOBuffers> SSBOBuffers);
-    void setModelMatrix(glm::mat4 modelMatrix);
+    void setLocationMatrix(glm::mat4 locationMatrix);
     std::shared_ptr<RapidJSON_Model> model;
     int nodeID;
     std::optional<int> meshID;
@@ -40,6 +40,8 @@ class VulkanNode {
   protected:
     std::optional<glm::mat4*> _modelMatrix;
     glm::mat4 _baseMatrix{1.0f};
+    glm::mat4 animationMatrix{1.0f};
+    glm::mat4 _locationMatrix{1.0f};
 
     friend class VulkanObject;
 };

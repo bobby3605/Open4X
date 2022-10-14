@@ -21,8 +21,8 @@ VulkanNode::VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID,
         }
         // Set _modelMatrix
         _modelMatrix = &SSBOBuffers->ssboMapped[SSBOBuffers->uniqueSSBOID].modelMatrix;
-        setModelMatrix(_baseMatrix);
-        // Update instance count for each primitive
+        setLocationMatrix(glm::mat4(1.0f));
+        //  Update instance count for each primitive
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : meshIDMap->find(meshID.value())->second->primitives) {
             ++primitive->indirectDraw.instanceCount;
         }
@@ -33,26 +33,29 @@ VulkanNode::VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID,
         // uniqueSSOBID may be incorrect
         // Suppose:
         // nodes: [ {mesh: 0}, {mesh: 1}, {mesh: 0, transform: [1.0, 0.0, 0.0]} ]
-        // Maybe it fixes itself, since ssbo data is indexed by gl_BaseInstance + gl_InstanceIndex
+        // Maybe it fixes itself, since ssbo data is indexed by gl_InstanceIndex
         // trying to draw node 3 gives:
-        // gl_BaseInstance: 1
-        // gl_InstanceIndex: 1
-        // 1 + 1 = 2
+        // gl_InstanceIndex: 2
         // the vertex and index buffer is dependent on the primitive, not gl_BaseInstance
         // Might break with materials
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, SSBOBuffers));
-        children.back()->setModelMatrix(_baseMatrix * children.back()->_baseMatrix);
+        children.back()->setLocationMatrix(_baseMatrix);
     }
 }
 
-void VulkanNode::setModelMatrix(glm::mat4 modelMatrix) {
+void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
+    // TODO
+    // Clean up the logic for setting the location and updating the animation
+    // There's probably a better way to do this (less matrix multiplication)
+    _locationMatrix = locationMatrix;
+    glm::mat4 updateMatrix = _locationMatrix * animationMatrix * _baseMatrix;
     if (_modelMatrix.has_value()) {
-        *_modelMatrix.value() = modelMatrix * _baseMatrix;
+        *_modelMatrix.value() = updateMatrix;
     }
     for (std::shared_ptr<VulkanNode> child : children) {
-        child->setModelMatrix(modelMatrix * child->_baseMatrix);
+        child->setLocationMatrix(updateMatrix);
     }
 }
 
@@ -94,8 +97,6 @@ void VulkanNode::updateAnimation() {
                 translationAnimation = glm::make_vec3(glm::value_ptr(lerp1)) +
                                        interpolationValue * (glm::make_vec3(glm::value_ptr(lerp2)) - glm::make_vec3(glm::value_ptr(lerp1)));
 
-                std::cout << "translationAnimation: " << glm::to_string(translationAnimation) << std::endl;
-
             } else if (channel->target->path.compare("rotation") == 0) {
 
                 rotationAnimation =
@@ -115,7 +116,10 @@ void VulkanNode::updateAnimation() {
 
             glm::mat4 scaleMatrix = glm::scale(scaleAnimation);
 
-            setModelMatrix(translationMatrix * rotationMatrix * scaleMatrix * _baseMatrix);
+            animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+            if (_modelMatrix.has_value()) {
+                *_modelMatrix.value() = _locationMatrix * animationMatrix * _baseMatrix;
+            }
 
         } else {
             throw std::runtime_error("Animation channel target node: " + std::to_string(channel->target->node) +

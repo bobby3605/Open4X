@@ -80,7 +80,6 @@ class SSBOBuffers {
 
   private:
     StorageBuffer* _buffer;
-    StorageBuffer* _indexBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

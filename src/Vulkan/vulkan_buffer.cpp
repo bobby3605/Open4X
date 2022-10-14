@@ -78,7 +78,4 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
     ssboMapped = reinterpret_cast<SSBOData*>(_buffer->mapped);
 }
 
-SSBOBuffers::~SSBOBuffers() {
-    delete _buffer;
-    delete _indexBuffer;
-}
+SSBOBuffers::~SSBOBuffers() { delete _buffer; }

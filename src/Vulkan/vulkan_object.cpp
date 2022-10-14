@@ -98,7 +98,7 @@ void VulkanObject::z(float newZ) {
 void VulkanObject::updateModelMatrix() {
     _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
     for (std::shared_ptr<VulkanNode> rootNode : rootNodes) {
-        rootNode->setModelMatrix(_modelMatrix);
+        rootNode->setLocationMatrix(_modelMatrix);
     }
 }
 

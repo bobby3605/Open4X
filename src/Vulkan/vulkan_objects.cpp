@@ -39,17 +39,12 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 objects.back()->x(-3.0f);
             }
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
-                // FIXME:
-                // instance positions not set correctly without forcing it
-                // if the following line is commented out, then simple_meshes has a gap in between the two instances
                 objects.back()->x(5.0f);
             }
             if (filePath.path() == "assets/glTF/basic_sparse_triangles.gltf") {
                 objects.back()->y(2.0f);
             }
             if (filePath.path() == "assets/glTF/simple_animation.gltf") {
-                // FIXME:
-                // Animation is overriding the position
                 objects.back()->x(-3.0f);
                 objects.back()->y(3.0f);
             }
