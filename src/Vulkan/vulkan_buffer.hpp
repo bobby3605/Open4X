@@ -69,17 +69,24 @@ struct SSBOData {
     glm::mat4 modelMatrix;
 };
 
+struct MaterialData {
+    glm::vec4 baseColorFactor;
+};
+
 class SSBOBuffers {
   public:
     SSBOBuffers(VulkanDevice* device, uint32_t count);
     ~SSBOBuffers();
-    VkBuffer const buffer() { return _buffer->buffer(); }
+    VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
+    VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
     SSBOData* ssboMapped;
+    MaterialData* materialMapped;
     int uniqueSSBOID = 0;
     int gl_BaseInstance = 0;
 
   private:
-    StorageBuffer* _buffer;
+    StorageBuffer* _ssboBuffer;
+    StorageBuffer* _materialBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

@@ -12,7 +12,7 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> SSBOBuffers);
+    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers);
     VulkanObject();
     void keyboardUpdate(GLFWwindow* window, float frameTime);
     glm::vec3 const position() const { return _position; }

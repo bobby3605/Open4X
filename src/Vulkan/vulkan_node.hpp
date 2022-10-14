@@ -10,10 +10,11 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance);
+    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance, std::shared_ptr<SSBOBuffers> ssboBuffers);
     class Primitive {
       public:
-        Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance);
+        Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance,
+                  std::shared_ptr<SSBOBuffers> ssboBuffers);
         std::vector<Vertex> vertices;
         std::vector<int> indices;
         VkDrawIndexedIndirectCommand indirectDraw;
@@ -24,7 +25,7 @@ class VulkanMesh {
 class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
-               std::shared_ptr<SSBOBuffers> SSBOBuffers);
+               std::shared_ptr<SSBOBuffers> ssboBuffers);
     void setLocationMatrix(glm::mat4 locationMatrix);
     std::shared_ptr<GLTF> model;
     int nodeID;

@@ -62,6 +62,13 @@ GLTF::GLTF(std::string filePath) {
             animations.push_back(animationJSON[i]);
         }
     }
+    if (d.HasMember("materials")) {
+        Value& materialsJSON = d["materials"];
+        assert(materialsJSON.IsArray());
+        for (SizeType i = 0; i < materialsJSON.Size(); ++i) {
+            materials.push_back(materialsJSON[i]);
+        }
+    }
 }
 
 GLTF::Scene::Scene(Value& sceneJSON) {
@@ -152,9 +159,13 @@ GLTF::Mesh::Primitive::Primitive(Value& primitiveJSON) {
     attributes = std::make_shared<Attributes>(attributesJSON);
     if (primitiveJSON.HasMember("indices")) {
         Value& indicesJSON = primitiveJSON["indices"];
-        if (indicesJSON.IsInt()) {
-            indices = indicesJSON.GetInt();
-        }
+        assert(indicesJSON.IsInt());
+        indices = indicesJSON.GetInt();
+    }
+    if (primitiveJSON.HasMember("material")) {
+        Value& materialJSON = primitiveJSON["material"];
+        assert(materialJSON.IsInt());
+        material = materialJSON.GetInt();
     }
 }
 
@@ -368,4 +379,32 @@ GLTF::Animation::Channel::Target::Target(Value& targetJSON) {
     Value& pathJSON = targetJSON["path"];
     assert(pathJSON.IsString());
     path = pathJSON.GetString();
+}
+
+GLTF::Material::Material(Value& materialJSON) {
+    assert(materialJSON.IsObject());
+    if (materialJSON.HasMember("pbrMetallicRoughness")) {
+        Value& pbrMetallicRoughnessJSON = materialJSON["pbrMetallicRoughness"];
+        pbrMetallicRoughness = std::make_shared<PBRMetallicRoughness>(pbrMetallicRoughnessJSON);
+    } else {
+        Document defaultDocument;
+        defaultDocument.Parse("\"pbrMetallicRoughness\":{\"baseColorFactor\": [1.0,1.0,1.0,1.0]}");
+        Value& defaultPBRMetallicRoughnessJSON = defaultDocument["pbrMetallicRoughness"];
+        pbrMetallicRoughness = std::make_shared<PBRMetallicRoughness>(defaultPBRMetallicRoughnessJSON);
+    }
+}
+
+GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON) {
+    assert(pbrMetallicRoughnessJSON.IsObject());
+    if (pbrMetallicRoughnessJSON.HasMember("baseColorFactor")) {
+        Value& baseColorFactorJSON = pbrMetallicRoughnessJSON["baseColorFactor"];
+        assert(baseColorFactorJSON.Size() == 4);
+        std::vector<float> baseColorFactorAcc(4);
+        for (int i = 0; i < 4; ++i) {
+            baseColorFactorAcc[i] = baseColorFactorJSON[i].GetFloat();
+        }
+        baseColorFactor = glm::make_vec4(baseColorFactorAcc.data());
+    } else {
+        baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
 }

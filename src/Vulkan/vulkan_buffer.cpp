@@ -74,8 +74,13 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
 SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
-    _buffer = new StorageBuffer(device, count * sizeof(SSBOData));
-    ssboMapped = reinterpret_cast<SSBOData*>(_buffer->mapped);
+    _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
+    _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
+    ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
+    materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
 }
 
-SSBOBuffers::~SSBOBuffers() { delete _buffer; }
+SSBOBuffers::~SSBOBuffers() {
+    delete _ssboBuffer;
+    delete _materialBuffer;
+}

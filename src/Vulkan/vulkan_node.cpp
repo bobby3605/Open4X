@@ -7,7 +7,7 @@
 #include <memory>
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
-                       std::shared_ptr<SSBOBuffers> SSBOBuffers)
+                       std::shared_ptr<SSBOBuffers> ssboBuffers)
     : model{model}, meshIDMap{meshIDMap}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -15,19 +15,19 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert(
-                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), SSBOBuffers->gl_BaseInstance)});
-            ++SSBOBuffers->gl_BaseInstance;
+            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(),
+                                                                            ssboBuffers->gl_BaseInstance, ssboBuffers)});
+            ++ssboBuffers->gl_BaseInstance;
         }
         // Set _modelMatrix
-        _modelMatrix = &SSBOBuffers->ssboMapped[SSBOBuffers->uniqueSSBOID].modelMatrix;
+        _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueSSBOID].modelMatrix;
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : meshIDMap->find(meshID.value())->second->primitives) {
             ++primitive->indirectDraw.instanceCount;
         }
         // Increase uniqueSSBOID
-        ++SSBOBuffers->uniqueSSBOID;
+        ++ssboBuffers->uniqueSSBOID;
         // FIXME:
         // What about when mesh instances do not immediately follow the mesh?
         // uniqueSSOBID may be incorrect
@@ -40,7 +40,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
         // model matrices
     }
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, SSBOBuffers));
+        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, ssboBuffers));
         children.back()->setLocationMatrix(_baseMatrix);
     }
 }
@@ -132,13 +132,14 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance) {
+VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     for (GLTF::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
-        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, gl_BaseInstance));
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, gl_BaseInstance, ssboBuffers));
     }
 }
 
-VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance) {
+VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance,
+                                 std::shared_ptr<SSBOBuffers> ssboBuffers) {
     GLTF::Accessor* accessor;
 
     if (primitive.attributes->position.has_value()) {
@@ -174,7 +175,6 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::
                 vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
             }
             vertex.texCoord = {0.0, 0.0};
-            vertex.color = {1.0f, 0.0f, 0.0f};
             vertices.push_back(vertex);
             // Generate indices if none exist
             if (!primitive.indices.has_value()) {
@@ -192,6 +192,18 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::
             indices.push_back(loadAccessor<unsigned short>(model, accessor, count_index));
         }
     }
+
+    // Load material
+    MaterialData materialData{};
+    if (primitive.material.has_value()) {
+        // TODO
+        // Only add unique materials
+        materialData.baseColorFactor = model->materials[primitive.material.value()].pbrMetallicRoughness->baseColorFactor;
+    } else {
+        materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
+    }
+    ssboBuffers->materialMapped[gl_BaseInstance] = materialData;
+
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;

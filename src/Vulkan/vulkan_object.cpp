@@ -13,12 +13,12 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> SSBOBuffers) : model{model} {
+VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers) : model{model} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {
         for (int rootNodeID : scene.nodes) {
             GLTF::Node node = model->nodes[rootNodeID];
-            rootNodes.push_back(std::make_shared<VulkanNode>(model, rootNodeID, meshIDMap, SSBOBuffers));
+            rootNodes.push_back(std::make_shared<VulkanNode>(model, rootNodeID, meshIDMap, ssboBuffers));
         }
         // Load animation data
         for (GLTF::Animation animation : model->animations) {

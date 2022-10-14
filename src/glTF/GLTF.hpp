@@ -50,6 +50,7 @@ class GLTF {
                 std::optional<int> normal;
             };
             std::optional<int> indices;
+            std::optional<int> material;
             std::shared_ptr<Attributes> attributes;
         };
         std::vector<Primitive> primitives;
@@ -139,6 +140,18 @@ class GLTF {
         std::vector<std::shared_ptr<Channel>> channels;
     };
     std::vector<Animation> animations;
+
+    class Material {
+      public:
+        Material(Value& materialJSON);
+        class PBRMetallicRoughness {
+          public:
+            PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON);
+            glm::vec4 baseColorFactor;
+        };
+        std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
+    };
+    std::vector<Material> materials;
 };
 
 template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {

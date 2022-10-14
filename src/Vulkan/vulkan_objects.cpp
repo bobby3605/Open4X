@@ -25,12 +25,12 @@ VulkanObjects::~VulkanObjects() {
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
-    SSBO = std::make_shared<SSBOBuffers>(device, sizeof(SSBOData) * 1000);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
             std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path());
             gltf_models.insert({filePath.path(), model});
-            objects.push_back(std::make_shared<VulkanObject>(model, SSBO));
+            objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers));
             if (model->animations.size() > 0) {
                 animatedObjects.push_back(objects.back());
             }
@@ -67,10 +67,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(1);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(2);
 
     VkDescriptorBufferInfo ssboInfo{};
-    ssboInfo.buffer = SSBO->buffer();
+    ssboInfo.buffer = ssboBuffers->ssboBuffer();
     ssboInfo.offset = 0;
     ssboInfo.range = VK_WHOLE_SIZE;
 
@@ -82,7 +82,20 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[0].descriptorCount = 1;
     descriptorWrites[0].pBufferInfo = &ssboInfo;
 
-    vkUpdateDescriptorSets(device->device(), 1, descriptorWrites.data(), 0, nullptr);
+    VkDescriptorBufferInfo materialBufferInfo{};
+    materialBufferInfo.buffer = ssboBuffers->materialBuffer();
+    materialBufferInfo.offset = 0;
+    materialBufferInfo.range = VK_WHOLE_SIZE;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = objectSet;
+    descriptorWrites[1].dstBinding = 2;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &materialBufferInfo;
+
+    vkUpdateDescriptorSets(device->device(), 2, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);

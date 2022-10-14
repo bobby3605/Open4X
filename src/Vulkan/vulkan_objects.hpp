@@ -21,7 +21,7 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> vertexBuffer;
     std::shared_ptr<StagedBuffer> indexBuffer;
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
-    std::shared_ptr<SSBOBuffers> SSBO;
+    std::shared_ptr<SSBOBuffers> ssboBuffers;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
     std::unordered_map<std::string, std::shared_ptr<GLTF>> gltf_models;
