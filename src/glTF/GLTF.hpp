@@ -1,9 +1,12 @@
 #ifndef GLTF_H_
 #define GLTF_H_
 #include "../../external/rapidjson/document.h"
+#include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <iostream>
 #include <optional>
+#include <queue>
 #include <vector>
 
 using namespace rapidjson;
@@ -59,12 +62,13 @@ class GLTF {
 
     class Buffer {
       public:
-        Buffer(Value& bufferJSON);
+        Buffer(Value& bufferJSON, std::queue<std::vector<unsigned char>>* binaryBuffers = nullptr);
         std::optional<std::string> uri;
         int byteLength;
         std::vector<unsigned char> data;
     };
     std::vector<Buffer> buffers;
+    std::queue<std::vector<unsigned char>> binaryBuffers;
 
     class BufferView {
       public:
@@ -152,6 +156,19 @@ class GLTF {
         std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
     };
     std::vector<Material> materials;
+
+    static uint32_t readuint32(std::ifstream& file) {
+        uint32_t buffer;
+        file.read((char*)&buffer, sizeof(uint32_t));
+        return buffer;
+    }
+    static std::string getFileExtension(std::string filePath) {
+        try {
+            return filePath.substr(filePath.find_last_of("."));
+        } catch (std::exception& e) {
+            throw std::runtime_error("failed to get file extension of: " + filePath);
+        }
+    }
 };
 
 template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {

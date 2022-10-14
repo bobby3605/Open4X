@@ -1,5 +1,6 @@
 #include "GLTF.hpp"
 #include "../../external/rapidjson/istreamwrapper.h"
+#include "../Vulkan/common.hpp"
 #include "base64.hpp"
 #include <fstream>
 #include <glm/glm.hpp>
@@ -8,16 +9,61 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
+#include <sstream>
 
 GLTF::GLTF(std::string filePath) {
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filePath);
+    if (getFileExtension(filePath).compare(".gltf") == 0) {
+        std::ifstream file(filePath);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file: " + filePath);
+        }
+        IStreamWrapper fileStream(file);
+        d.ParseStream(fileStream);
+        file.close();
+    } else if (getFileExtension(filePath).compare(".glb") == 0) {
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file: " + filePath);
+        } // Get header
+
+        uint32_t magic = readuint32(file);
+        uint32_t version = readuint32(file);
+        uint32_t length = readuint32(file);
+
+        if (magic != 0x46546C67) {
+            throw std::runtime_error("Bad magic number: " + std::to_string(magic) + " on file: " + filePath);
+        }
+
+        while (file.tellg() < length) {
+            // Get chunk header
+            uint32_t chunkLength = readuint32(file);
+            uint32_t chunkType = readuint32(file);
+            unsigned char dataBuffer;
+            if (chunkType == 0x4E4F534A) {
+                // JSON chunk
+                std::stringstream jsonString;
+                for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
+                    file.read((char*)&dataBuffer, sizeof(dataBuffer));
+                    jsonString << dataBuffer;
+                }
+                IStreamWrapper jsonStream(jsonString);
+                d.ParseStream(jsonStream);
+            } else if (chunkType == 0x004E4942) {
+                // Binary chunk
+                std::vector<unsigned char> binaryChunk;
+                for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
+                    file.read((char*)&dataBuffer, sizeof(dataBuffer));
+                    binaryChunk.push_back(dataBuffer);
+                }
+                binaryBuffers.push(binaryChunk);
+            } else {
+                throw std::runtime_error("Unknown chunk type: " + std::to_string(chunkType));
+            }
+        }
+        file.close();
+    } else {
+        throw std::runtime_error("Unknown file extension on file: " + filePath);
     }
-
-    IStreamWrapper fileStream(file);
-
-    d.ParseStream(fileStream);
 
     Value& scenesJSON = d["scenes"];
     assert(scenesJSON.IsArray());
@@ -40,7 +86,11 @@ GLTF::GLTF(std::string filePath) {
     Value& buffersJSON = d["buffers"];
     assert(buffersJSON.IsArray());
     for (SizeType i = 0; i < buffersJSON.Size(); ++i) {
-        buffers.push_back(buffersJSON[i]);
+        if (binaryBuffers.size() > 0) {
+            buffers.push_back(Buffer(buffersJSON[i], &binaryBuffers));
+        } else {
+            buffers.push_back(buffersJSON[i]);
+        }
     }
 
     Value& bufferViewJSON = d["bufferViews"];
@@ -184,7 +234,7 @@ GLTF::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
     }
 }
 
-GLTF::Buffer::Buffer(Value& bufferJSON) {
+GLTF::Buffer::Buffer(Value& bufferJSON, std::queue<std::vector<unsigned char>>* binaryBuffers) {
     assert(bufferJSON.IsObject());
     if (bufferJSON.HasMember("uri")) {
         Value& uriJSON = bufferJSON["uri"];
@@ -212,6 +262,9 @@ GLTF::Buffer::Buffer(Value& bufferJSON) {
                 }
             }
         }
+    } else if (binaryBuffers != nullptr) {
+        data = (binaryBuffers->front());
+        binaryBuffers->pop();
     }
     Value& byteLengthJSON = bufferJSON["byteLength"];
     assert(byteLengthJSON.IsInt());

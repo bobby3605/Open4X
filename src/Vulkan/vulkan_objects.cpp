@@ -13,8 +13,6 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 
-std::string getFileExtension(std::string filePath) { return filePath.substr(filePath.find_last_of(".")); }
-
 VulkanObjects::~VulkanObjects() {
 
     vkDestroySampler(device->device(), imageSampler, nullptr);
@@ -27,7 +25,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     : device{device}, descriptorManager{descriptorManager} {
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
-        if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
+        if (filePath.exists() && filePath.is_regular_file() && (GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
+            GLTF::getFileExtension(filePath.path()).compare(".glb") == 0) {
             std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path());
             gltf_models.insert({filePath.path(), model});
             objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers));
@@ -46,6 +45,16 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/simple_animation.gltf") {
                 objects.back()->x(-3.0f);
                 objects.back()->y(3.0f);
+            }
+            if (filePath.path() == "assets/glTF/Box.glb") {
+                objects.back()->y(-3.0f);
+            }
+            // FIXME:
+            // This file breaks other meshes and does not render correctly
+            // This is probably because gl_BaseInstance is broken for non-sequential mesh instances
+            if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
+                objects.back()->setScale({0.01f, 0.01f, 0.01f});
+                objects.back()->y(10.0f);
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
