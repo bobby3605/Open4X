@@ -74,6 +74,14 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     materialBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(materialBufferLayoutBinding);
 
+    VkDescriptorSetLayoutBinding indicesBufferLayoutBinding{};
+    indicesBufferLayoutBinding.binding = 3;
+    indicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    indicesBufferLayoutBinding.descriptorCount = 1;
+    indicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    indicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings.push_back(indicesBufferLayoutBinding);
+
     return bindings;
 }
 

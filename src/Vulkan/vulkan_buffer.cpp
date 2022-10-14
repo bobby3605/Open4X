@@ -76,11 +76,14 @@ StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
     _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
     _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
+    _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
+    indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
 }
 
 SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
+    delete _indicesBuffer;
 }

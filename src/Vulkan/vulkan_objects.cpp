@@ -49,9 +49,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/Box.glb") {
                 objects.back()->y(-3.0f);
             }
-            // FIXME:
-            // This file breaks other meshes and does not render correctly
-            // This is probably because gl_BaseInstance is broken for non-sequential mesh instances
             if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
                 objects.back()->y(10.0f);
@@ -76,7 +73,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(2);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(3);
 
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = ssboBuffers->ssboBuffer();
@@ -104,7 +101,20 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pBufferInfo = &materialBufferInfo;
 
-    vkUpdateDescriptorSets(device->device(), 2, descriptorWrites.data(), 0, nullptr);
+    VkDescriptorBufferInfo indicesBufferInfo{};
+    indicesBufferInfo.buffer = ssboBuffers->indicesBuffer();
+    indicesBufferInfo.offset = 0;
+    indicesBufferInfo.range = VK_WHOLE_SIZE;
+
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = objectSet;
+    descriptorWrites[2].dstBinding = 3;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pBufferInfo = &indicesBufferInfo;
+
+    vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);

@@ -10,16 +10,18 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, int gl_BaseInstance, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::shared_ptr<SSBOBuffers> ssboBuffers);
     class Primitive {
       public:
-        Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, int gl_BaseInstance,
-                  std::shared_ptr<SSBOBuffers> ssboBuffers);
+        Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive, std::shared_ptr<SSBOBuffers> ssboBuffers);
         std::vector<Vertex> vertices;
         std::vector<int> indices;
         VkDrawIndexedIndirectCommand indirectDraw;
+        int materialIndex;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
+    int instanceCount = 0;
+    int gl_BaseInstance = 0;
 };
 
 class VulkanNode {

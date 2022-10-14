@@ -73,20 +73,27 @@ struct MaterialData {
     glm::vec4 baseColorFactor;
 };
 
+struct IndicesData {
+    uint32_t objectIndex;
+    uint32_t materialIndex;
+};
+
 class SSBOBuffers {
   public:
     SSBOBuffers(VulkanDevice* device, uint32_t count);
     ~SSBOBuffers();
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
+    VkBuffer const indicesBuffer() { return _indicesBuffer->buffer(); }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
-    int uniqueSSBOID = 0;
+    IndicesData* indicesMapped;
     int gl_BaseInstance = 0;
 
   private:
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
+    StorageBuffer* _indicesBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

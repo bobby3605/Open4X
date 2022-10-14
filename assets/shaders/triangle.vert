@@ -6,7 +6,7 @@ layout(binding = 0) uniform UniformBufferObject {
 }
 ubo;
 
-struct SSBOData {
+struct objectData {
     mat4 modelMatrix;
 };
 
@@ -14,11 +14,19 @@ struct materialData {
     vec4 baseColorFactor;
 };
 
-layout(std140, set = 2, binding = 0) readonly buffer SSBO { SSBOData data[]; }
-ssbo;
+struct indicesData {
+    uint objectIndex;
+    uint materialIndex;
+};
+
+layout(std140, set = 2, binding = 0) readonly buffer Objects { objectData data[]; }
+objects;
 
 layout(std140, set = 2, binding = 2) readonly buffer Materials { materialData data[]; }
 materials;
+
+layout(set = 2, binding = 3) readonly buffer Indices { indicesData data[]; }
+indices;
 
 layout(push_constant) uniform Push {
     mat4 model;
@@ -34,8 +42,8 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
     if (push.indirect) {
-        gl_Position = ubo.proj * ubo.view * ssbo.data[gl_InstanceIndex].modelMatrix * vec4(inPosition, 1.0);
-        fragColor = materials.data[gl_BaseInstance].baseColorFactor;
+        gl_Position = ubo.proj * ubo.view * objects.data[indices.data[gl_InstanceIndex].objectIndex].modelMatrix * vec4(inPosition, 1.0);
+        fragColor = materials.data[indices.data[gl_InstanceIndex].materialIndex].baseColorFactor;
     } else {
         gl_Position = ubo.proj * ubo.view * push.model * vec4(inPosition, 1.0);
         fragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
