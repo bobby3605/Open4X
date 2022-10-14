@@ -36,7 +36,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 animatedObjects.push_back(objects.back());
             }
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
-                objects.back()->x(3.0f);
+                // objects.back()->x(3.0f);
+            }
+            if (filePath.path() == "assets/glTF/basic_sparse_triangles.gltf") {
+                objects.back()->y(2.0f);
+            }
+            if (filePath.path() == "assets/glTF/simple_animation.gltf") {
+                objects.back()->x(-3.0f);
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
