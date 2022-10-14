@@ -49,7 +49,7 @@ VulkanNode::VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID,
 
 void VulkanNode::setModelMatrix(glm::mat4 modelMatrix) {
     if (_modelMatrix.has_value()) {
-        *_modelMatrix.value() = modelMatrix;
+        *_modelMatrix.value() = modelMatrix * _baseMatrix;
     }
     for (std::shared_ptr<VulkanNode> child : children) {
         child->setModelMatrix(modelMatrix * child->_baseMatrix);

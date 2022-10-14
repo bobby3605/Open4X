@@ -35,14 +35,23 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (model->animations.size() > 0) {
                 animatedObjects.push_back(objects.back());
             }
+            if (filePath.path() == "assets/glTF/basic_triangle.gltf") {
+                objects.back()->x(-3.0f);
+            }
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
-                // objects.back()->x(3.0f);
+                // FIXME:
+                // instance positions not set correctly without forcing it
+                // if the following line is commented out, then simple_meshes has a gap in between the two instances
+                objects.back()->x(5.0f);
             }
             if (filePath.path() == "assets/glTF/basic_sparse_triangles.gltf") {
                 objects.back()->y(2.0f);
             }
             if (filePath.path() == "assets/glTF/simple_animation.gltf") {
+                // FIXME:
+                // Animation is overriding the position
                 objects.back()->x(-3.0f);
+                objects.back()->y(3.0f);
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
