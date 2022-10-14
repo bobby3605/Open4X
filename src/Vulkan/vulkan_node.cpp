@@ -28,16 +28,16 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
         }
         // Increase uniqueSSBOID
         ++SSBOBuffers->uniqueSSBOID;
-        // TODO
+        // FIXME:
         // What about when mesh instances do not immediately follow the mesh?
         // uniqueSSOBID may be incorrect
         // Suppose:
         // nodes: [ {mesh: 0}, {mesh: 1}, {mesh: 0, transform: [1.0, 0.0, 0.0]} ]
-        // Maybe it fixes itself, since ssbo data is indexed by gl_InstanceIndex
-        // trying to draw node 3 gives:
-        // gl_InstanceIndex: 2
-        // the vertex and index buffer is dependent on the primitive, not gl_BaseInstance
-        // Might break with materials
+        // trying to draw node 2 gives:
+        // gl_InstanceIndex: 1
+        // which is the model matrix for {mesh: 1}
+        // Maybe can be fixed with a swap function? It will also have to change the gl_BaseInstance for every mesh instance of the swapped
+        // model matrices
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, SSBOBuffers));
