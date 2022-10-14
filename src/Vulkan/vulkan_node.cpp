@@ -174,7 +174,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::
                 vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
             }
             vertex.texCoord = {0.0, 0.0};
-            vertex.color = {1.0f, 1.0f, 1.0f};
+            vertex.color = {1.0f, 0.0f, 0.0f};
             vertices.push_back(vertex);
             // Generate indices if none exist
             if (!primitive.indices.has_value()) {
