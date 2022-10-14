@@ -65,4 +65,22 @@ class StorageBuffer {
     VulkanBuffer* storageBuffer;
 };
 
+struct SSBOData {
+    glm::mat4 modelMatrix;
+};
+
+class SSBOBuffers {
+  public:
+    SSBOBuffers(VulkanDevice* device, uint32_t count);
+    ~SSBOBuffers();
+    VkBuffer const buffer() { return _buffer->buffer(); }
+    SSBOData* ssboMapped;
+    int uniqueSSBOID = 0;
+    int gl_BaseInstance = 0;
+
+  private:
+    StorageBuffer* _buffer;
+    StorageBuffer* _indexBuffer;
+};
+
 #endif // VULKAN_BUFFER_H_

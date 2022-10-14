@@ -13,7 +13,7 @@
 
 class VulkanObject {
   public:
-    VulkanObject(RapidJSON_Model* model);
+    VulkanObject(std::shared_ptr<RapidJSON_Model> model, std::shared_ptr<SSBOBuffers> SSBOBuffers);
     VulkanObject();
     void keyboardUpdate(VulkanRenderer* renderer, float frameTime);
     glm::vec3 const position() const { return _position; }
@@ -29,11 +29,15 @@ class VulkanObject {
     void draw();
 
     void draw(VulkanRenderer* renderer);
-    RapidJSON_Model* model;
-    std::vector<std::shared_ptr<VulkanNode>> nodes;
+    std::shared_ptr<RapidJSON_Model> model;
+    std::vector<std::shared_ptr<VulkanNode>> rootNodes;
+
+    std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);
+    void updateAnimations();
 
   private:
-    std::shared_ptr<std::map<int, std::shared_ptr<Mesh>>> meshIDMap = std::make_shared<std::map<int, std::shared_ptr<Mesh>>>();
+    std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap = std::make_shared<std::map<int, std::shared_ptr<VulkanMesh>>>();
+    std::vector<std::shared_ptr<VulkanNode>> animatedNodes;
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};

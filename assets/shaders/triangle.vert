@@ -28,7 +28,7 @@ layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
     if (push.indirect) {
-        gl_Position = ubo.proj * ubo.view * ssbo.data[gl_DrawID].modelMatrix * vec4(inPosition, 1.0);
+        gl_Position = ubo.proj * ubo.view * ssbo.data[gl_BaseInstance + gl_InstanceIndex].modelMatrix * vec4(inPosition, 1.0);
     } else {
         gl_Position = ubo.proj * ubo.view * push.model * vec4(inPosition, 1.0);
     }

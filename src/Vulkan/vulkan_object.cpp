@@ -14,42 +14,57 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(RapidJSON_Model* model) : model{model} {
+VulkanObject::VulkanObject(std::shared_ptr<RapidJSON_Model> model, std::shared_ptr<SSBOBuffers> SSBOBuffers) : model{model} {
     // Load nodes and meshes
     for (RapidJSON_Model::Scene scene : model->scenes) {
-        // TODO
-        // Might fail on multiple scenes
-        for (int nodeID : scene.nodes) {
-            RapidJSON_Model::Node node = model->nodes[nodeID];
-            nodes.push_back(std::make_shared<VulkanNode>(model, nodeID, meshIDMap));
+        for (int rootNodeID : scene.nodes) {
+            RapidJSON_Model::Node node = model->nodes[rootNodeID];
+            rootNodes.push_back(std::make_shared<VulkanNode>(model, rootNodeID, meshIDMap, SSBOBuffers));
         }
-        // TODO
-        // Don't iterate twice over nodes
-        // TODO
-        // segfaults when a child is not listed in scene.nodes
-        for (int nodeID : scene.nodes) {
-            if (model->nodes[nodeID].children.size() > 0) {
-                for (int childNodeID : model->nodes[nodeID].children) {
-                    nodes[childNodeID]->_modelMatrix = nodes[nodeID]->modelMatrix() * nodes[childNodeID]->_modelMatrix;
-                }
-            }
-        }
-    }
-    // Load animation data
-    if (model->animations.size() > 0) {
+        // Load animation data
         for (RapidJSON_Model::Animation animation : model->animations) {
-            for (std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler : animation.samplers) {
-                RapidJSON_Model::Accessor inputAccessor = model->accessors[sampler->inputIndex];
-                for (int i = 0; i < inputAccessor.count; ++i) {
-                    sampler->inputData.push_back(loadAccessor<float>(model, &inputAccessor, i));
+            for (std::shared_ptr<RapidJSON_Model::Animation::Channel> channel : animation.channels) {
+                std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler = animation.samplers[channel->sampler];
+                std::optional<std::shared_ptr<VulkanNode>> node = findNode(channel->target->node);
+                if (node.has_value()) {
+                    animatedNodes.push_back(node.value());
+                    node.value()->animationPair = {channel, sampler};
                 }
-                RapidJSON_Model::Accessor outputAccessor = model->accessors[sampler->outputIndex];
-                for (int i = 0; i < outputAccessor.count; ++i) {
-                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(model, &outputAccessor, i))));
+                RapidJSON_Model::Accessor* inputAccessor = &model->accessors[sampler->inputIndex];
+                for (int i = 0; i < inputAccessor->count; ++i) {
+                    sampler->inputData.push_back(loadAccessor<float>(model, inputAccessor, i));
+                }
+                RapidJSON_Model::Accessor* outputAccessor = &model->accessors[sampler->outputIndex];
+                for (int i = 0; i < outputAccessor->count; ++i) {
+                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(model, outputAccessor, i))));
                 }
             }
         }
     }
+}
+
+void VulkanObject::updateAnimations() {
+    for (std::shared_ptr<VulkanNode> node : animatedNodes) {
+        node->updateAnimation();
+    }
+}
+
+std::optional<std::shared_ptr<VulkanNode>> VulkanObject::findNode(int nodeID) {
+    // TODO
+    // Improve this
+    for (int i = 0; i < model->nodes.size(); ++i) {
+        for (std::shared_ptr<VulkanNode> node : rootNodes) {
+            if (node->nodeID == nodeID) {
+                return node;
+            }
+            for (std::shared_ptr<VulkanNode> child : node->children) {
+                if (child->nodeID == nodeID) {
+                    return node;
+                }
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 VulkanObject::VulkanObject() {}
@@ -82,6 +97,9 @@ void VulkanObject::z(float newZ) {
 
 void VulkanObject::updateModelMatrix() {
     _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
+    for (std::shared_ptr<VulkanNode> rootNode : rootNodes) {
+        rootNode->setModelMatrix(_modelMatrix);
+    }
 }
 
 // TODO

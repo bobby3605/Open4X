@@ -141,7 +141,7 @@ class RapidJSON_Model {
     std::vector<Animation> animations;
 };
 
-template <typename T> static T loadAccessor(RapidJSON_Model* model, RapidJSON_Model::Accessor* accessor, int count_index) {
+template <typename T> static T loadAccessor(std::shared_ptr<RapidJSON_Model> model, RapidJSON_Model::Accessor* accessor, int count_index) {
     RapidJSON_Model::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
     int offset = accessor->byteOffset + bufferView.byteOffset +
                  count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value() : sizeof(T));

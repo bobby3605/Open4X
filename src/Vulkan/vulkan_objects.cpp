@@ -26,31 +26,27 @@ VulkanObjects::~VulkanObjects() {
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
-    int vertexOffset = 0;
-    int firstIndex = 0;
-    int instanceOffset = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/single/")) {
+    SSBO = std::make_shared<SSBOBuffers>(device, sizeof(SSBOData) * 1000);
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && getFileExtension(filePath.path()).compare(".gltf") == 0) {
-            gltf_models.insert({filePath.path(), RapidJSON_Model(filePath.path())});
-            objects.push_back(VulkanObject(&gltf_models.find(filePath.path())->second));
-            if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
-                objects.back().x(3.0f);
+            std::shared_ptr<RapidJSON_Model> model = std::make_shared<RapidJSON_Model>(filePath.path());
+            gltf_models.insert({filePath.path(), model});
+            objects.push_back(std::make_shared<VulkanObject>(model, SSBO));
+            if (model->animations.size() > 0) {
+                animatedObjects.push_back(objects.back());
             }
-            for (std::shared_ptr<VulkanNode> node : objects.back().nodes) {
-                for (std::pair<int, std::shared_ptr<Mesh>> mesh : *node->meshIDMap) {
-                    for (std::shared_ptr<Mesh::Primitive> primitive : mesh.second->primitives) {
-                        primitive->indirectDraw.vertexOffset = vertices.size();
-                        primitive->indirectDraw.firstIndex = indices.size();
-                        vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
-                        indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
-                        // TODO
-                        // Use an index buffer instead of 1 modelMatrix per primitive per instance
-                        // TODO
-                        // node->modelMatrix should be a pointer to the SSBO buffer
-                        SSBOData ssbo{};
-                        ssbo.modelMatrix = objects.back().modelMatrix() * node->modelMatrix();
-                        objectStorage.push_back(ssbo);
-                    }
+            if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
+                objects.back()->x(3.0f);
+            }
+            for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
+                for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
+                    primitive->indirectDraw.vertexOffset = vertices.size();
+                    primitive->indirectDraw.firstIndex = indices.size();
+                    // TODO
+                    // use pointers instead
+                    indirectDraws.push_back(primitive->indirectDraw);
+                    vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
+                    indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
                 }
             }
         }
@@ -62,28 +58,24 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
                                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    SSBO = std::make_shared<StorageBuffer>(device, sizeof(SSBOData) * instanceOffset);
-    for (int i = 0; i < objectStorage.size(); ++i) {
-        reinterpret_cast<SSBOData*>(SSBO->mapped)[i] = objectStorage[i];
-    }
-
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
+
+    std::vector<VkWriteDescriptorSet> descriptorWrites(1);
 
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = SSBO->buffer();
     ssboInfo.offset = 0;
     ssboInfo.range = VK_WHOLE_SIZE;
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = objectSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pBufferInfo = &ssboInfo;
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = objectSet;
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &ssboInfo;
 
-    vkUpdateDescriptorSets(device->device(), 1, &descriptorWrite, 0, nullptr);
+    vkUpdateDescriptorSets(device->device(), 1, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
@@ -104,17 +96,9 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
-    /*
-    for (int objectID : animatedObjects) {
-        for (int i = 0; i < objects[objectID].indirectDraws.size(); ++i) {
-            SSBOData ssbo{};
-            // TODO
-            // Fails with multiple primitives in a mesh
-            ssbo.modelMatrix = objects[objectID].nodeModelMatrix(i);
-            reinterpret_cast<SSBOData*>(SSBO->mapped)[instanceMap[{objectID, i}]] = ssbo;
-        }
+    for (std::shared_ptr<VulkanObject> animatedObject : animatedObjects) {
+        animatedObject->updateAnimations();
     }
-    */
 
     vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
                              sizeof(indirectDraws[0]));

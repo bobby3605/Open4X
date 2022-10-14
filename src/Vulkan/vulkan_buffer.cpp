@@ -60,6 +60,10 @@ UniformBuffer::~UniformBuffer() { delete uniformBuffer; }
 void UniformBuffer::write(void* data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
 
 StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
+    // TODO
+    // Dynamically resize this buffer
+    // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    // is only 256MB on GPUs without resizable bar support
     storageBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -68,3 +72,13 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 }
 
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
+
+SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
+    _buffer = new StorageBuffer(device, count * sizeof(SSBOData));
+    ssboMapped = reinterpret_cast<SSBOData*>(_buffer->mapped);
+}
+
+SSBOBuffers::~SSBOBuffers() {
+    delete _buffer;
+    delete _indexBuffer;
+}

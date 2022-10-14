@@ -11,10 +11,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-struct SSBOData {
-    glm::mat4 modelMatrix;
-};
-
 class VulkanObjects {
   public:
     VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
@@ -26,15 +22,13 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> vertexBuffer;
     std::shared_ptr<StagedBuffer> indexBuffer;
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
-    std::shared_ptr<StorageBuffer> SSBO;
-    std::vector<VulkanObject> objects;
-    std::vector<int> animatedObjects;
-    std::unordered_map<std::string, RapidJSON_Model> gltf_models;
+    std::shared_ptr<SSBOBuffers> SSBO;
+    std::vector<std::shared_ptr<VulkanObject>> objects;
+    std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
+    std::unordered_map<std::string, std::shared_ptr<RapidJSON_Model>> gltf_models;
     std::vector<Vertex> vertices;
     std::vector<int> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
-    std::vector<SSBOData> objectStorage;
-    std::map<std::pair<int, int>, int> instanceMap;
 
     VulkanDevice* device;
 

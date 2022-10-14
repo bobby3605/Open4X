@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
@@ -128,7 +129,7 @@ RapidJSON_Model::Node::Node(Value& nodeJSON) {
             assert(matrixJSON.Size() == 16);
             std::vector<float> matrixJSONBuffer(16);
             for (SizeType i = 0; i < matrixJSON.Size(); ++i) {
-                matrixJSONBuffer.push_back(matrixJSON[i].GetFloat());
+                matrixJSONBuffer[i] = matrixJSON[i].GetFloat();
             }
             // TODO
             // Might need glm::transpose

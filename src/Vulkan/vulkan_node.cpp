@@ -1,37 +1,139 @@
 #include "vulkan_node.hpp"
 #include "rapidjson_model.hpp"
+#include <chrono>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 #include <memory>
 
-VulkanNode::VulkanNode(RapidJSON_Model* model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<Mesh>>> meshIDMap)
-    : model{model}, nodeID{nodeID}, meshIDMap{meshIDMap} {
+VulkanNode::VulkanNode(std::shared_ptr<RapidJSON_Model> model, int nodeID,
+                       std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap, std::shared_ptr<SSBOBuffers> SSBOBuffers)
+    : model{model}, meshIDMap{meshIDMap}, nodeID{nodeID} {
+    _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
         meshID = model->nodes[nodeID].mesh.value();
+        // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert({meshID.value(), std::make_shared<Mesh>(model, model->nodes[nodeID].mesh.value(), meshIDMap->size())});
-        } else {
-            for (std::shared_ptr<Mesh::Primitive> primitive : meshIDMap->find(meshID.value())->second->primitives) {
-                // Requires an index buffer into the SSBO model matrix buffer
-                // gl_DrawID will increase per primitive and gl_BaseInstance cannot be used as a model matrix index,
-                // since that cannot be used for instanced rendering
-                // The alternative is to duplicate a node's model matrix per primitive per instance
-                // TODO
-                // Implement a better solution than an index buffer
-                ++primitive->indirectDraw.instanceCount;
-            }
+            meshIDMap->insert(
+                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), SSBOBuffers->gl_BaseInstance)});
+            ++SSBOBuffers->gl_BaseInstance;
         }
+        // Set _modelMatrix
+        _modelMatrix = &SSBOBuffers->ssboMapped[SSBOBuffers->uniqueSSBOID].modelMatrix;
+        setModelMatrix(_baseMatrix);
+        // Update instance count for each primitive
+        for (std::shared_ptr<VulkanMesh::Primitive> primitive : meshIDMap->find(meshID.value())->second->primitives) {
+            ++primitive->indirectDraw.instanceCount;
+        }
+        // Increase uniqueSSBOID
+        ++SSBOBuffers->uniqueSSBOID;
+        // TODO
+        // What about when mesh instances do not immediately follow the mesh?
+        // uniqueSSOBID may be incorrect
+        // Suppose:
+        // nodes: [ {mesh: 0}, {mesh: 1}, {mesh: 0, transform: [1.0, 0.0, 0.0]} ]
+        // Maybe it fixes itself, since ssbo data is indexed by gl_BaseInstance + gl_InstanceIndex
+        // trying to draw node 3 gives:
+        // gl_BaseInstance: 1
+        // gl_InstanceIndex: 1
+        // 1 + 1 = 2
+        // the vertex and index buffer is dependent on the primitive, not gl_BaseInstance
+        // Might break with materials
+    }
+    for (int childNodeID : model->nodes[nodeID].children) {
+        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, SSBOBuffers));
+        children.back()->setModelMatrix(_baseMatrix * children.back()->_baseMatrix);
     }
 }
 
-glm::mat4 const VulkanNode::modelMatrix() { return _modelMatrix; }
+void VulkanNode::setModelMatrix(glm::mat4 modelMatrix) {
+    if (_modelMatrix.has_value()) {
+        *_modelMatrix.value() = modelMatrix;
+    }
+    for (std::shared_ptr<VulkanNode> child : children) {
+        child->setModelMatrix(modelMatrix * child->_baseMatrix);
+    }
+}
 
-Mesh::Mesh(RapidJSON_Model* model, int meshID, int gl_BaseInstance) {
+glm::mat4 const VulkanNode::modelMatrix() { return *_modelMatrix.value(); }
+
+void VulkanNode::updateAnimation() {
+    if (animationPair.has_value()) {
+        std::shared_ptr<RapidJSON_Model::Animation::Channel> channel = animationPair.value().first;
+        if (channel->target->node == nodeID) {
+            glm::vec3 translationAnimation(1.0f);
+            glm::quat rotationAnimation(1.0f, 0.0f, 0.0f, 0.0f);
+            glm::vec3 scaleAnimation(1.0f);
+            std::shared_ptr<RapidJSON_Model::Animation::Sampler> sampler = animationPair.value().second;
+            float nowAnim =
+                fmod(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count(),
+                     1000 * sampler->inputData.back()) /
+                1000;
+            // Get the time since the past second in seconds
+            // with 4 significant digits Get the animation time
+            glm::mat4 lerp1 = sampler->outputData.front();
+            glm::mat4 lerp2 = sampler->outputData.front();
+            float previousTime = 0;
+            float nextTime = 0;
+            for (int i = 0; i < sampler->inputData.size(); ++i) {
+                if (sampler->inputData[i] <= nowAnim) {
+                    previousTime = sampler->inputData[i];
+                    lerp1 = sampler->outputData[i];
+                }
+                if (sampler->inputData[i] >= nowAnim) {
+                    nextTime = sampler->inputData[i];
+                    lerp2 = sampler->outputData[i];
+                    break;
+                }
+            }
+            float interpolationValue = (nowAnim - previousTime) / (nextTime - previousTime);
+
+            if (channel->target->path.compare("translation") == 0) {
+
+                translationAnimation = glm::make_vec3(glm::value_ptr(lerp1)) +
+                                       interpolationValue * (glm::make_vec3(glm::value_ptr(lerp2)) - glm::make_vec3(glm::value_ptr(lerp1)));
+
+                std::cout << "translationAnimation: " << glm::to_string(translationAnimation) << std::endl;
+
+            } else if (channel->target->path.compare("rotation") == 0) {
+
+                rotationAnimation =
+                    glm::slerp(glm::make_quat(glm::value_ptr(lerp1)), glm::make_quat(glm::value_ptr(lerp2)), interpolationValue);
+
+            } else if (channel->target->path.compare("scale") == 0) {
+                scaleAnimation = glm::make_vec3(glm::value_ptr(lerp1)) +
+                                 interpolationValue * (glm::make_vec3(glm::value_ptr(lerp2)) - glm::make_vec3(glm::value_ptr(lerp1)));
+
+            } else {
+                std::cout << "Unknown animationChannel type: " << channel->target->path << std::endl;
+            }
+
+            glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), translationAnimation);
+
+            glm::mat4 rotationMatrix = glm::toMat4(rotationAnimation);
+
+            glm::mat4 scaleMatrix = glm::scale(scaleAnimation);
+
+            setModelMatrix(translationMatrix * rotationMatrix * scaleMatrix * _baseMatrix);
+
+        } else {
+            throw std::runtime_error("Animation channel target node: " + std::to_string(channel->target->node) +
+                                     " does not match nodeid: " + std::to_string(nodeID));
+        }
+    } else {
+        throw std::runtime_error("Tried to update animation on untargeted node: " + std::to_string(nodeID));
+    }
+}
+
+VulkanMesh::VulkanMesh(std::shared_ptr<RapidJSON_Model> model, int meshID, int gl_BaseInstance) {
     for (RapidJSON_Model::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
-        primitives.push_back(std::make_shared<Mesh::Primitive>(model, meshID, primitive, gl_BaseInstance));
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, gl_BaseInstance));
     }
 }
 
-Mesh::Primitive::Primitive(RapidJSON_Model* model, int meshID, RapidJSON_Model::Mesh::Primitive primitive, int gl_BaseInstance) {
+VulkanMesh::Primitive::Primitive(std::shared_ptr<RapidJSON_Model> model, int meshID, RapidJSON_Model::Mesh::Primitive primitive,
+                                 int gl_BaseInstance) {
     RapidJSON_Model::Accessor* accessor;
 
     if (primitive.attributes->position.has_value()) {
@@ -78,9 +180,8 @@ Mesh::Primitive::Primitive(RapidJSON_Model* model, int meshID, RapidJSON_Model::
     }
     // TODO
     // Generate index buffer if it does not exist
-    VkDrawIndexedIndirectCommand indirectDraw{};
     indirectDraw.indexCount = indices.size();
-    indirectDraw.instanceCount = 1;
+    indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;
     indirectDraw.vertexOffset = 0;
     indirectDraw.firstInstance = gl_BaseInstance;
