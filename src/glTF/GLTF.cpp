@@ -71,16 +71,20 @@ GLTF::GLTF(std::string filePath) {
         scenes.push_back(scenesJSON[i]);
     }
 
-    Value& nodesJSON = d["nodes"];
-    assert(nodesJSON.IsArray());
-    for (SizeType i = 0; i < nodesJSON.Size(); ++i) {
-        nodes.push_back(nodesJSON[i]);
-    }
-
+    // meshes must come before nodes so that nodes can set the instance count
+    // of each mesh properly
+    // the other way would be to keep a map of meshIDs to instance counts,
+    // but this is easier and more efficient
     Value& meshesJSON = d["meshes"];
     assert(meshesJSON.IsArray());
     for (SizeType i = 0; i < meshesJSON.Size(); ++i) {
         meshes.push_back(meshesJSON[i]);
+    }
+
+    Value& nodesJSON = d["nodes"];
+    assert(nodesJSON.IsArray());
+    for (SizeType i = 0; i < nodesJSON.Size(); ++i) {
+        nodes.push_back(Node(nodesJSON[i], this));
     }
 
     Value& buffersJSON = d["buffers"];
@@ -119,6 +123,25 @@ GLTF::GLTF(std::string filePath) {
             materials.push_back(materialsJSON[i]);
         }
     }
+
+    // Create correct gl_BaseInstance indexes for each primitive
+    // Example without this fix:
+    // Suppose this was the nodes object:
+    // [{mesh: 0}, {mesh: 1}, {mesh: 0, translation: [1.0, 0.0, 0.0]}]
+    // The indexes into the ssbo would be as follows:
+    // node 0: 0
+    // node 1: 1
+    // node 2: 0 + 1 = 1, which would overwrite node 1's ssbo entry
+    // Creating this map ensures that each primitive has a unique gl_BaseInstance,
+    // each instance of each primitive does not overwrite another instance,
+    // and memory is used perfectly efficiently (no gaps between instance indices)
+    int baseInstanceCount = 0;
+    for (int meshID = 0; meshID < meshes.size(); ++meshID) {
+        for (int primitiveID = 0; primitiveID < meshes[meshID].primitives.size(); ++primitiveID) {
+            primitiveBaseInstanceMap.insert({{meshID, primitiveID}, baseInstanceCount});
+            baseInstanceCount += meshes[meshID].instanceCount;
+        }
+    }
 }
 
 GLTF::Scene::Scene(Value& sceneJSON) {
@@ -130,12 +153,13 @@ GLTF::Scene::Scene(Value& sceneJSON) {
     }
 }
 
-GLTF::Node::Node(Value& nodeJSON) {
+GLTF::Node::Node(Value& nodeJSON, GLTF* model) {
     assert(nodeJSON.IsObject());
     if (nodeJSON.HasMember("mesh")) {
         Value& meshJSON = nodeJSON["mesh"];
         if (meshJSON.IsInt()) {
             mesh = meshJSON.GetInt();
+            ++model->meshes[mesh.value()].instanceCount;
         }
     }
     if (nodeJSON.HasMember("children")) {

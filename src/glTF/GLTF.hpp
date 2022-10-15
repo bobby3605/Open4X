@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <queue>
 #include <vector>
@@ -27,7 +28,7 @@ class GLTF {
 
     class Node {
       public:
-        Node(Value& nodeJSON);
+        Node(Value& nodeJSON, GLTF* model);
 
         std::vector<int> children;
         std::optional<int> mesh;
@@ -57,6 +58,7 @@ class GLTF {
             std::shared_ptr<Attributes> attributes;
         };
         std::vector<Primitive> primitives;
+        int instanceCount = 0;
     };
     std::vector<Mesh> meshes;
 
@@ -156,6 +158,10 @@ class GLTF {
         std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
     };
     std::vector<Material> materials;
+
+    // FIXME:
+    // Needs to be unique across all files
+    std::map<std::pair<int, int>, int> primitiveBaseInstanceMap;
 
     static uint32_t readuint32(std::ifstream& file) {
         uint32_t buffer;

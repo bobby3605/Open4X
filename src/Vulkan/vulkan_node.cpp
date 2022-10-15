@@ -18,21 +18,22 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
             meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), ssboBuffers)});
         }
         // Set _modelMatrix
-        _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->gl_BaseInstance].modelMatrix;
+        _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueObjectID].modelMatrix;
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
+        int primitiveID = 0;
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
 
-            ssboBuffers->indicesMapped[primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount].objectIndex =
-                ssboBuffers->gl_BaseInstance;
-            ssboBuffers->indicesMapped[primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount].materialIndex =
-                primitive->materialIndex;
-
+            // -1 because gl_InstanceIndex starts at gl_BaseInstance + 0, but indirectDraw.instanceCount starts at 1
+            // if indirectDraw.instanceCount == 0, then no instances are drawn
             ++primitive->indirectDraw.instanceCount;
+            int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount - 1;
+            ssboBuffers->indicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
+            ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
+            ++primitiveID;
         }
-        // adding 1 ssboBuffers->gl_BaseInstance ensures that every instance gets a unique id
-        ++ssboBuffers->gl_BaseInstance;
+        ++ssboBuffers->uniqueObjectID;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, ssboBuffers));
@@ -128,16 +129,17 @@ void VulkanNode::updateAnimation() {
 }
 
 VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    int primitiveID = 0;
     for (GLTF::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
-        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, ssboBuffers));
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, primitive, ssboBuffers));
+        ++primitiveID;
     }
 }
 
-VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive,
+VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, GLTF::Mesh::Primitive primitive,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
     GLTF::Accessor* accessor;
-    gl_BaseInstance = ssboBuffers->gl_BaseInstance;
-    ++ssboBuffers->gl_BaseInstance;
+    gl_BaseInstance = model->primitiveBaseInstanceMap.find({meshID, primitiveID})->second;
 
     if (primitive.attributes->position.has_value()) {
         accessor = &model->accessors[primitive.attributes->position.value()];

@@ -88,7 +88,6 @@ class SSBOBuffers {
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
     IndicesData* indicesMapped;
-    int gl_BaseInstance = 0;
     int uniqueObjectID = 0;
 
   private:

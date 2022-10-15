@@ -23,8 +23,11 @@ VulkanObjects::~VulkanObjects() {
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
+    // TODO
+    // ssboBuffers should be dynamically sized
+    // also, the object and material buffers don't need to be the same size
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/single/")) {
         if (filePath.exists() && filePath.is_regular_file() && (GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
             GLTF::getFileExtension(filePath.path()).compare(".glb") == 0) {
             std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path());
@@ -33,7 +36,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (model->animations.size() > 0) {
                 animatedObjects.push_back(objects.back());
             }
-            if (filePath.path() == "assets/glTF/basic_triangle.gltf") {
+            if (filePath.path() == "assets/glTF/TriangleWithoutIndices.gltf") {
                 objects.back()->x(-3.0f);
             }
             if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
@@ -49,12 +52,15 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/Box.glb") {
                 objects.back()->y(-3.0f);
             }
-            // FIXME:
-            // There seems to be an extra part outside of this model that shouldn't be there
-            // It's almost certainly a bug in the VulkanNode constructor
-            if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
+            if (filePath.path() == "assets/glTF/GearboxAssy.glb") {
+                // FIXME:
+                // setting the scale and position seem to be affected by the dimensions of the model
+                objects.back()->setScale({0.1f, 0.1f, 0.1f});
+                objects.back()->setPostion({0.0f, -0.01f, 0.0f});
+            }
+            if (filePath.path() == "assets/glTF/single/2CylinderEngine.glb") {
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
-                objects.back()->y(10.0f);
+                objects.back()->y(2.0f);
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
