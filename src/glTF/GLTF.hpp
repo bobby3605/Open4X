@@ -16,7 +16,7 @@ class GLTF {
     Document d;
 
   public:
-    GLTF(std::string filePath);
+    GLTF(std::string filePath, uint32_t fileNum);
 
     class Scene {
       public:
@@ -159,9 +159,9 @@ class GLTF {
     };
     std::vector<Material> materials;
 
-    // FIXME:
-    // Needs to be unique across all files
-    std::map<std::pair<int, int>, int> primitiveBaseInstanceMap;
+    // file number, meshid, primitiveid -> gl_BaseInstance
+    inline static std::map<std::tuple<int, int, int>, int> primitiveBaseInstanceMap;
+    uint32_t const fileNum() { return _fileNum; }
 
     static uint32_t readuint32(std::ifstream& file) {
         uint32_t buffer;
@@ -175,6 +175,9 @@ class GLTF {
             throw std::runtime_error("failed to get file extension of: " + filePath);
         }
     }
+
+  private:
+    uint32_t _fileNum = 0;
 };
 
 template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {

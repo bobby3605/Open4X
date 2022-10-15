@@ -139,7 +139,7 @@ VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::shared_ptr<
 VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, GLTF::Mesh::Primitive primitive,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
     GLTF::Accessor* accessor;
-    gl_BaseInstance = model->primitiveBaseInstanceMap.find({meshID, primitiveID})->second;
+    gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
 
     if (primitive.attributes->position.has_value()) {
         accessor = &model->accessors[primitive.attributes->position.value()];
