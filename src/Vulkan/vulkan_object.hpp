@@ -62,8 +62,8 @@ class VulkanObject {
     };
     KeyMappings keys{};
 
-    float moveSpeed{3.0f};
-    float lookSpeed{1.5f};
+    float moveSpeed{6.0f};
+    float lookSpeed{3.0f};
 };
 
 #endif // VULKAN_OBJECT_H_

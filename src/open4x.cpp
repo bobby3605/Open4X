@@ -89,7 +89,7 @@ void Open4X::run() {
     UniformBufferObject ubo{};
 
     ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
-                                     0.001f, 100.0f);
+                                     0.001f, 1000.0f);
 
     VulkanModel vase(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
 
@@ -130,7 +130,7 @@ void Open4X::run() {
 
         if (vulkanRenderer->endFrame()) {
             ubo.proj = perspectiveProjection(
-                45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 100.0f);
+                45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 1000.0f);
         }
     }
     vkDeviceWaitIdle(vulkanDevice->device());

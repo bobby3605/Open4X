@@ -57,8 +57,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/GearboxAssy.glb") {
                 // FIXME:
                 // setting the scale and position seem to be affected by the dimensions of the model
+                // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
+                // setting the scale to 0.1 and translation of 0,0,0 would give a translation of 15.5, 0.8, 3.7,
+                // which is close to the real position that it shows up at
+                objects.back()->x(0.0f);
+                objects.back()->y(0.0f);
+                objects.back()->z(0.0f);
                 objects.back()->setScale({0.1f, 0.1f, 0.1f});
-                objects.back()->setPostion({0.0f, -0.01f, 0.0f});
             }
             if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
