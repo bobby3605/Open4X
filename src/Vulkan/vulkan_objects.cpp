@@ -49,6 +49,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/Box.glb") {
                 objects.back()->y(-3.0f);
             }
+            // FIXME:
+            // There seems to be an extra part outside of this model that shouldn't be there
+            // It's almost certainly a bug in the VulkanNode constructor
             if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
                 objects.back()->y(10.0f);

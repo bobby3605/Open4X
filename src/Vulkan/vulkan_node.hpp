@@ -18,10 +18,9 @@ class VulkanMesh {
         std::vector<int> indices;
         VkDrawIndexedIndirectCommand indirectDraw;
         int materialIndex;
+        int gl_BaseInstance = 0;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
-    int instanceCount = 0;
-    int gl_BaseInstance = 0;
 };
 
 class VulkanNode {

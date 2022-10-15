@@ -23,20 +23,16 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
+
+            ssboBuffers->indicesMapped[primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount].objectIndex =
+                ssboBuffers->gl_BaseInstance;
+            ssboBuffers->indicesMapped[primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount].materialIndex =
+                primitive->materialIndex;
+
             ++primitive->indirectDraw.instanceCount;
-            // mesh->gl_BaseInstance + mesh->instanceCount = gl_InstanceIndex
-            // TODO
-            // this doesn't need to be in this for loop
-            ssboBuffers->indicesMapped[mesh->gl_BaseInstance + mesh->instanceCount].objectIndex = ssboBuffers->gl_BaseInstance;
-            // FIXME:
-            // in the case of multiple primitives, only the last material will be used
-            ssboBuffers->indicesMapped[mesh->gl_BaseInstance + mesh->instanceCount].materialIndex = primitive->materialIndex;
         }
         // adding 1 ssboBuffers->gl_BaseInstance ensures that every instance gets a unique id
         ++ssboBuffers->gl_BaseInstance;
-        // keeps track of the unique instances for a mesh, equivalent to gl_InstanceID
-        // could probably be replaced with primitive->indirectDraw.instanceCount
-        ++mesh->instanceCount;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, ssboBuffers));
@@ -135,13 +131,13 @@ VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::shared_ptr<
     for (GLTF::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
         primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitive, ssboBuffers));
     }
-    gl_BaseInstance = ssboBuffers->gl_BaseInstance;
-    ++ssboBuffers->gl_BaseInstance;
 }
 
 VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::Mesh::Primitive primitive,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
     GLTF::Accessor* accessor;
+    gl_BaseInstance = ssboBuffers->gl_BaseInstance;
+    ++ssboBuffers->gl_BaseInstance;
 
     if (primitive.attributes->position.has_value()) {
         accessor = &model->accessors[primitive.attributes->position.value()];
@@ -203,12 +199,12 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, GLTF::
     } else {
         materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
     }
-    materialIndex = ssboBuffers->gl_BaseInstance;
-    ssboBuffers->materialMapped[ssboBuffers->gl_BaseInstance] = materialData;
+    materialIndex = gl_BaseInstance;
+    ssboBuffers->materialMapped[gl_BaseInstance] = materialData;
 
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;
     indirectDraw.vertexOffset = 0;
-    indirectDraw.firstInstance = ssboBuffers->gl_BaseInstance;
+    indirectDraw.firstInstance = gl_BaseInstance;
 }
