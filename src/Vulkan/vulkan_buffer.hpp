@@ -89,6 +89,8 @@ class SSBOBuffers {
     MaterialData* materialMapped;
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
+    // starts at 1 since the default material is made in the constructor
+    int uniqueMaterialID = 1;
 
   private:
     StorageBuffer* _ssboBuffer;

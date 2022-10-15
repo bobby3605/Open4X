@@ -80,6 +80,10 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
+    // create default material at index 0
+    MaterialData materialData{};
+    materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
+    materialMapped[0] = materialData;
 }
 
 SSBOBuffers::~SSBOBuffers() {

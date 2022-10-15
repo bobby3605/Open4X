@@ -34,8 +34,10 @@ class VulkanObject {
     std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);
     void updateAnimations();
 
+    std::map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
+    std::map<int, int> materialIDMap;
+
   private:
-    std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap = std::make_shared<std::map<int, std::shared_ptr<VulkanMesh>>>();
     std::vector<std::shared_ptr<VulkanNode>> animatedNodes;
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};

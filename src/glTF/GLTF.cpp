@@ -474,15 +474,11 @@ GLTF::Material::Material(Value& materialJSON) {
 
 GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON) {
     assert(pbrMetallicRoughnessJSON.IsObject());
-    if (pbrMetallicRoughnessJSON.HasMember("baseColorFactor")) {
-        Value& baseColorFactorJSON = pbrMetallicRoughnessJSON["baseColorFactor"];
-        assert(baseColorFactorJSON.Size() == 4);
-        std::vector<float> baseColorFactorAcc(4);
-        for (int i = 0; i < 4; ++i) {
-            baseColorFactorAcc[i] = baseColorFactorJSON[i].GetFloat();
-        }
-        baseColorFactor = glm::make_vec4(baseColorFactorAcc.data());
-    } else {
-        baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    Value& baseColorFactorJSON = pbrMetallicRoughnessJSON["baseColorFactor"];
+    assert(baseColorFactorJSON.Size() == 4);
+    std::vector<float> baseColorFactorAcc(4);
+    for (int i = 0; i < 4; ++i) {
+        baseColorFactorAcc[i] = baseColorFactorJSON[i].GetFloat();
     }
+    baseColorFactor = glm::make_vec4(baseColorFactorAcc.data());
 }

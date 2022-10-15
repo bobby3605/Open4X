@@ -69,7 +69,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
                 objects.back()->y(5.0f);
             }
-            for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : *objects.back()->rootNodes[0]->meshIDMap) {
+            for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
                     primitive->indirectDraw.vertexOffset = vertices.size();
                     primitive->indirectDraw.firstIndex = indices.size();

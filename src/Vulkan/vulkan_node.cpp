@@ -6,16 +6,17 @@
 #include <iostream>
 #include <memory>
 
-VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<std::map<int, std::shared_ptr<VulkanMesh>>> meshIDMap,
-                       std::shared_ptr<SSBOBuffers> ssboBuffers)
-    : model{model}, meshIDMap{meshIDMap}, nodeID{nodeID} {
+VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers)
+    : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
         meshID = model->nodes[nodeID].mesh.value();
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), ssboBuffers)});
+            meshIDMap->insert(
+                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
         // Set _modelMatrix
         _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueObjectID].modelMatrix;
@@ -36,7 +37,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::shared_ptr<
         ++ssboBuffers->uniqueObjectID;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, ssboBuffers));
+        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
         children.back()->setLocationMatrix(_baseMatrix);
     }
 }
@@ -128,21 +129,21 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    int primitiveID = 0;
-    for (GLTF::Mesh::Primitive primitive : model->meshes[meshID].primitives) {
-        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, primitive, ssboBuffers));
-        ++primitiveID;
+VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap,
+                       std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
     }
 }
 
-VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, GLTF::Mesh::Primitive primitive,
+VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
     GLTF::Accessor* accessor;
+    GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
 
-    if (primitive.attributes->position.has_value()) {
-        accessor = &model->accessors[primitive.attributes->position.value()];
+    if (primitive->attributes->position.has_value()) {
+        accessor = &model->accessors[primitive->attributes->position.value()];
         // Set of sparse indices
         std::set<unsigned short> sparseIndices;
         // Vector of vertices to replace with
@@ -176,7 +177,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             vertex.texCoord = {0.0, 0.0};
             vertices.push_back(vertex);
             // Generate indices if none exist
-            if (!primitive.indices.has_value()) {
+            if (!primitive->indices.has_value()) {
                 if (uniqueVertices.count(vertex) == 0) {
                     uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
                     vertices.push_back(vertex);
@@ -185,25 +186,37 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
         }
     }
-    if (primitive.indices.has_value()) {
-        accessor = &model->accessors[primitive.indices.value()];
+    if (primitive->indices.has_value()) {
+        accessor = &model->accessors[primitive->indices.value()];
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             indices.push_back(loadAccessor<unsigned short>(model, accessor, count_index));
         }
     }
 
-    // Load material
+    // Load unique materials
+    //
+    // If material has not been registered,
+    // create it,
+    // then add its index the id map,
+    // then set materialIndex to its index and increment the unique id count
+    // If it has been registered,
+    // get the material buffer index from the map and set materialIndex to it
+    //
+    // If it doesn't have a material, then leave materialIndex at 0, which is the default material
     MaterialData materialData{};
-    if (primitive.material.has_value()) {
-        // FIXME:
-        // Only add unique materials
-        materialData.baseColorFactor = model->materials[primitive.material.value()].pbrMetallicRoughness->baseColorFactor;
-    } else {
-        materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
-    }
-    materialIndex = gl_BaseInstance;
-    ssboBuffers->materialMapped[gl_BaseInstance] = materialData;
+    if (primitive->material.has_value()) {
+        if (materialIDMap->count(primitive->material.value()) == 0) {
 
+            materialData.baseColorFactor = model->materials[primitive->material.value()].pbrMetallicRoughness->baseColorFactor;
+            ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
+
+            materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
+
+            materialIndex = ssboBuffers->uniqueMaterialID++;
+        } else {
+            materialIndex = materialIDMap->find(primitive->material.value())->second;
+        }
+    }
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;
