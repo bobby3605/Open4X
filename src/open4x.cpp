@@ -95,6 +95,10 @@ void Open4X::run() {
 
     VulkanObject vaseObj;
     vaseObj.y(-1.5f);
+    // FIXME:
+    // I shouldn't have to set the scale like this
+    // there seems to be a regression with drawing non-indirect models
+    vaseObj.setScale({3.0f, 3.0f, 3.0f});
 
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {

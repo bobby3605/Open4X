@@ -41,7 +41,7 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
-    if (push.indirect) {
+    if (push.indirect == true) {
         gl_Position = ubo.proj * ubo.view * objects.data[indices.data[gl_InstanceIndex].objectIndex].modelMatrix * vec4(inPosition, 1.0);
         fragColor = materials.data[indices.data[gl_InstanceIndex].materialIndex].baseColorFactor;
     } else {
