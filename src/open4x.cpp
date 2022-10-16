@@ -119,6 +119,10 @@ void Open4X::run() {
 
         vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
 
+        // TODO
+        // clean up the frame drawing to be fully bindless
+        // also, add support for switching to direct drawing
+        // and benchmarking frametimes and triangle/s count
         objects.bind(vulkanRenderer);
         vase.draw(vulkanRenderer, vaseObj.modelMatrix());
 
