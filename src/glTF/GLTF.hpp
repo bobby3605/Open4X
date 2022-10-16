@@ -153,11 +153,49 @@ class GLTF {
         class PBRMetallicRoughness {
           public:
             PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON);
-            glm::vec4 baseColorFactor;
+            glm::vec4 baseColorFactor{1.0f};
+            class TextureInfo {
+              public:
+                TextureInfo(Value& textureInfoJSON);
+                int index;
+                int texCoord = 0;
+            };
+            std::optional<std::shared_ptr<TextureInfo>> baseColorTexture;
+            float metallicFactor = 1.0f;
+            float roughnessFactor = 1.0f;
+            std::optional<std::shared_ptr<TextureInfo>> metallicRoughnessTexture;
         };
         std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
     };
     std::vector<Material> materials;
+
+    class Image {
+      public:
+        Image(Value& imageJSON);
+        std::optional<std::string> uri;
+        std::optional<std::string> mimeType;
+        std::optional<int> bufferView;
+    };
+    std::vector<Image> images;
+
+    class Sampler {
+      public:
+        Sampler(Value& samplerJSON);
+        std::optional<int> magFilter;
+        std::optional<int> minFilter;
+        // default to repeat wrapping
+        int wrapS = 10497;
+        int wrapT = 10497;
+    };
+    std::vector<Sampler> samplers;
+
+    class Texture {
+      public:
+        Texture(Value& textureJSON);
+        std::optional<int> sampler;
+        int source;
+    };
+    std::vector<Texture> textures;
 
     // file number, meshid, primitiveid -> gl_BaseInstance
     inline static std::map<std::tuple<int, int, int>, int> primitiveBaseInstanceMap;

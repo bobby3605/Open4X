@@ -60,6 +60,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
                 // setting the scale to 0.1 and translation of 0,0,0 would give a translation of 15.5, 0.8, 3.7,
                 // which is close to the real position that it shows up at
+                // maybe set all root nodes to position 0,0,0 in the base matrix?
                 objects.back()->x(0.0f);
                 objects.back()->y(0.0f);
                 objects.back()->z(0.0f);
@@ -68,6 +69,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
                 objects.back()->setScale({0.01f, 0.01f, 0.01f});
                 objects.back()->y(5.0f);
+            }
+            if (filePath.path() == "assets/glTF/simple_material.gltf") {
+                objects.back()->x(3.0f);
+            }
+            if (filePath.path() == "assets/glTF/simple_texture.gltf") {
+                objects.back()->x(3.0f);
+                objects.back()->y(-3.0f);
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {

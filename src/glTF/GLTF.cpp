@@ -124,6 +124,27 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
             materials.push_back(materialsJSON[i]);
         }
     }
+    if (d.HasMember("images")) {
+        Value& imagesJSON = d["images"];
+        assert(imagesJSON.IsArray());
+        for (SizeType i = 0; i < imagesJSON.Size(); ++i) {
+            images.push_back(imagesJSON[i]);
+        }
+    }
+    if (d.HasMember("samplers")) {
+        Value& samplersJSON = d["samplers"];
+        assert(samplersJSON.IsArray());
+        for (SizeType i = 0; i < samplersJSON.Size(); ++i) {
+            samplers.push_back(samplersJSON[i]);
+        }
+    }
+    if (d.HasMember("textures")) {
+        Value& texturesJSON = d["textures"];
+        assert(texturesJSON.IsArray());
+        for (SizeType i = 0; i < texturesJSON.Size(); ++i) {
+            textures.push_back(texturesJSON[i]);
+        }
+    }
 
     // Create correct gl_BaseInstance indexes for each primitive
     // Example without this fix:
@@ -474,11 +495,90 @@ GLTF::Material::Material(Value& materialJSON) {
 
 GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON) {
     assert(pbrMetallicRoughnessJSON.IsObject());
-    Value& baseColorFactorJSON = pbrMetallicRoughnessJSON["baseColorFactor"];
-    assert(baseColorFactorJSON.Size() == 4);
-    std::vector<float> baseColorFactorAcc(4);
-    for (int i = 0; i < 4; ++i) {
-        baseColorFactorAcc[i] = baseColorFactorJSON[i].GetFloat();
+    if (pbrMetallicRoughnessJSON.HasMember("baseColorFactor")) {
+        Value& baseColorFactorJSON = pbrMetallicRoughnessJSON["baseColorFactor"];
+        assert(baseColorFactorJSON.Size() == 4);
+        std::vector<float> baseColorFactorAcc(4);
+        for (int i = 0; i < 4; ++i) {
+            baseColorFactorAcc[i] = baseColorFactorJSON[i].GetFloat();
+        }
+        baseColorFactor = glm::make_vec4(baseColorFactorAcc.data());
     }
-    baseColorFactor = glm::make_vec4(baseColorFactorAcc.data());
+
+    if (pbrMetallicRoughnessJSON.HasMember("baseColorTexture")) {
+        Value& baseColorTextureJSON = pbrMetallicRoughnessJSON["baseColorTexture"];
+        baseColorTexture = std::make_shared<TextureInfo>(baseColorTextureJSON);
+    }
+
+    if (pbrMetallicRoughnessJSON.HasMember("metallicFactor")) {
+        Value& metallicFactorJSON = pbrMetallicRoughnessJSON["metallicFactor"];
+        metallicFactor = metallicFactorJSON.GetFloat();
+    }
+    if (pbrMetallicRoughnessJSON.HasMember("roughnessFactor")) {
+        Value& roughnessFactorJSON = pbrMetallicRoughnessJSON["roughnessFactor"];
+        roughnessFactor = roughnessFactorJSON.GetFloat();
+    }
+
+    if (pbrMetallicRoughnessJSON.HasMember("metallicRoughnessTexture")) {
+        Value& metallicRoughnessTextureJSON = pbrMetallicRoughnessJSON["metallicRoughnessTexture"];
+        metallicRoughnessTexture = std::make_shared<TextureInfo>(metallicRoughnessTextureJSON);
+    }
+}
+
+GLTF::Material::PBRMetallicRoughness::TextureInfo::TextureInfo(Value& textureInfoJSON) {
+    assert(textureInfoJSON.IsObject());
+    Value& indexJSON = textureInfoJSON["index"];
+    index = indexJSON.GetInt();
+    if (textureInfoJSON.HasMember("texCoord")) {
+        Value& texCoordJSON = textureInfoJSON["texCoord"];
+        texCoord = texCoordJSON.GetInt();
+    }
+}
+
+GLTF::Image::Image(Value& imageJSON) {
+    assert(imageJSON.IsObject());
+    if (imageJSON.HasMember("uri")) {
+        Value& uriJSON = imageJSON["uri"];
+        uri = uriJSON.GetString();
+    }
+    if (imageJSON.HasMember("bufferView")) {
+        Value& bufferViewJSON = imageJSON["bufferView"];
+        bufferView = bufferViewJSON.GetInt();
+        Value& mimeTypeJSON = imageJSON["mimeType"];
+        mimeType = mimeTypeJSON.GetString();
+    }
+    if (uri.has_value() && bufferView.has_value()) {
+        throw std::runtime_error("uri and bufferView defined on image" + std::to_string('\n') + "uri" + uri.value() + std::to_string('\n') +
+                                 std::to_string(bufferView.value()));
+    }
+}
+
+GLTF::Sampler::Sampler(Value& samplerJSON) {
+    assert(samplerJSON.IsObject());
+    if (samplerJSON.HasMember("magFilter")) {
+        Value& magFilterJSON = samplerJSON["magFilter"];
+        magFilter = magFilterJSON.GetInt();
+    }
+    if (samplerJSON.HasMember("minFilter")) {
+        Value& minFilterJSON = samplerJSON["minFilter"];
+        minFilter = minFilterJSON.GetInt();
+    }
+    if (samplerJSON.HasMember("wrapS")) {
+        Value& wrapSJSON = samplerJSON["wrapS"];
+        wrapS = wrapSJSON.GetInt();
+    }
+    if (samplerJSON.HasMember("wrapT")) {
+        Value& wrapTJSON = samplerJSON["wrapT"];
+        wrapT = wrapTJSON.GetInt();
+    }
+}
+
+GLTF::Texture::Texture(Value& textureJSON) {
+    assert(textureJSON.IsObject());
+    if (textureJSON.HasMember("sampler")) {
+        Value& samplerJSON = textureJSON["sampler"];
+        sampler = samplerJSON.GetInt();
+    }
+    Value& sourceJSON = textureJSON["source"];
+    source = sourceJSON.GetInt();
 }
