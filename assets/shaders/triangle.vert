@@ -51,6 +51,9 @@ void main() {
     fragColor = material.baseColorFactor;
     // 0 verticesCount indicates a default sampler
     if (indexData.verticesCount != 0) {
+        // FIXME:
+        // this can't be right
+        // I should be getting the tex coords for the vertex
         fragTexCoord = texcoords.data[indexData.texCoordIndex + (material.texCoordSelector * indexData.verticesCount)];
     } else {
         fragTexCoord = texcoords.data[0];
