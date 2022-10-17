@@ -3,6 +3,7 @@
 #include "../glTF/GLTF.hpp"
 #include "vulkan_image.hpp"
 #include "vulkan_model.hpp"
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -22,6 +23,8 @@ class VulkanMesh {
         int materialIndex = 0;
         int gl_BaseInstance = 0;
         uint32_t texCoordStart;
+        bool defaultTexcoords = 0;
+        std::vector<uint32_t> texCoordLocations;
         std::optional<std::shared_ptr<VulkanImage>> image;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;

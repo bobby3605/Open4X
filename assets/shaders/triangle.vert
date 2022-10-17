@@ -12,13 +12,15 @@ struct objectData {
 
 struct materialData {
     vec4 baseColorFactor;
-    sampler2D texSampler;
+    sampler2D sampler;
+    uint texCoordSelector;
 };
 
 struct indicesData {
     uint objectIndex;
     uint materialIndex;
-    uint texcoordIndex;
+    uint texCoordIndex;
+    uint verticesCount;
 };
 
 layout(std140, set = 2, binding = 0) readonly buffer Objects { objectData data[]; }
@@ -42,9 +44,16 @@ layout(location = 2) out sampler2D fragTexSampler;
 void main() {
     indicesData indexData = indices.data[gl_InstanceIndex];
 
+    materialData material = materials.data[indexData.materialIndex];
+
     gl_Position = ubo.proj * ubo.view * objects.data[indexData.objectIndex].modelMatrix * vec4(inPosition, 1.0);
 
-    fragColor = materials.data[indexData.materialIndex].baseColorFactor;
-    fragTexCoord = texcoords.data[indexData.texcoordIndex];
-    fragTexSampler = materials.data[indexData.materialIndex].texSampler;
+    fragColor = material.baseColorFactor;
+    // 0 verticesCount indicates a default sampler
+    if (indexData.verticesCount != 0) {
+        fragTexCoord = texcoords.data[indexData.texCoordIndex + (material.texCoordSelector * indexData.verticesCount)];
+    } else {
+        fragTexCoord = texcoords.data[0];
+    }
+    fragTexSampler = material.sampler;
 }

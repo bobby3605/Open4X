@@ -1,4 +1,5 @@
 #include "vulkan_node.hpp"
+#include "vulkan_image.hpp"
 #include <chrono>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -31,8 +32,17 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             ++primitive->indirectDraw.instanceCount;
             int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount - 1;
             ssboBuffers->indicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
+            // TODO
+            // Could save memory usage by using 2 different index buffers,
+            // one for per-instance data (objectIndex),
+            // and another for per-primitive data (materialIndex, texCoordIndex, verticesCount)
             ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
+            // NOTE:
+            // texcoords should all be the same size per primtive,
+            // since there's one per vertex,
+            // so the index to use in the shader will be texCoordIndex + (materialTexCoordSelector * verticesCount)
             ssboBuffers->indicesMapped[currIndex].texCoordIndex = primitive->texCoordStart;
+            ssboBuffers->indicesMapped[currIndex].verticesCount = primitive->defaultTexcoords ? 0 : primitive->vertices.size();
             ++primitiveID;
         }
         ++ssboBuffers->uniqueObjectID;
@@ -186,23 +196,22 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
         }
     }
-    // FIXME:
-    // Has to be per vertex
-    // Do I need to interpolate them?
+    // Load texcoords into buffer
+    // TODO
+    // check for unique texcoords,
+    // however, texcoords arrays should already be unique,
+    // since they are defined per vertex
     if (primitive->attributes->texcoords.size() > 0) {
-        texCoordStart = uniqueTexCoords.size();
+        texCoordStart = ssboBuffers->texCoordCount;
         for (uint32_t texcoordAccessorID : primitive->attributes->texcoords) {
-            if (uniqueTexCoords.count({fileNum, texcoordAccessorID}) == 0) {
-                for (uint32_t i = 0; i < 4; ++i) {
-                    texCoordBuffer[uniqueTexCoords.size() * 4 + i] =
-                        loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], i);
-                }
-                uniqueTexCoords.insert({{fileNum, texcoordAccessorID}, uniqueTexCoords.size() * 4});
+            for (uint32_t i = 0; i < model->accessors[texcoordAccessorID].count; ++i) {
+                ssboBuffers->texCoordsMapped[ssboBuffers->texCoordCount] =
+                    loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], i);
+                ++ssboBuffers->texCoordCount;
             }
         }
     } else {
-        // FIXME:
-        // default texcoords
+        defaultTexcoords = 1;
     }
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
@@ -231,13 +240,16 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             if (pbrMetallicRoughness->baseColorTexture.has_value()) {
                 // TODO
                 // separate and unique images and samplers
-                image = std::make_shared<VulkanImage>(ssboBuffers->device, model, pbrMetallicRoughness->baseColorTexture.value()->index);
+                // TODO
+                // index to sampler
+                image =
+                    std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
                 materialData.texSampler = image.value()->imageSampler();
 
-                materialData.texCoordIndex = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
+                materialData.texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
             } else {
-                materialData.texSampler = defaultSampler;
-                materialData.texCoordIndex = 0;
+                materialData.texSampler = std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage)->imageSampler();
+                materialData.texCoordSelector = 0;
             }
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
 

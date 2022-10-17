@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "vulkan_device.hpp"
 #include <cstring>
+#include <glm/fwd.hpp>
 #include <iostream>
 
 VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
@@ -77,13 +78,17 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
     _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
     _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));
+    _texCoordsBuffer = new StorageBuffer(device, count * sizeof(glm::vec2));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
+    texCoordsMapped = reinterpret_cast<glm::vec2*>(_texCoordsBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
     materialMapped[0] = materialData;
+
+    texCoordsMapped[0] = {0.0f, 0.0f};
 }
 
 SSBOBuffers::~SSBOBuffers() {

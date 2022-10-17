@@ -8,6 +8,7 @@
 class VulkanImage {
   public:
     VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID);
+    VulkanImage(VulkanDevice* device, std::string path);
     ~VulkanImage();
 
     VkWriteDescriptorSet descriptorWrite{};

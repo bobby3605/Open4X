@@ -4,6 +4,7 @@
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
+#include "vulkan_image.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
 #include <filesystem>
@@ -18,6 +19,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // ssboBuffers should be dynamically sized
     // also, the object and material buffers don't need to be the same size
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
+    ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
     uint32_t fileNum = 0;
     for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && (GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
@@ -88,7 +90,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(3);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(4);
 
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = ssboBuffers->ssboBuffer();
@@ -129,7 +131,20 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[2].descriptorCount = 1;
     descriptorWrites[2].pBufferInfo = &indicesBufferInfo;
 
-    vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
+    VkDescriptorBufferInfo texCoordsBufferInfo{};
+    texCoordsBufferInfo.buffer = ssboBuffers->texCoordsBuffer();
+    texCoordsBufferInfo.offset = 0;
+    texCoordsBufferInfo.range = VK_WHOLE_SIZE;
+
+    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[3].dstSet = objectSet;
+    descriptorWrites[3].dstBinding = 4;
+    descriptorWrites[3].dstArrayElement = 0;
+    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[3].descriptorCount = 1;
+    descriptorWrites[3].pBufferInfo = &texCoordsBufferInfo;
+
+    vkUpdateDescriptorSets(device->device(), 4, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);

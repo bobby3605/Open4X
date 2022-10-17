@@ -2,6 +2,7 @@
 #define VULKAN_BUFFER_H_
 #include "glm/glm.hpp"
 #include "vulkan_device.hpp"
+#include <memory>
 #include <vulkan/vulkan.hpp>
 
 class VulkanBuffer {
@@ -72,12 +73,14 @@ struct SSBOData {
 struct MaterialData {
     glm::vec4 baseColorFactor;
     VkSampler texSampler;
-    uint32_t texCoordIndex;
+    uint32_t texCoordSelector;
 };
 
 struct IndicesData {
     uint32_t objectIndex;
     uint32_t materialIndex;
+    uint32_t texCoordIndex;
+    uint32_t verticesCount;
 };
 
 class SSBOBuffers {
@@ -87,18 +90,29 @@ class SSBOBuffers {
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
     VkBuffer const indicesBuffer() { return _indicesBuffer->buffer(); }
+    VkBuffer const texCoordsBuffer() { return _texCoordsBuffer->buffer(); }
+    // VkBuffer const samplersBuffer() { return _samplersBuffer->buffer(); }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
+    // VkSampler* samplersMapped;
+    glm::vec2* texCoordsMapped;
+    // void* because VulkanImage depends on this header
+    std::shared_ptr<void> defaultImage;
+
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
+    // starts at sizeof(glm::vec2) for the default texcoords
+    uint32_t texCoordCount = sizeof(glm::vec2);
     VulkanDevice* device;
 
   private:
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
     StorageBuffer* _indicesBuffer;
+    StorageBuffer* _texCoordsBuffer;
+    // StorageBuffer* _samplersBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_
