@@ -52,6 +52,7 @@ class GLTF {
                 Attributes(Value& attributesJSON);
                 std::optional<int> position;
                 std::optional<int> normal;
+                std::vector<int> texcoords;
             };
             std::optional<int> indices;
             std::optional<int> material;
@@ -181,8 +182,9 @@ class GLTF {
     class Sampler {
       public:
         Sampler(Value& samplerJSON);
-        std::optional<int> magFilter;
-        std::optional<int> minFilter;
+        // default to nearest filtering
+        int magFilter = 9728;
+        int minFilter = 9728;
         // default to repeat wrapping
         int wrapS = 10497;
         int wrapT = 10497;
@@ -192,7 +194,7 @@ class GLTF {
     class Texture {
       public:
         Texture(Value& textureJSON);
-        std::optional<int> sampler;
+        int sampler;
         int source;
     };
     std::vector<Texture> textures;

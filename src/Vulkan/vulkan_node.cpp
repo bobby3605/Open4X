@@ -32,6 +32,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount - 1;
             ssboBuffers->indicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
             ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
+            ssboBuffers->indicesMapped[currIndex].texCoordIndex = primitive->texCoordStart;
             ++primitiveID;
         }
         ++ssboBuffers->uniqueObjectID;
@@ -174,7 +175,6 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             } else {
                 vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
             }
-            vertex.texCoord = {0.0, 0.0};
             vertices.push_back(vertex);
             // Generate indices if none exist
             if (!primitive->indices.has_value()) {
@@ -185,6 +185,24 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 indices.push_back(uniqueVertices[vertex]);
             }
         }
+    }
+    // FIXME:
+    // Has to be per vertex
+    // Do I need to interpolate them?
+    if (primitive->attributes->texcoords.size() > 0) {
+        texCoordStart = uniqueTexCoords.size();
+        for (uint32_t texcoordAccessorID : primitive->attributes->texcoords) {
+            if (uniqueTexCoords.count({fileNum, texcoordAccessorID}) == 0) {
+                for (uint32_t i = 0; i < 4; ++i) {
+                    texCoordBuffer[uniqueTexCoords.size() * 4 + i] =
+                        loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], i);
+                }
+                uniqueTexCoords.insert({{fileNum, texcoordAccessorID}, uniqueTexCoords.size() * 4});
+            }
+        }
+    } else {
+        // FIXME:
+        // default texcoords
     }
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
@@ -205,9 +223,22 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     // If it doesn't have a material, then leave materialIndex at 0, which is the default material
     MaterialData materialData{};
     if (primitive->material.has_value()) {
+        GLTF::Material* material = &model->materials[primitive->material.value()];
         if (materialIDMap->count(primitive->material.value()) == 0) {
+            GLTF::Material::PBRMetallicRoughness* pbrMetallicRoughness = material->pbrMetallicRoughness.get();
 
-            materialData.baseColorFactor = model->materials[primitive->material.value()].pbrMetallicRoughness->baseColorFactor;
+            materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
+            if (pbrMetallicRoughness->baseColorTexture.has_value()) {
+                // TODO
+                // separate and unique images and samplers
+                image = std::make_shared<VulkanImage>(ssboBuffers->device, model, pbrMetallicRoughness->baseColorTexture.value()->index);
+                materialData.texSampler = image.value()->imageSampler();
+
+                materialData.texCoordIndex = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
+            } else {
+                materialData.texSampler = defaultSampler;
+                materialData.texCoordIndex = 0;
+            }
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
 
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});

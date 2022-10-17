@@ -278,6 +278,10 @@ GLTF::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
             normal = normalJSON.GetInt();
         }
     }
+    int texcoordIndex = 0;
+    while (attributesJSON.HasMember((std::string("TEXCOORD_") + std::to_string(texcoordIndex)).c_str())) {
+        texcoords.push_back(attributesJSON[(std::string("TEXCOORD_") + std::to_string(texcoordIndex)).c_str()].GetInt());
+    }
 }
 
 GLTF::Buffer::Buffer(Value& bufferJSON, std::queue<std::vector<unsigned char>>* binaryBuffers) {
@@ -575,10 +579,8 @@ GLTF::Sampler::Sampler(Value& samplerJSON) {
 
 GLTF::Texture::Texture(Value& textureJSON) {
     assert(textureJSON.IsObject());
-    if (textureJSON.HasMember("sampler")) {
-        Value& samplerJSON = textureJSON["sampler"];
-        sampler = samplerJSON.GetInt();
-    }
+    Value& samplerJSON = textureJSON["sampler"];
+    sampler = samplerJSON.GetInt();
     Value& sourceJSON = textureJSON["source"];
     source = sourceJSON.GetInt();
 }

@@ -17,7 +17,6 @@
 
 struct Vertex {
     glm::vec3 pos;
-    glm::vec2 texCoord;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -28,30 +27,25 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions;
+    static std::array<VkVertexInputAttributeDescription, 1> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions;
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, texCoord);
-
         return attributeDescriptions;
     }
 
-    bool operator==(const Vertex& other) const { return pos == other.pos && texCoord == other.texCoord; }
+    bool operator==(const Vertex& other) const { return pos == other.pos; }
 };
 
 namespace std {
 template <> struct hash<Vertex> {
-    size_t operator()(Vertex const& vertex) const { return (hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec2>()(vertex.texCoord) << 1)); }
+    size_t operator()(Vertex const& vertex) const { return (hash<glm::vec3>()(vertex.pos) << 1); }
 };
 } // namespace std
 
+/*
 class VulkanModel {
 
   public:
@@ -235,5 +229,6 @@ class VulkanModel {
         return getComponent<T>(accessor->componentType, buffer->data.data(), offset);
     }
 };
+*/
 
 #endif // VULKAN_MODEL_H_

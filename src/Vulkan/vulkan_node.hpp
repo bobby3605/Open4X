@@ -1,6 +1,7 @@
 #ifndef VULKAN_NODE_H_
 #define VULKAN_NODE_H_
 #include "../glTF/GLTF.hpp"
+#include "vulkan_image.hpp"
 #include "vulkan_model.hpp"
 #include <map>
 #include <memory>
@@ -20,6 +21,8 @@ class VulkanMesh {
         VkDrawIndexedIndirectCommand indirectDraw;
         int materialIndex = 0;
         int gl_BaseInstance = 0;
+        uint32_t texCoordStart;
+        std::optional<std::shared_ptr<VulkanImage>> image;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

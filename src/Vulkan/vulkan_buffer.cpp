@@ -73,7 +73,7 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
-SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) {
+SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} {
     _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
     _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
     _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));

@@ -71,6 +71,8 @@ struct SSBOData {
 
 struct MaterialData {
     glm::vec4 baseColorFactor;
+    VkSampler texSampler;
+    uint32_t texCoordIndex;
 };
 
 struct IndicesData {
@@ -91,6 +93,7 @@ class SSBOBuffers {
     int uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
+    VulkanDevice* device;
 
   private:
     StorageBuffer* _ssboBuffer;

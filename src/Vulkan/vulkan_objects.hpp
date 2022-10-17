@@ -13,7 +13,6 @@
 class VulkanObjects {
   public:
     VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
-    ~VulkanObjects();
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
 
@@ -31,15 +30,7 @@ class VulkanObjects {
 
     VulkanDevice* device;
 
-    void loadImage(std::string path);
-    VkSampler imageSampler;
-    VkImageView imageView;
-    VkImage image;
-    VkDeviceMemory imageMemory;
-    uint32_t mipLevels;
-
     VulkanDescriptors* descriptorManager;
-    VkDescriptorSet materialSet;
     VkDescriptorSet objectSet;
 };
 

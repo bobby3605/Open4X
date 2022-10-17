@@ -91,15 +91,6 @@ void Open4X::run() {
     ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
                                      0.001f, 1000.0f);
 
-    VulkanModel vase(vulkanDevice, &descriptorManager, "assets/models/flat_vase.obj", "assets/textures/statue.jpg");
-
-    VulkanObject vaseObj;
-    vaseObj.y(-1.5f);
-    // FIXME:
-    // I shouldn't have to set the scale like this
-    // there seems to be a regression with drawing non-indirect models
-    vaseObj.setScale({3.0f, 3.0f, 3.0f});
-
     auto startTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
@@ -127,9 +118,6 @@ void Open4X::run() {
         // clean up the frame drawing to be fully bindless
         // also, add support for switching to direct drawing
         // and benchmarking frametimes and triangle/s count
-        objects.bind(vulkanRenderer);
-        vase.draw(vulkanRenderer, vaseObj.modelMatrix());
-
         objects.bind(vulkanRenderer);
 
         objects.drawIndirect(vulkanRenderer);
