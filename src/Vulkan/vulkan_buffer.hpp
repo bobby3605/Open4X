@@ -81,7 +81,9 @@ struct SSBOData {
 
 struct MaterialData {
     glm::vec4 baseColorFactor;
-    uint32_t texCoordSelector;
+    uint32_t texCoordSelector = 0;
+    // FIXME:
+    // this isn't being set
     uint32_t samplerIndex;
 };
 
@@ -113,8 +115,8 @@ class SSBOBuffers {
     uint32_t texSamplersCount = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
-    // starts at sizeof(glm::vec2) for the default texcoords
-    uint32_t texCoordCount = sizeof(glm::vec2);
+    // starts at for the default texcoords
+    uint32_t texCoordCount = 1;
     VulkanDevice* device;
 
   private:

@@ -249,22 +249,28 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             } else {
 
                 image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+                defaultTexcoords = 1;
                 materialData.texCoordSelector = 0;
             }
-            ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount++] = image->imageSampler();
-            ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
 
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
 
-            materialIndex = ssboBuffers->uniqueMaterialID++;
         } else {
             materialIndex = materialIDMap->find(primitive->material.value())->second;
         }
     } else {
 
         image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+        defaultTexcoords = 1;
         materialData.texCoordSelector = 0;
     }
+    materialData.samplerIndex = ssboBuffers->texSamplersCount;
+    ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
+    materialIndex = ssboBuffers->uniqueMaterialID++;
+
+    ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount] = image->imageSampler();
+    ++ssboBuffers->texSamplersCount;
+
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
     indirectDraw.firstIndex = 0;
