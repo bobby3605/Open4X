@@ -25,7 +25,7 @@ class VulkanMesh {
         uint32_t texCoordStart;
         bool defaultTexcoords = 0;
         std::vector<uint32_t> texCoordLocations;
-        std::optional<std::shared_ptr<VulkanImage>> image;
+        std::shared_ptr<VulkanImage> image;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

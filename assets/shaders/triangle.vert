@@ -12,8 +12,8 @@ struct objectData {
 
 struct materialData {
     vec4 baseColorFactor;
-    sampler2D sampler;
     uint texCoordSelector;
+    uint samplerIndex;
 };
 
 struct indicesData {
@@ -39,7 +39,7 @@ layout(location = 0) in vec3 inPosition;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
-layout(location = 2) out sampler2D fragTexSampler;
+layout(location = 2) out uint samplerIndex;
 
 void main() {
     indicesData indexData = indices.data[gl_InstanceIndex];
@@ -55,5 +55,5 @@ void main() {
     } else {
         fragTexCoord = texcoords.data[0];
     }
-    fragTexSampler = material.sampler;
+    samplerIndex = material.samplerIndex;
 }

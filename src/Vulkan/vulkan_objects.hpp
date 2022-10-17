@@ -27,6 +27,7 @@ class VulkanObjects {
     std::vector<Vertex> vertices;
     std::vector<int> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
+    std::vector<VkDescriptorImageInfo> samplersImageInfos;
 
     VulkanDevice* device;
 

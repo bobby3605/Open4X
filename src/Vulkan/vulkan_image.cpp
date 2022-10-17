@@ -58,9 +58,12 @@ VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID) 
     int texWidth, texHeight, texChannels;
     stbi_uc* pixels;
     if (model->images[sourceID].uri.has_value()) {
-        pixels = stbi_load(model->images[sourceID].uri.value().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        // FIXME:
+        // dynamically generate the file path
+        pixels =
+            stbi_load(("assets/glTF/" + model->images[sourceID].uri.value()).c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         if (!pixels) {
-            throw std::runtime_error("failed to load texture image");
+            throw std::runtime_error("failed to load texture image: " + model->images[sourceID].uri.value());
         }
     } else if (model->images[sourceID].bufferView.has_value()) {
         // FIXME:
@@ -122,22 +125,9 @@ VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID) 
 
     checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
 
-    VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = _imageView;
     imageInfo.sampler = _imageSampler;
-
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    // Must be set when allocating the descriptor
-    descriptorWrite.dstSet = nullptr;
-    descriptorWrite.dstBinding = -1;
-    descriptorWrite.dstArrayElement = 0;
-    // TODO
-    // Only generate unique samplers
-    // Use VK_DESCRIPTOR_TYPE_SAMPLER
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
 }
 
 // FIXME:

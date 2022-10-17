@@ -90,6 +90,14 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     texcoordsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(texcoordsBufferLayoutBinding);
 
+    VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
+    samplersBufferLayoutBinding.binding = 5;
+    samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplersBufferLayoutBinding.descriptorCount = 1;
+    samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
+    samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings.push_back(samplersBufferLayoutBinding);
+
     return bindings;
 }
 

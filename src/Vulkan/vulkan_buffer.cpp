@@ -4,6 +4,7 @@
 #include <cstring>
 #include <glm/fwd.hpp>
 #include <iostream>
+#include <vulkan/vulkan_core.h>
 
 VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
     : device{device}, bufferSize{size} {
@@ -44,19 +45,24 @@ StagedBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, 
 
 StagedBuffer::~StagedBuffer() { delete stagedBuffer; }
 
-UniformBuffer::UniformBuffer(VulkanDevice* device) {
+UniformBuffer::UniformBuffer(VulkanDevice* device, VkDeviceSize size) {
 
-    uniformBuffer = new VulkanBuffer(device, sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    uniformBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     uniformBuffer->map();
 
     bufferInfo.buffer = uniformBuffer->buffer;
     bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
+    bufferInfo.range = size;
 }
 
-UniformBuffer::~UniformBuffer() { delete uniformBuffer; }
+void* UniformBuffer::mapped() { return uniformBuffer->getMapped(); }
+
+UniformBuffer::~UniformBuffer() {
+    uniformBuffer->unmap();
+    delete uniformBuffer;
+}
 
 void UniformBuffer::write(void* data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
 
@@ -78,10 +84,12 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
     _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
     _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));
+    _samplersBuffer = new UniformBuffer(device, count * sizeof(VkSampler));
     _texCoordsBuffer = new StorageBuffer(device, count * sizeof(glm::vec2));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
+    samplersMapped = reinterpret_cast<VkSampler*>(_samplersBuffer->mapped());
     texCoordsMapped = reinterpret_cast<glm::vec2*>(_texCoordsBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
@@ -95,4 +103,6 @@ SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
     delete _indicesBuffer;
+    delete _samplersBuffer;
+    delete _texCoordsBuffer;
 }

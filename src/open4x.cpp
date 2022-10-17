@@ -69,7 +69,7 @@ void Open4X::run() {
     std::vector<VkDescriptorBufferInfo> bufferInfos(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
 
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        uniformBuffers[i] = new UniformBuffer(vulkanDevice);
+        uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
         bufferInfos[i] = uniformBuffers[i]->getBufferInfo();
 
         VkWriteDescriptorSet descriptorWrite{};

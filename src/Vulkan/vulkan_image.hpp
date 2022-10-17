@@ -17,6 +17,7 @@ class VulkanImage {
     VkImage const image() { return _image; }
     VkDeviceMemory const imageMemory() { return _imageMemory; }
     uint32_t const mipLevels() { return _mipLevels; }
+    VkDescriptorImageInfo imageInfo{};
 
   private:
     VulkanDevice* device;

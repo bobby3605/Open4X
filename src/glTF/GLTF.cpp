@@ -281,6 +281,7 @@ GLTF::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
     int texcoordIndex = 0;
     while (attributesJSON.HasMember((std::string("TEXCOORD_") + std::to_string(texcoordIndex)).c_str())) {
         texcoords.push_back(attributesJSON[(std::string("TEXCOORD_") + std::to_string(texcoordIndex)).c_str()].GetInt());
+        ++texcoordIndex;
     }
 }
 

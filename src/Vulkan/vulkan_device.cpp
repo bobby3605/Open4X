@@ -164,10 +164,12 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
+    VkPhysicalDeviceVulkan12Features vk12_features{};
+    vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 
     VkPhysicalDeviceShaderDrawParameterFeatures ext_feature = {};
     ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_feature.pNext = nullptr;
+    ext_feature.pNext = &vk12_features;
     ext_feature.shaderDrawParameters = VK_TRUE;
     VkPhysicalDeviceFeatures2 supportedFeatures;
     supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -175,8 +177,11 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
 
     vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
 
+    // TODO
+    // refactor
     return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.features.samplerAnisotropy &&
-           supportedFeatures.features.multiDrawIndirect && ext_feature.shaderDrawParameters;
+           supportedFeatures.features.multiDrawIndirect && ext_feature.shaderDrawParameters && vk12_features.runtimeDescriptorArray &&
+           vk12_features.shaderSampledImageArrayNonUniformIndexing;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -276,7 +281,7 @@ void VulkanDevice::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Open 4X Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -343,9 +348,14 @@ void VulkanDevice::createLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
+    VkPhysicalDeviceVulkan12Features vk12_features{};
+    vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vk12_features.runtimeDescriptorArray = VK_TRUE;
+    vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+
     VkPhysicalDeviceShaderDrawParameterFeatures ext_feature{};
     ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_feature.pNext = nullptr;
+    ext_feature.pNext = &vk12_features;
     ext_feature.shaderDrawParameters = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures{};

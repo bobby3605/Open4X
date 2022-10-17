@@ -244,13 +244,14 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 // index to sampler
                 image =
                     std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
-                materialData.texSampler = image.value()->imageSampler();
 
                 materialData.texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
             } else {
-                materialData.texSampler = std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage)->imageSampler();
+
+                image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
                 materialData.texCoordSelector = 0;
             }
+            ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount++] = image->imageSampler();
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
 
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
@@ -259,6 +260,10 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         } else {
             materialIndex = materialIDMap->find(primitive->material.value())->second;
         }
+    } else {
+
+        image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+        materialData.texCoordSelector = 0;
     }
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;

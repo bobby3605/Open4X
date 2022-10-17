@@ -2,8 +2,13 @@
 #define VULKAN_BUFFER_H_
 #include "glm/glm.hpp"
 #include "vulkan_device.hpp"
+#include <cstdint>
 #include <memory>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
+
+// TODO
+// Refactor this
 
 class VulkanBuffer {
 
@@ -26,6 +31,7 @@ class VulkanBuffer {
     void* getMapped() { return mapped; }
 
     friend class StorageBuffer;
+    friend class UniformBuffer;
 };
 
 class StagedBuffer {
@@ -45,14 +51,17 @@ struct UniformBufferObject {
 
 class UniformBuffer {
   public:
-    UniformBuffer(VulkanDevice* device);
+    UniformBuffer(VulkanDevice* device, VkDeviceSize size);
     ~UniformBuffer();
     void write(void* data);
     VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
+    void* mapped();
 
   private:
     VulkanBuffer* uniformBuffer;
     VkDescriptorBufferInfo bufferInfo;
+
+    friend class SSBOBuffers;
 };
 
 class StorageBuffer {
@@ -72,8 +81,8 @@ struct SSBOData {
 
 struct MaterialData {
     glm::vec4 baseColorFactor;
-    VkSampler texSampler;
     uint32_t texCoordSelector;
+    uint32_t samplerIndex;
 };
 
 struct IndicesData {
@@ -91,16 +100,17 @@ class SSBOBuffers {
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
     VkBuffer const indicesBuffer() { return _indicesBuffer->buffer(); }
     VkBuffer const texCoordsBuffer() { return _texCoordsBuffer->buffer(); }
-    // VkBuffer const samplersBuffer() { return _samplersBuffer->buffer(); }
+    VkBuffer const samplersBuffer() { return _samplersBuffer->uniformBuffer->buffer; }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
-    // VkSampler* samplersMapped;
+    VkSampler* samplersMapped;
     glm::vec2* texCoordsMapped;
     // void* because VulkanImage depends on this header
     std::shared_ptr<void> defaultImage;
 
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
+    uint32_t texSamplersCount = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
     // starts at sizeof(glm::vec2) for the default texcoords
@@ -111,8 +121,8 @@ class SSBOBuffers {
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
     StorageBuffer* _indicesBuffer;
+    UniformBuffer* _samplersBuffer;
     StorageBuffer* _texCoordsBuffer;
-    // StorageBuffer* _samplersBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_
