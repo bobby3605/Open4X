@@ -190,7 +190,6 @@ VulkanImage::VulkanImage(VulkanDevice* device, std::string path) : device{device
 
     checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
 
-    VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = _imageView;
     imageInfo.sampler = _imageSampler;

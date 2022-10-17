@@ -93,7 +93,9 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
     samplersBufferLayoutBinding.binding = 5;
     samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplersBufferLayoutBinding.descriptorCount = 1;
+    // FIXME:
+    // set this dynamically
+    samplersBufferLayoutBinding.descriptorCount = 100;
     samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
     samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(samplersBufferLayoutBinding);

@@ -153,7 +153,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // Only generate unique samplers
     // Use VK_DESCRIPTOR_TYPE_SAMPLER
     descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites[4].descriptorCount = 1;
+    descriptorWrites[4].descriptorCount = samplersImageInfos.size();
     descriptorWrites[4].pImageInfo = samplersImageInfos.data();
 
     vkUpdateDescriptorSets(device->device(), 5, descriptorWrites.data(), 0, nullptr);
