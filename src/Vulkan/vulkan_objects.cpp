@@ -21,7 +21,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
     uint32_t fileNum = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/single/")) {
         if (filePath.exists() && filePath.is_regular_file() && (GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
             GLTF::getFileExtension(filePath.path()).compare(".glb") == 0) {
             std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
@@ -77,7 +77,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     indirectDraws.push_back(primitive->indirectDraw);
                     vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                     indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
-                    //        samplersImageInfos.push_back(primitive->image->imageInfo);
+                    samplersImageInfos.push_back(primitive->image->imageInfo);
                 }
             }
         }
@@ -91,7 +91,24 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(4);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(3);
+
+    // Material layout
+    materialSet =
+        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplersImageInfos.size())));
+
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = materialSet;
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    // TODO
+    // Only generate unique samplers
+    // Use VK_DESCRIPTOR_TYPE_SAMPLER
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[0].descriptorCount = samplersImageInfos.size();
+    descriptorWrites[0].pImageInfo = samplersImageInfos.data();
+
+    vkUpdateDescriptorSets(device->device(), 1, descriptorWrites.data(), 0, nullptr);
 
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = ssboBuffers->ssboBuffer();
@@ -132,17 +149,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[2].descriptorCount = 1;
     descriptorWrites[2].pBufferInfo = &indicesBufferInfo;
 
-    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[3].dstSet = objectSet;
-    descriptorWrites[3].dstBinding = 4;
-    descriptorWrites[3].dstArrayElement = 0;
-    // TODO
-    // Only generate unique samplers
-    // Use VK_DESCRIPTOR_TYPE_SAMPLER
-    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites[3].descriptorCount = samplersImageInfos.size();
-    descriptorWrites[3].pImageInfo = samplersImageInfos.data();
-
     vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
@@ -153,7 +159,7 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
 
-    //  renderer->bindDescriptorSet(1, materialSet);
+    renderer->bindDescriptorSet(1, materialSet);
     renderer->bindDescriptorSet(2, objectSet);
 
     vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);

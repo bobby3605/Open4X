@@ -178,11 +178,10 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             } else {
                 image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
             }
-            // FIXME:
-            // samlerIndex is not being set
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
             materialIndex = ssboBuffers->uniqueMaterialID++;
+
         } else {
             materialIndex = materialIDMap->find(primitive->material.value())->second;
             image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
@@ -190,10 +189,9 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     } else {
         image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
     }
-
     // TODO
     // unique samplers
-    //    materialData.samplerIndex = ssboBuffers->texSamplersCount;
+    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->texSamplersCount;
     ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount] = image->imageSampler();
     ++ssboBuffers->texSamplersCount;
 

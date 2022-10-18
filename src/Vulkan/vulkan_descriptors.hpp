@@ -16,10 +16,10 @@ class VulkanDescriptors {
     void createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
 
     VkDescriptorSetLayout getGlobal() const { return globalL; }
-    VkDescriptorSetLayout getMaterial() const { return materialL; }
     VkDescriptorSetLayout getObject() const { return objectL; }
 
     std::vector<VkDescriptorSetLayout> const& getLayouts() const { return descriptorLayouts; }
+    std::vector<VkDescriptorSetLayoutBinding> materialLayout(uint32_t size);
 
   private:
     void createDescriptorSetLayout();
@@ -27,14 +27,12 @@ class VulkanDescriptors {
 
     std::vector<VkDescriptorSetLayoutBinding> globalLayout();
     std::vector<VkDescriptorSetLayoutBinding> passLayout();
-    std::vector<VkDescriptorSetLayoutBinding> materialLayout();
     std::vector<VkDescriptorSetLayoutBinding> objectLayout();
 
     VulkanDevice* device;
 
     VkDescriptorPool pool;
     VkDescriptorSetLayout globalL;
-    VkDescriptorSetLayout materialL;
     VkDescriptorSetLayout objectL;
 
     std::vector<VkDescriptorSetLayout> descriptorLayouts;

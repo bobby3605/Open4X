@@ -33,6 +33,7 @@ class VulkanObjects {
 
     VulkanDescriptors* descriptorManager;
     VkDescriptorSet objectSet;
+    VkDescriptorSet materialSet;
 };
 
 #endif // VULKAN_OBJECTS_H_

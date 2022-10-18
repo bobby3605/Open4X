@@ -12,7 +12,6 @@
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} {
     pool = createPool();
     globalL = createLayout(globalLayout());
-    materialL = createLayout(materialLayout());
     objectL = createLayout(objectLayout());
 }
 
@@ -41,16 +40,16 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::passLayout() {
     return bindings;
 }
 
-std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout() {
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint32_t size) {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding = 0;
-    samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    bindings.push_back(samplerLayoutBinding);
+    VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
+    samplersBufferLayoutBinding.binding = 0;
+    samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplersBufferLayoutBinding.descriptorCount = size;
+    samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
+    samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings.push_back(samplersBufferLayoutBinding);
 
     return bindings;
 }
@@ -81,16 +80,6 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     indicesBufferLayoutBinding.pImmutableSamplers = nullptr;
     indicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(indicesBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
-    samplersBufferLayoutBinding.binding = 4;
-    samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    // FIXME:
-    // set this dynamically
-    samplersBufferLayoutBinding.descriptorCount = 100;
-    samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
-    samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    bindings.push_back(samplersBufferLayoutBinding);
 
     return bindings;
 }

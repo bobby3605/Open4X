@@ -80,8 +80,8 @@ struct SSBOData {
 };
 
 struct MaterialData {
-    glm::vec4 baseColorFactor;
-    //  uint32_t samplerIndex;
+    alignas(16) glm::vec4 baseColorFactor;
+    alignas(16) uint32_t samplerIndex;
 };
 
 struct IndicesData {

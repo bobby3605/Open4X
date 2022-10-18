@@ -3,10 +3,10 @@
 
 layout(location = 0) in vec4 fragColor;
 layout(location = 1) in vec2 fragTexCoord;
-// layout(location = 2) in flat uint samplerIndex;
+layout(location = 2) in flat uint samplerIndex;
 
-// layout(set = 2, binding = 4) uniform sampler2D samplers2D[];
+layout(set = 1, binding = 0) uniform sampler2D samplers2D[];
 
 layout(location = 0) out vec4 outColor;
 
-void main() { outColor = fragColor /* * texture(samplers2D[nonuniformEXT(samplerIndex)], fragTexCoord) */; }
+void main() { outColor = fragColor * texture(samplers2D[nonuniformEXT(samplerIndex)], fragTexCoord); }
