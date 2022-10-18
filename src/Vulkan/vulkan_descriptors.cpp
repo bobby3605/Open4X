@@ -11,8 +11,8 @@
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} {
     pool = createPool();
-    globalL = createLayout(globalLayout());
-    objectL = createLayout(objectLayout());
+    globalL = createLayout(globalLayout(), 0);
+    objectL = createLayout(objectLayout(), 2);
 }
 
 void VulkanDescriptors::createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
@@ -84,7 +84,7 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     return bindings;
 }
 
-VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings) {
+VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum) {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -96,7 +96,14 @@ VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSe
     // createLayout should always be given a unique binding because the unique
     // layouts and number of them is needed to create the pipeline
     // TODO implement a layout cache
-    descriptorLayouts.push_back(layout);
+
+    // NOTE:
+    // For some reason, insert doesn't work here, it looks like the pointer gets mangled in gdb for objectSet
+    // only resize if it's a greater size
+    if ((setNum + 1) > descriptorLayouts.size()) {
+        descriptorLayouts.resize(setNum + 1);
+    }
+    descriptorLayouts[setNum] = layout;
 
     return layout;
 }

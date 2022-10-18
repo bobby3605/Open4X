@@ -21,7 +21,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
     uint32_t fileNum = 0;
-    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/single/")) {
+    for (const auto& filePath : std::filesystem::directory_iterator("assets/glTF/")) {
         if (filePath.exists() && filePath.is_regular_file() && (GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
             GLTF::getFileExtension(filePath.path()).compare(".glb") == 0) {
             std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
@@ -95,8 +95,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     // Material layout
     materialSet =
-        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplersImageInfos.size())));
+        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplersImageInfos.size()), 1));
 
+    VkWriteDescriptorSet materialWrite{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = materialSet;
     descriptorWrites[0].dstBinding = 0;

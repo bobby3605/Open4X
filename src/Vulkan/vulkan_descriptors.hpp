@@ -11,7 +11,7 @@ class VulkanDescriptors {
     std::vector<VkDescriptorSet> descriptorSets;
 
     VkDescriptorPool createPool();
-    VkDescriptorSetLayout createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings);
+    VkDescriptorSetLayout createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum);
     VkDescriptorSet allocateSet(VkDescriptorSetLayout layout);
     void createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
 
