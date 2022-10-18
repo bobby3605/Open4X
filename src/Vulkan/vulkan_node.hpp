@@ -22,9 +22,6 @@ class VulkanMesh {
         VkDrawIndexedIndirectCommand indirectDraw;
         int materialIndex = 0;
         int gl_BaseInstance = 0;
-        uint32_t texCoordStart;
-        bool defaultTexcoords = 0;
-        std::vector<uint32_t> texCoordLocations;
         std::shared_ptr<VulkanImage> image;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;

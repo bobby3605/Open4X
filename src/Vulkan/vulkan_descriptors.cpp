@@ -82,16 +82,8 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     indicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(indicesBufferLayoutBinding);
 
-    VkDescriptorSetLayoutBinding texcoordsBufferLayoutBinding{};
-    texcoordsBufferLayoutBinding.binding = 4;
-    texcoordsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    texcoordsBufferLayoutBinding.descriptorCount = 1;
-    texcoordsBufferLayoutBinding.pImmutableSamplers = nullptr;
-    texcoordsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings.push_back(texcoordsBufferLayoutBinding);
-
     VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
-    samplersBufferLayoutBinding.binding = 5;
+    samplersBufferLayoutBinding.binding = 4;
     samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     // FIXME:
     // set this dynamically

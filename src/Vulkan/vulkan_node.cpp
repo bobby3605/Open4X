@@ -1,6 +1,7 @@
 #include "vulkan_node.hpp"
 #include "vulkan_image.hpp"
 #include <chrono>
+#include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
@@ -37,12 +38,6 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             // one for per-instance data (objectIndex),
             // and another for per-primitive data (materialIndex, texCoordIndex, verticesCount)
             ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
-            // NOTE:
-            // texcoords should all be the same size per primtive,
-            // since there's one per vertex,
-            // so the index to use in the shader will be texCoordIndex + (materialTexCoordSelector * verticesCount)
-            ssboBuffers->indicesMapped[currIndex].texCoordIndex = primitive->texCoordStart;
-            ssboBuffers->indicesMapped[currIndex].verticesCount = primitive->defaultTexcoords ? 0 : primitive->vertices.size();
             ++primitiveID;
         }
         ++ssboBuffers->uniqueObjectID;
@@ -153,6 +148,56 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
 
+    // Load unique materials
+    //
+    // If material has not been registered,
+    // create it,
+    // then add its index the id map,
+    // then set materialIndex to its index and increment the unique id count
+    // If it has been registered,
+    // get the material buffer index from the map and set materialIndex to it
+    //
+    // If it doesn't have a material, then leave materialIndex at 0, which is the default material
+    int texCoordSelector = 0;
+    MaterialData materialData{};
+    if (primitive->material.has_value()) {
+        GLTF::Material* material = &model->materials[primitive->material.value()];
+        if (materialIDMap->count(primitive->material.value()) == 0) {
+            GLTF::Material::PBRMetallicRoughness* pbrMetallicRoughness = material->pbrMetallicRoughness.get();
+
+            materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
+
+            if (pbrMetallicRoughness->baseColorTexture.has_value()) {
+                // TODO
+                // separate and unique images and samplers
+                // TODO
+                // index to sampler
+                image =
+                    std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
+                texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
+            } else {
+                image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+            }
+            // FIXME:
+            // samlerIndex is not being set
+            ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
+            materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
+            materialIndex = ssboBuffers->uniqueMaterialID++;
+        } else {
+            materialIndex = materialIDMap->find(primitive->material.value())->second;
+            image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+        }
+    } else {
+        image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+    }
+
+    // TODO
+    // unique samplers
+    //    materialData.samplerIndex = ssboBuffers->texSamplersCount;
+    ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount] = image->imageSampler();
+    ++ssboBuffers->texSamplersCount;
+
+    // Load vertices
     if (primitive->attributes->position.has_value()) {
         accessor = &model->accessors[primitive->attributes->position.value()];
         // Set of sparse indices
@@ -185,6 +230,17 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             } else {
                 vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
             }
+
+            vertex.texCoord = {0.0f, 0.0f};
+            if (primitive->attributes->texcoords.size() > 0) {
+                for (uint32_t texcoordAccessorID : primitive->attributes->texcoords) {
+                    if (texcoordAccessorID == texCoordSelector) {
+                        vertex.texCoord = loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], count_index);
+                        break;
+                    }
+                }
+            }
+
             vertices.push_back(vertex);
             // Generate indices if none exist
             if (!primitive->indices.has_value()) {
@@ -196,80 +252,12 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
         }
     }
-    // Load texcoords into buffer
-    // TODO
-    // check for unique texcoords,
-    // however, texcoords arrays should already be unique,
-    // since they are defined per vertex
-    if (primitive->attributes->texcoords.size() > 0) {
-        texCoordStart = ssboBuffers->texCoordCount;
-        for (uint32_t texcoordAccessorID : primitive->attributes->texcoords) {
-            for (uint32_t i = 0; i < model->accessors[texcoordAccessorID].count; ++i) {
-                ssboBuffers->texCoordsMapped[ssboBuffers->texCoordCount] =
-                    loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], i);
-                ++ssboBuffers->texCoordCount;
-            }
-        }
-    } else {
-        defaultTexcoords = 1;
-    }
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             indices.push_back(loadAccessor<unsigned short>(model, accessor, count_index));
         }
     }
-
-    // Load unique materials
-    //
-    // If material has not been registered,
-    // create it,
-    // then add its index the id map,
-    // then set materialIndex to its index and increment the unique id count
-    // If it has been registered,
-    // get the material buffer index from the map and set materialIndex to it
-    //
-    // If it doesn't have a material, then leave materialIndex at 0, which is the default material
-    MaterialData materialData{};
-    if (primitive->material.has_value()) {
-        GLTF::Material* material = &model->materials[primitive->material.value()];
-        if (materialIDMap->count(primitive->material.value()) == 0) {
-            GLTF::Material::PBRMetallicRoughness* pbrMetallicRoughness = material->pbrMetallicRoughness.get();
-
-            materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
-            if (pbrMetallicRoughness->baseColorTexture.has_value()) {
-                // TODO
-                // separate and unique images and samplers
-                // TODO
-                // index to sampler
-                image =
-                    std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
-
-                materialData.texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
-            } else {
-
-                image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
-                defaultTexcoords = 1;
-                materialData.texCoordSelector = 0;
-            }
-
-            materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
-
-        } else {
-            materialIndex = materialIDMap->find(primitive->material.value())->second;
-        }
-    } else {
-
-        image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
-        defaultTexcoords = 1;
-        materialData.texCoordSelector = 0;
-    }
-    materialData.samplerIndex = ssboBuffers->texSamplersCount;
-    ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
-    materialIndex = ssboBuffers->uniqueMaterialID++;
-
-    ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount] = image->imageSampler();
-    ++ssboBuffers->texSamplersCount;
 
     indirectDraw.indexCount = indices.size();
     indirectDraw.instanceCount = 0;
