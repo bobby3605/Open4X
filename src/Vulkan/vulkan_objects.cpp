@@ -104,26 +104,35 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::vector<VkWriteDescriptorSet> descriptorWrites(3);
 
     // Get unique samplers and load into continuous vector
-    samplersImageInfos.resize(ssboBuffers->uniqueSamplersMap.size());
+    samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
     for (auto it = ssboBuffers->uniqueSamplersMap.begin(); it != ssboBuffers->uniqueSamplersMap.end(); ++it) {
-        samplersImageInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
+        samplerInfos[it->second].sampler = reinterpret_cast<VulkanSampler*>(it->first)->imageSampler();
+    }
+    imageInfos.resize(ssboBuffers->uniqueImagesMap.size());
+    for (auto it = ssboBuffers->uniqueImagesMap.begin(); it != ssboBuffers->uniqueImagesMap.end(); ++it) {
+        imageInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
     // Material layout
     materialSet =
-        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplersImageInfos.size()), 1));
+        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplerInfos.size()), 1));
 
-    VkWriteDescriptorSet materialWrite{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = materialSet;
     descriptorWrites[0].dstBinding = 0;
     descriptorWrites[0].dstArrayElement = 0;
-    // TODO
-    // Use VK_DESCRIPTOR_TYPE_SAMPLER and separate images
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites[0].descriptorCount = samplersImageInfos.size();
-    descriptorWrites[0].pImageInfo = samplersImageInfos.data();
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    descriptorWrites[0].descriptorCount = samplerInfos.size();
+    descriptorWrites[0].pImageInfo = samplerInfos.data();
 
-    vkUpdateDescriptorSets(device->device(), 1, descriptorWrites.data(), 0, nullptr);
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = materialSet;
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    descriptorWrites[1].descriptorCount = imageInfos.size();
+    descriptorWrites[1].pImageInfo = imageInfos.data();
+
+    vkUpdateDescriptorSets(device->device(), 2, descriptorWrites.data(), 0, nullptr);
 
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = ssboBuffers->ssboBuffer();

@@ -1,7 +1,9 @@
 #include "vulkan_image.hpp"
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
+#include "vulkan_swapchain.hpp"
 #include <cmath>
+#include <cstdint>
 
 VkSamplerAddressMode switchWrap(uint32_t wrap) {
     switch (wrap) {
@@ -51,7 +53,7 @@ VkSamplerMipmapMode switchMipmapFilter(uint32_t filter) {
     }
 }
 
-VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID) : device{device} {
+VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID) : device{device}, model{model}, _textureID{textureID} {
     uint32_t sourceID = model->textures[textureID].source;
 
     if (model->images[sourceID].uri.has_value()) {
@@ -107,13 +109,36 @@ void VulkanImage::loadPixels() {
 
     _imageView = device->createImageView(_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, _mipLevels);
 
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = _imageView;
+    imageInfo.sampler = nullptr;
+}
+
+VulkanImage::~VulkanImage() {
+    vkDestroyImageView(device->device(), _imageView, nullptr);
+    vkDestroyImage(device->device(), _image, nullptr);
+    vkFreeMemory(device->device(), _imageMemory, nullptr);
+}
+
+VulkanSampler::VulkanSampler(VulkanDevice* device, GLTF* model, uint32_t samplerID, uint32_t mipLevels)
+    : device{device}, model{model}, samplerID{samplerID}, mipLevels{mipLevels} {
+
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    if (model != nullptr) {
+        samplerInfo.magFilter = switchFilter(model->samplers[samplerID].magFilter);
+        samplerInfo.minFilter = switchFilter(model->samplers[samplerID].minFilter);
+        samplerInfo.addressModeU = switchWrap(model->samplers[samplerID].wrapS);
+        samplerInfo.addressModeV = switchWrap(model->samplers[samplerID].wrapT);
+        // gltf doesn't have support for w coordinates
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    } else {
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    }
     samplerInfo.anisotropyEnable = VK_TRUE;
 
     VkPhysicalDeviceProperties properties{};
@@ -126,18 +151,13 @@ void VulkanImage::loadPixels() {
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(_mipLevels);
+    samplerInfo.maxLod = static_cast<float>(mipLevels);
 
     checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
-
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = _imageView;
-    imageInfo.sampler = _imageSampler;
 }
 
-VulkanImage::~VulkanImage() {
-    vkDestroySampler(device->device(), _imageSampler, nullptr);
-    vkDestroyImageView(device->device(), _imageView, nullptr);
-    vkDestroyImage(device->device(), _image, nullptr);
-    vkFreeMemory(device->device(), _imageMemory, nullptr);
+VulkanSampler::~VulkanSampler() { vkDestroySampler(device->device(), _imageSampler, nullptr); }
+
+bool operator==(const VulkanSampler& s1, const VulkanSampler& s2) {
+    return s1.model == s2.model && s1.samplerID == s2.samplerID && s1.mipLevels == s2.mipLevels;
 }

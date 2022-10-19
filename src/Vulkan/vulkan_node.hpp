@@ -23,6 +23,7 @@ class VulkanMesh {
         int materialIndex = 0;
         int gl_BaseInstance = 0;
         std::shared_ptr<VulkanImage> image;
+        std::shared_ptr<VulkanSampler> sampler;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

@@ -1,6 +1,7 @@
 #include "vulkan_buffer.hpp"
 #include "common.hpp"
 #include "vulkan_device.hpp"
+#include "vulkan_image.hpp"
 #include <cstring>
 #include <glm/fwd.hpp>
 #include <iostream>
@@ -90,6 +91,8 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
+    materialData.imageIndex = 0;
+    materialData.samplerIndex = 0;
     materialMapped[0] = materialData;
 }
 

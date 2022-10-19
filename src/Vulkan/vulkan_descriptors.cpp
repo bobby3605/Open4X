@@ -45,11 +45,19 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint
 
     VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
     samplersBufferLayoutBinding.binding = 0;
-    samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
     samplersBufferLayoutBinding.descriptorCount = size;
     samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
     samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(samplersBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding imagesBufferLayoutBinding{};
+    imagesBufferLayoutBinding.binding = 1;
+    imagesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    imagesBufferLayoutBinding.descriptorCount = size;
+    imagesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    imagesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings.push_back(imagesBufferLayoutBinding);
 
     return bindings;
 }
