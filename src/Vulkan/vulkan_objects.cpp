@@ -79,7 +79,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     indirectDraws.push_back(primitive->indirectDraw);
                     vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                     indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
-                    samplersImageInfos.push_back(primitive->image->imageInfo);
                 }
             }
         }
@@ -95,6 +94,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     std::vector<VkWriteDescriptorSet> descriptorWrites(3);
 
+    // Get unique samplers and load into continuous vector
+    samplersImageInfos.resize(ssboBuffers->uniqueSamplersMap.size());
+    for (auto it = ssboBuffers->uniqueSamplersMap.begin(); it != ssboBuffers->uniqueSamplersMap.end(); ++it) {
+        samplersImageInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
+    }
     // Material layout
     materialSet =
         descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplersImageInfos.size()), 1));
@@ -105,8 +109,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[0].dstBinding = 0;
     descriptorWrites[0].dstArrayElement = 0;
     // TODO
-    // Only generate unique samplers
-    // Use VK_DESCRIPTOR_TYPE_SAMPLER
+    // Use VK_DESCRIPTOR_TYPE_SAMPLER and separate images
     descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[0].descriptorCount = samplersImageInfos.size();
     descriptorWrites[0].pImageInfo = samplersImageInfos.data();

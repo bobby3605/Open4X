@@ -36,7 +36,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             // TODO
             // Could save memory usage by using 2 different index buffers,
             // one for per-instance data (objectIndex),
-            // and another for per-primitive data (materialIndex, texCoordIndex, verticesCount)
+            // and another for per-primitive data (materialIndex)
             ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
             ++primitiveID;
         }
@@ -168,10 +168,6 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
 
             if (pbrMetallicRoughness->baseColorTexture.has_value()) {
-                // TODO
-                // separate and unique images and samplers
-                // TODO
-                // index to sampler
                 image =
                     std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
                 texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
@@ -189,11 +185,12 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     } else {
         image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
     }
-    // TODO
-    // unique samplers
-    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->texSamplersCount;
-    ssboBuffers->samplersMapped[ssboBuffers->texSamplersCount] = image->imageSampler();
-    ++ssboBuffers->texSamplersCount;
+    // Check for unique sampler
+    if (ssboBuffers->uniqueSamplersMap.count((void*)image.get()) == 0) {
+        ssboBuffers->uniqueSamplersMap.insert({(void*)image.get(), ssboBuffers->texSamplersCount});
+        ++ssboBuffers->texSamplersCount;
+    }
+    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)image.get())->second;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {

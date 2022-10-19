@@ -3,6 +3,7 @@
 #include "glm/glm.hpp"
 #include "vulkan_device.hpp"
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
@@ -96,16 +97,15 @@ class SSBOBuffers {
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
     VkBuffer const indicesBuffer() { return _indicesBuffer->buffer(); }
-    VkBuffer const samplersBuffer() { return _samplersBuffer->uniformBuffer->buffer; }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
-    VkSampler* samplersMapped;
     // void* because VulkanImage depends on this header
     std::shared_ptr<void> defaultImage;
 
+    uint32_t texSamplersCount = 0;
+    std::map<void*, int> uniqueSamplersMap;
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
-    uint32_t texSamplersCount = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
     VulkanDevice* device;
@@ -114,7 +114,6 @@ class SSBOBuffers {
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
     StorageBuffer* _indicesBuffer;
-    UniformBuffer* _samplersBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

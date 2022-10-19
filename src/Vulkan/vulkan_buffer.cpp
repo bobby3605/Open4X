@@ -84,11 +84,9 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
     _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
     _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));
-    _samplersBuffer = new UniformBuffer(device, count * sizeof(VkSampler));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
-    samplersMapped = reinterpret_cast<VkSampler*>(_samplersBuffer->mapped());
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -99,5 +97,4 @@ SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
     delete _indicesBuffer;
-    delete _samplersBuffer;
 }
