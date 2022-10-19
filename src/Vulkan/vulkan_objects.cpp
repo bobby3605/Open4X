@@ -69,6 +69,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             if (filePath.path() == "assets/glTF/simple_texture.gltf") {
                 objects.back()->x(3.0f);
                 objects.back()->y(-3.0f);
+                // flip y since vulkan uses -y coordinates
+                objects.back()->setScale({1.0f, -1.0f, 1.0f});
             }
             for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                 for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {

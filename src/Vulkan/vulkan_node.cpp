@@ -231,9 +231,10 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
 
             vertex.texCoord = {0.0f, 0.0f};
             if (primitive->attributes->texcoords.size() > 0) {
-                for (uint32_t texcoordAccessorID : primitive->attributes->texcoords) {
-                    if (texcoordAccessorID == texCoordSelector) {
-                        vertex.texCoord = loadAccessor<glm::vec2>(model, &model->accessors[texcoordAccessorID], count_index);
+                for (int texCoordSelected = 0; texCoordSelected < primitive->attributes->texcoords.size(); ++texCoordSelected) {
+                    if (texCoordSelected == texCoordSelector) {
+                        vertex.texCoord = loadAccessor<glm::vec2>(
+                            model, &model->accessors[primitive->attributes->texcoords[texCoordSelected]], count_index);
                         break;
                     }
                 }
