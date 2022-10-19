@@ -105,17 +105,17 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     glm::vec3 rotate{0};
     float speedUp = 1;
     if (glfwGetKey(window, keys.yawRight) == GLFW_PRESS)
-        rotate.y -= 1.f;
-    if (glfwGetKey(window, keys.yawLeft) == GLFW_PRESS)
         rotate.y += 1.f;
+    if (glfwGetKey(window, keys.yawLeft) == GLFW_PRESS)
+        rotate.y -= 1.f;
     if (glfwGetKey(window, keys.pitchUp) == GLFW_PRESS)
-        rotate.x += 1.f;
-    if (glfwGetKey(window, keys.pitchDown) == GLFW_PRESS)
         rotate.x -= 1.f;
+    if (glfwGetKey(window, keys.pitchDown) == GLFW_PRESS)
+        rotate.x += 1.f;
     if (glfwGetKey(window, keys.rollLeft) == GLFW_PRESS)
-        rotate.z += 1.f;
-    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
         rotate.z -= 1.f;
+    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
+        rotate.z += 1.f;
     if (glfwGetKey(window, keys.speedUp) == GLFW_PRESS)
         speedUp = 2;
 
@@ -130,13 +130,13 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     glm::vec3 moveDir{0.f};
     speedUp = 1;
     if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)
-        moveDir += forwardDir;
-    if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)
         moveDir -= forwardDir;
+    if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)
+        moveDir += forwardDir;
     if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)
-        moveDir += rightDir;
-    if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)
         moveDir -= rightDir;
+    if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)
+        moveDir += rightDir;
     if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)
         moveDir += upDir;
     if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)

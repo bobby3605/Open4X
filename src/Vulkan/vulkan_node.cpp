@@ -205,14 +205,17 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
                 // load the index
                 bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
-                int offset = accessor->sparse->indices->byteOffset + bufferView->byteOffset +
-                             count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(uint32_t));
+                int offset =
+                    accessor->sparse->indices->byteOffset + bufferView->byteOffset +
+                    count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value()
+                                                                      : sizeSwitch(accessor->sparse->indices->componentType, "SCALAR"));
                 sparseIndices.insert(getComponent<uint32_t>(accessor->sparse->indices->componentType,
                                                             model->buffers[bufferView->buffer].data.data(), offset));
                 // load the vertex
                 bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
                 offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
-                         count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(glm::vec3));
+                         count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value()
+                                                                           : sizeSwitch(accessor->componentType, accessor->type));
                 sparseValues.push_back(
                     getComponent<glm::vec3>(accessor->componentType, model->buffers[bufferView->buffer].data.data(), offset));
             }
@@ -254,20 +257,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-            // FIXME:
-            // For some reason, indices load incorrectly with loadAccessor
-            // so this extra switch is needed
-            switch (accessor->componentType) {
-            case 5123:
-                indices.push_back(loadAccessorOLD<unsigned short>(model, accessor, count_index));
-                break;
-            case 5125:
-                indices.push_back(loadAccessorOLD<uint32_t>(model, accessor, count_index));
-                break;
-            default:
-                throw std::runtime_error("Unknown index component type: " + std::to_string(accessor->componentType));
-                break;
-            }
+            indices.push_back(loadAccessor<uint32_t>(model, accessor, count_index));
         }
     }
 

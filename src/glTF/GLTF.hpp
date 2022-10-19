@@ -2,6 +2,7 @@
 #define GLTF_H_
 #include "../../external/rapidjson/document.h"
 #include <fstream>
+#include <glm/detail/qualifier.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <iostream>
@@ -9,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <queue>
+#include <stdexcept>
 #include <vector>
 
 using namespace rapidjson;
@@ -296,8 +298,6 @@ template <typename T> struct AccessorLoaders<glm::mat4, T> {
 };
 
 template <typename T> static T getComponent(int componentType, unsigned char* data, int offset) {
-    // TODO
-    // Check if accessor->type == <T, type>
     switch (componentType) {
     case 5120:
         return AccessorLoaders<T, char>::getAccessorValue(data, offset);
@@ -323,21 +323,58 @@ template <typename T> static T getComponent(int componentType, unsigned char* da
     }
 }
 
-template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {
-    GLTF::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
-    // TODO
-    // Shouldn't sizeof(T) be sizeof(componentType) for scalars?
-    // and for glm::vec or glm::mat made of non-floats, it should also change
-    int offset = accessor->byteOffset + bufferView.byteOffset +
-                 count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value() : sizeof(T));
-    return getComponent<T>(accessor->componentType, model->buffers[bufferView.buffer].data.data(), offset);
+template <typename T> static size_t typeSwitch(std::string type) {
+    if (type.compare("SCALAR") == 0) {
+        return sizeof(T);
+    } else if (type.compare("VEC2") == 0) {
+        return sizeof(glm::vec<2, T>);
+    } else if (type.compare("VEC3") == 0) {
+        return sizeof(glm::vec<3, T>);
+    } else if (type.compare("VEC4") == 0) {
+        return sizeof(glm::vec<4, T>);
+    } else if (type.compare("MAT2") == 0) {
+        return sizeof(glm::mat<2, 2, T>);
+    } else if (type.compare("MAT3") == 0) {
+        return sizeof(glm::mat<3, 3, T>);
+    } else if (type.compare("MAT4") == 0) {
+        return sizeof(glm::mat<4, 4, T>);
+    } else {
+        throw std::runtime_error("Unknown type: " + type);
+    }
 }
 
-template <typename T> static T loadAccessorOLD(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {
+static size_t sizeSwitch(uint32_t componentType, std::string type) {
+    switch (componentType) {
+    case 5120:
+        return typeSwitch<char>(type);
+        break;
+    case 5121:
+        return typeSwitch<unsigned char>(type);
+        break;
+    case 5122:
+        return typeSwitch<short>(type);
+        break;
+    case 5123:
+        return typeSwitch<unsigned short>(type);
+        break;
+    case 5125:
+        return typeSwitch<uint32_t>(type);
+        break;
+    case 5126:
+        return typeSwitch<float>(type);
+        break;
+    default:
+        throw std::runtime_error("Unknown component type: " + std::to_string(componentType));
+        break;
+    }
+}
+
+template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {
     GLTF::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
     int offset = accessor->byteOffset + bufferView.byteOffset +
-                 count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value() : sizeof(T));
-    return *reinterpret_cast<T*>(model->buffers[bufferView.buffer].data.data() + offset);
+                 count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value()
+                                                                  : sizeSwitch(accessor->componentType, accessor->type));
+    return getComponent<T>(accessor->componentType, model->buffers[bufferView.buffer].data.data(), offset);
 }
 
 #endif // GLTF_H_

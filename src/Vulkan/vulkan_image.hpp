@@ -1,5 +1,6 @@
 #ifndef VULKAN_IMAGE_H_
 #define VULKAN_IMAGE_H_
+#include "../../external/stb_image.h"
 #include "../glTF/GLTF.hpp"
 #include "vulkan_device.hpp"
 #include <string>
@@ -20,8 +21,12 @@ class VulkanImage {
     VkDescriptorImageInfo imageInfo{};
 
   private:
+    void loadPixels();
+    stbi_uc* pixels;
+
     VulkanDevice* device;
 
+    int texWidth, texHeight, texChannels;
     VkSampler _imageSampler;
     VkImageView _imageView;
     VkImage _image;

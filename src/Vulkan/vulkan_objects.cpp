@@ -7,6 +7,7 @@
 #include "vulkan_image.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include <chrono>
 #include <filesystem>
 #include <glm/gtx/string_cast.hpp>
 #include <iterator>

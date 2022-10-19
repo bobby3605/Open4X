@@ -96,7 +96,7 @@ void Open4X::run() {
         glfwPollEvents();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
-        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
+        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         startTime = currentTime;
         camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
 
