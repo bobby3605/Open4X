@@ -1,6 +1,7 @@
 #include "vulkan_node.hpp"
 #include "vulkan_image.hpp"
 #include <chrono>
+#include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -196,7 +197,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     if (primitive->attributes->position.has_value()) {
         accessor = &model->accessors[primitive->attributes->position.value()];
         // Set of sparse indices
-        std::set<unsigned short> sparseIndices;
+        std::set<uint32_t> sparseIndices;
         // Vector of vertices to replace with
         std::vector<glm::vec3> sparseValues;
         if (accessor->sparse.has_value()) {
@@ -205,13 +206,15 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 // load the index
                 bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
                 int offset = accessor->sparse->indices->byteOffset + bufferView->byteOffset +
-                             count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(unsigned short));
-                sparseIndices.insert(*(reinterpret_cast<unsigned short*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                             count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(uint32_t));
+                sparseIndices.insert(getComponent<uint32_t>(accessor->sparse->indices->componentType,
+                                                            model->buffers[bufferView->buffer].data.data(), offset));
                 // load the vertex
                 bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
                 offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
                          count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value() : sizeof(glm::vec3));
-                sparseValues.push_back(*(reinterpret_cast<glm::vec3*>(model->buffers[bufferView->buffer].data.data() + offset)));
+                sparseValues.push_back(
+                    getComponent<glm::vec3>(accessor->componentType, model->buffers[bufferView->buffer].data.data(), offset));
             }
         }
         std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
@@ -251,7 +254,20 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-            indices.push_back(loadAccessor<unsigned short>(model, accessor, count_index));
+            // FIXME:
+            // For some reason, indices load incorrectly with loadAccessor
+            // so this extra switch is needed
+            switch (accessor->componentType) {
+            case 5123:
+                indices.push_back(loadAccessorOLD<unsigned short>(model, accessor, count_index));
+                break;
+            case 5125:
+                indices.push_back(loadAccessorOLD<uint32_t>(model, accessor, count_index));
+                break;
+            default:
+                throw std::runtime_error("Unknown index component type: " + std::to_string(accessor->componentType));
+                break;
+            }
         }
     }
 

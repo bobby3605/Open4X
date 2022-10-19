@@ -13,10 +13,11 @@
 
 GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
+    _path = filePath.substr(0, filePath.find_last_of("/") + 1);
     if (getFileExtension(filePath).compare(".gltf") == 0) {
         std::ifstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Failed to open file: " + filePath);
+            throw std::runtime_error("Failed to open gltf file: " + filePath);
         }
         IStreamWrapper fileStream(file);
         d.ParseStream(fileStream);
@@ -24,7 +25,7 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     } else if (getFileExtension(filePath).compare(".glb") == 0) {
         std::ifstream file(filePath, std::ios::binary);
         if (!file.is_open()) {
-            throw std::runtime_error("Failed to open file: " + filePath);
+            throw std::runtime_error("Failed to open glb file: " + filePath);
         } // Get header
 
         uint32_t magic = readuint32(file);
@@ -92,9 +93,9 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     assert(buffersJSON.IsArray());
     for (SizeType i = 0; i < buffersJSON.Size(); ++i) {
         if (binaryBuffers.size() > 0) {
-            buffers.push_back(Buffer(buffersJSON[i], &binaryBuffers));
+            buffers.push_back(Buffer(buffersJSON[i], path(), &binaryBuffers));
         } else {
-            buffers.push_back(buffersJSON[i]);
+            buffers.push_back(Buffer(buffersJSON[i], path()));
         }
     }
 
@@ -285,7 +286,7 @@ GLTF::Mesh::Primitive::Attributes::Attributes(Value& attributesJSON) {
     }
 }
 
-GLTF::Buffer::Buffer(Value& bufferJSON, std::queue<std::vector<unsigned char>>* binaryBuffers) {
+GLTF::Buffer::Buffer(Value& bufferJSON, std::string path, std::queue<std::vector<unsigned char>>* binaryBuffers) {
     assert(bufferJSON.IsObject());
     if (bufferJSON.HasMember("uri")) {
         Value& uriJSON = bufferJSON["uri"];
@@ -295,9 +296,9 @@ GLTF::Buffer::Buffer(Value& bufferJSON, std::queue<std::vector<unsigned char>>* 
             if ((pos = uri->find("base64,")) != std::string::npos) {
                 data = base64ToUChar(uri->substr(pos + 7));
             } else if (uri->substr(uri->find_last_of(".")).compare(".bin") == 0) {
-                std::ifstream file("assets/glTF/" + uri.value(), std::ios::binary);
+                std::ifstream file(path + uri.value(), std::ios::binary);
                 if (!file.is_open()) {
-                    throw std::runtime_error("failed to open file: " + uri.value());
+                    throw std::runtime_error("Failed to open binary file: " + uri.value());
                 } else {
                     // https://stackoverflow.com/a/21802936
                     file.unsetf(std::ios::skipws);

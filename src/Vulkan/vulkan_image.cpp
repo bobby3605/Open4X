@@ -58,12 +58,10 @@ VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID) 
     int texWidth, texHeight, texChannels;
     stbi_uc* pixels;
     if (model->images[sourceID].uri.has_value()) {
-        // FIXME:
-        // dynamically generate the file path
         pixels =
-            stbi_load(("assets/glTF/" + model->images[sourceID].uri.value()).c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+            stbi_load((model->path() + model->images[sourceID].uri.value()).c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         if (!pixels) {
-            throw std::runtime_error("failed to load texture image: " + model->images[sourceID].uri.value());
+            throw std::runtime_error("failed to load texture image: " + model->path() + model->images[sourceID].uri.value());
         }
     } else if (model->images[sourceID].bufferView.has_value()) {
         // FIXME:

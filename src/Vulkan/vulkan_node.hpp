@@ -18,7 +18,7 @@ class VulkanMesh {
         Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                   std::shared_ptr<SSBOBuffers> ssboBuffers);
         std::vector<Vertex> vertices;
-        std::vector<int> indices;
+        std::vector<uint32_t> indices;
         VkDrawIndexedIndirectCommand indirectDraw;
         int materialIndex = 0;
         int gl_BaseInstance = 0;

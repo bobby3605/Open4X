@@ -25,7 +25,7 @@ class VulkanObjects {
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
     std::unordered_map<std::string, std::shared_ptr<GLTF>> gltf_models;
     std::vector<Vertex> vertices;
-    std::vector<int> indices;
+    std::vector<uint32_t> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
     std::vector<VkDescriptorImageInfo> samplersImageInfos;
 
