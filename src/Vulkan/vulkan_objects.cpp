@@ -21,6 +21,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // also, the object and material buffers don't need to be the same size
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
+    // FIXME:
+    // default sampler
+    ssboBuffers->defaultSampler = std::make_shared<VulkanSampler>(device, model, samplerID, mipLevels);
     uint32_t fileNum = 0;
     for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
         // For some reason, !filePath.is_regular_file() isn't short circuiting
