@@ -19,7 +19,7 @@ class VulkanDescriptors {
     VkDescriptorSetLayout getObject() const { return objectL; }
 
     std::vector<VkDescriptorSetLayout> const& getLayouts() const { return descriptorLayouts; }
-    std::vector<VkDescriptorSetLayoutBinding> materialLayout(uint32_t size);
+    std::vector<VkDescriptorSetLayoutBinding> materialLayout(uint32_t samplersSize, uint32_t imagesSize);
 
   private:
     void createDescriptorSetLayout();

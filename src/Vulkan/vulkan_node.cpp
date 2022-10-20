@@ -174,6 +174,9 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 sampler = std::make_shared<VulkanSampler>(ssboBuffers->device, model.get(), model->textures[image->textureID()].sampler,
                                                           image->mipLevels());
                 texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
+            } else {
+                image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+                sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
             }
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
@@ -181,9 +184,13 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
 
         } else {
             materialIndex = materialIDMap->find(primitive->material.value())->second;
+            image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+            sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
         }
+    } else {
+        image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
+        sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
     }
-
     // Check for unique image and sampler
     if (ssboBuffers->uniqueImagesMap.count((void*)image.get()) == 0) {
         ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount});
@@ -193,8 +200,8 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         ssboBuffers->uniqueSamplersMap.insert({(void*)sampler.get(), ssboBuffers->samplersCount});
         ++ssboBuffers->samplersCount;
     }
-    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
     ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
+    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {

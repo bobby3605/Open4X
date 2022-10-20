@@ -40,13 +40,13 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::passLayout() {
     return bindings;
 }
 
-std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint32_t size) {
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint32_t samplersSize, uint32_t imagesSize) {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
     VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
     samplersBufferLayoutBinding.binding = 0;
     samplersBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    samplersBufferLayoutBinding.descriptorCount = size;
+    samplersBufferLayoutBinding.descriptorCount = samplersSize;
     samplersBufferLayoutBinding.pImmutableSamplers = nullptr;
     samplersBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(samplersBufferLayoutBinding);
@@ -54,7 +54,7 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint
     VkDescriptorSetLayoutBinding imagesBufferLayoutBinding{};
     imagesBufferLayoutBinding.binding = 1;
     imagesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    imagesBufferLayoutBinding.descriptorCount = size;
+    imagesBufferLayoutBinding.descriptorCount = imagesSize;
     imagesBufferLayoutBinding.pImmutableSamplers = nullptr;
     imagesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(imagesBufferLayoutBinding);

@@ -49,5 +49,5 @@ void main() {
     fragTexCoord = texCoord;
 
     samplerIndex = material.samplerIndex;
-    samplerIndex = material.imageIndex;
+    imageIndex = material.imageIndex;
 }

@@ -39,6 +39,7 @@ class VulkanImage {
 class VulkanSampler {
   public:
     VulkanSampler(VulkanDevice* device, GLTF* model, uint32_t samplerID, uint32_t mipLevels);
+    VulkanSampler(VulkanDevice* device, uint32_t mipLevels);
     ~VulkanSampler();
     VkSampler const imageSampler() { return _imageSampler; }
     friend bool operator==(const VulkanSampler& s1, const VulkanSampler& s2);

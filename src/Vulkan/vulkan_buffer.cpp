@@ -91,8 +91,8 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
-    materialData.imageIndex = 0;
     materialData.samplerIndex = 0;
+    //    materialData.imageIndex = 0;
     materialMapped[0] = materialData;
 }
 

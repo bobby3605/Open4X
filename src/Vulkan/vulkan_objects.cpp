@@ -21,9 +21,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // also, the object and material buffers don't need to be the same size
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
-    // FIXME:
-    // default sampler
-    ssboBuffers->defaultSampler = std::make_shared<VulkanSampler>(device, model, samplerID, mipLevels);
+    ssboBuffers->defaultSampler =
+        std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
+    ssboBuffers->uniqueImagesMap.insert({(void*)ssboBuffers->defaultImage.get(), 0});
+    ssboBuffers->uniqueSamplersMap.insert({(void*)ssboBuffers->defaultSampler.get(), 0});
     uint32_t fileNum = 0;
     for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
         // For some reason, !filePath.is_regular_file() isn't short circuiting
@@ -102,8 +103,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
                                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
-
     std::vector<VkWriteDescriptorSet> descriptorWrites(3);
 
     // Get unique samplers and load into continuous vector
@@ -116,8 +115,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         imageInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
     // Material layout
-    materialSet =
-        descriptorManager->allocateSet(descriptorManager->createLayout(descriptorManager->materialLayout(samplerInfos.size()), 1));
+    std::vector<VkDescriptorSetLayoutBinding> materialBindings = descriptorManager->materialLayout(samplerInfos.size(), imageInfos.size());
+    materialSet = descriptorManager->allocateSet(descriptorManager->createLayout(materialBindings, 1));
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = materialSet;
@@ -137,6 +136,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     vkUpdateDescriptorSets(device->device(), 2, descriptorWrites.data(), 0, nullptr);
 
+    objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
     VkDescriptorBufferInfo ssboInfo{};
     ssboInfo.buffer = ssboBuffers->ssboBuffer();
     ssboInfo.offset = 0;
