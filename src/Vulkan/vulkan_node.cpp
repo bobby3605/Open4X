@@ -242,6 +242,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
             }
 
+            // Texcoord
             vertex.texCoord = {0.0f, 0.0f};
             if (primitive->attributes->texcoords.size() > 0) {
                 for (int texCoordSelected = 0; texCoordSelected < primitive->attributes->texcoords.size(); ++texCoordSelected) {
@@ -251,6 +252,18 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                         break;
                     }
                 }
+            }
+
+            // Normal
+            // FIXME:
+            // generate flat normals and ignore tangent if normals not found
+            vertex.normal = {1.0f, 1.0f, 1.0f};
+            if (primitive->attributes->normal.has_value()) {
+                vertex.normal = loadAccessor<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()], count_index);
+                // TODO
+                // is this needed?
+                // flip y coordinate of normal for vulkan's -y system
+                //                vertex.normal *= glm::vec3{1.0f, -1.0f, 1.0f};
             }
 
             vertices.push_back(vertex);

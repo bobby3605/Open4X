@@ -81,6 +81,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     objects.back()->setScale({1.0f, -1.0f, 1.0f});
                 }
                 if (filePath.path() == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
+                    // FIXME:
+                    // models look 'inverted', the inside of the pieces can be seen
+                    // maybe implementing normal maps will fix this
                     objects.back()->z(5.0f);
                     objects.back()->setScale({5.0f, -5.0f, 5.0f});
                 }
