@@ -34,22 +34,28 @@ const float PI = 3.14159265359;
 
 // https://github.com/JoeyDeVries/LearnOpenGL/blob/master/src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
 vec3 getNormalFromMap() {
-    vec3 tangentNormal =
-        (normalScale * texture(sampler2D(normals[nonuniformEXT(normalIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb) *
-            2.0 -
-        1.0;
+    // fix for default normal map
+    if (normalIndex == 0) {
+        return Normal;
+    } else {
+        vec3 tangentNormal =
+            (normalScale *
+             texture(sampler2D(normals[nonuniformEXT(normalIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb) *
+                2.0 -
+            1.0;
 
-    vec3 Q1 = dFdx(WorldPos);
-    vec3 Q2 = dFdy(WorldPos);
-    vec2 st1 = dFdx(fragTexCoord);
-    vec2 st2 = dFdy(fragTexCoord);
+        vec3 Q1 = dFdx(WorldPos);
+        vec3 Q2 = dFdy(WorldPos);
+        vec2 st1 = dFdx(fragTexCoord);
+        vec2 st2 = dFdy(fragTexCoord);
 
-    vec3 N = normalize(Normal);
-    vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
-    vec3 B = -normalize(cross(N, T));
-    mat3 TBN = mat3(T, B, N);
+        vec3 N = normalize(Normal);
+        vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+        vec3 B = -normalize(cross(N, T));
+        mat3 TBN = mat3(T, B, N);
 
-    return normalize(TBN * tangentNormal);
+        return normalize(TBN * tangentNormal);
+    }
 }
 // ----------------------------------------------------------------------------
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
@@ -90,11 +96,11 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) { return F0 + (1.0 - F0) * pow(clam
 void main() {
     const uint lightCount = 2;
     vec3 lightPositions[lightCount];
-    lightPositions[0] = vec3(0.0, 0.0, -1.0);
+    lightPositions[0] = vec3(0.0, 1.0, -2.0);
     lightPositions[1] = vec3(0.0, 1.0, 5.0);
     vec3 lightColors[lightCount];
     lightColors[0] = 10 * vec3(1.0, 1.0, 1.0);
-    lightColors[1] = 3 * vec3(1.0, 1.0, 1.0);
+    lightColors[1] = vec3(1.0, 1.0, 1.0);
     // PBR
     // https://learnopengl.com/PBR/Lighting
     vec3 albedo = pow(vec3(fragColor) *
@@ -158,6 +164,8 @@ void main() {
 
     // ambient lighting (note that the next IBL tutorial will replace
     // this ambient lighting with environment lighting).
+    // NOTE:
+    // IBL should change ambient and make the non-textured materials brighter
     vec3 ambient = vec3(0.03) * albedo * ao;
 
     vec3 color = ambient + Lo;

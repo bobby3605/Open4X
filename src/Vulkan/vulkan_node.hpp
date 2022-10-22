@@ -27,10 +27,10 @@ class VulkanMesh {
         std::shared_ptr<VulkanImage> normalMap;
         std::shared_ptr<VulkanImage> metallicRoughnessMap;
         std::shared_ptr<VulkanImage> aoMap;
-        float normalScale = 1;
-        float metallicFactor = 1;
-        float roughnessFactor = 1;
-        float occlusionStrength = 1;
+        float normalScale = 1.0f;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        float occlusionStrength = 1.0f;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };
