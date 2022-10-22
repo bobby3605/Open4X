@@ -61,11 +61,12 @@ class VulkanObject {
         int rollLeft = GLFW_KEY_LEFT_CONTROL;
         int rollRight = GLFW_KEY_RIGHT_CONTROL;
         int speedUp = GLFW_KEY_LEFT_SHIFT;
+        int slowDown = GLFW_KEY_LEFT_ALT;
     };
     KeyMappings keys{};
 
     float moveSpeed{6.0f};
-    float lookSpeed{3.0f};
+    float lookSpeed{2.0f};
 };
 
 #endif // VULKAN_OBJECT_H_

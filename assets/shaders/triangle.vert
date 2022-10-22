@@ -15,6 +15,12 @@ struct materialData {
     uint samplerIndex;
     uint imageIndex;
     uint normalIndex;
+    uint normalScale;
+    uint metallicRoughnessIndex;
+    uint metallicFactor;
+    uint roughnessFactor;
+    uint aoIndex;
+    uint occlusionStrength;
 };
 
 struct indicesData {
@@ -41,11 +47,15 @@ layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out uint samplerIndex;
 layout(location = 3) out uint imageIndex;
 layout(location = 4) out uint normalIndex;
-layout(location = 5) out vec3 tangentLightPos;
-layout(location = 6) out vec3 tangentViewPos;
-layout(location = 7) out vec3 tangentFragPos;
-
-const vec3 lightPos = vec3(0.0, 2.0, 2.0);
+layout(location = 5) out uint metallicRoughnessIndex;
+layout(location = 6) out uint aoIndex;
+layout(location = 7) out vec3 WorldPos;
+layout(location = 8) out vec3 Normal;
+layout(location = 9) out vec3 camPos;
+layout(location = 10) out uint normalScale;
+layout(location = 11) out uint metallicFactor;
+layout(location = 12) out uint roughnessFactor;
+layout(location = 13) out uint occulsionStrength;
 
 void main() {
     indicesData indexData = indices.data[gl_InstanceIndex];
@@ -64,19 +74,15 @@ void main() {
     samplerIndex = material.samplerIndex;
     imageIndex = material.imageIndex;
     normalIndex = material.normalIndex;
+    metallicRoughnessIndex = material.metallicRoughnessIndex;
+    aoIndex = material.aoIndex;
 
-    // TBN matrix
-    // https://learnopengl.com/Advanced-Lighting/Normal-Mapping
-    vec3 T = normalize(vec3(modelMatrix * tangent));
-    vec3 N = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
-    // re-orthogonalize T with respect to N
-    T = normalize(T - dot(T, N) * N);
-    // then retrieve perpendicular vector B with the cross product of T and N
-    vec3 B = cross(N, T) * tangent.w;
-    mat3 TBN = transpose(mat3(T, B, N));
+    normalScale = material.normalScale;
+    metallicFactor = material.metallicFactor;
+    roughnessFactor = material.roughnessFactor;
+    occulsionStrength = material.occlusionStrength;
 
-    tangentLightPos = TBN * lightPos;
-    // get position of camera
-    tangentViewPos = TBN * vec3(ubo.view[3]);
-    tangentFragPos = TBN * vec3(vertPos);
+    WorldPos = vec3(vertPos);
+    Normal = normal;
+    camPos = vec3(ubo.view[3]);
 }

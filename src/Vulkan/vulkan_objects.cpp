@@ -20,13 +20,18 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // ssboBuffers should be dynamically sized
     // also, the object and material buffers don't need to be the same size
     ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
-    ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
+    ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
-    ssboBuffers->defaultNormalMap = std::make_shared<VulkanImage>(device, "assets/defaultNormalMap.png", VK_FORMAT_R8G8B8A8_UNORM);
+    ssboBuffers->defaultNormalMap = std::make_shared<VulkanImage>(device, "assets/pixels/blue_pixel.png", VK_FORMAT_R8G8B8A8_UNORM);
+    ssboBuffers->defaultMetallicRoughnessMap =
+        std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png", VK_FORMAT_R8G8B8A8_UNORM);
+    ssboBuffers->defaultAoMap = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png", VK_FORMAT_R8G8B8A8_UNORM);
     ssboBuffers->uniqueImagesMap.insert({(void*)ssboBuffers->defaultImage.get(), 0});
     ssboBuffers->uniqueSamplersMap.insert({(void*)ssboBuffers->defaultSampler.get(), 0});
     ssboBuffers->uniqueNormalMapsMap.insert({(void*)ssboBuffers->defaultNormalMap.get(), 0});
+    ssboBuffers->uniqueMetallicRoughnessMapsMap.insert({(void*)ssboBuffers->defaultMetallicRoughnessMap.get(), 0});
+    ssboBuffers->uniqueAoMapsMap.insert({(void*)ssboBuffers->defaultAoMap.get(), 0});
     uint32_t fileNum = 0;
     for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
         // For some reason, !filePath.is_regular_file() isn't short circuiting
@@ -63,7 +68,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
                     // setting the scale to 0.1 and translation of 0,0,0 would give a translation of 15.5, 0.8, 3.7,
                     // which is close to the real position that it shows up at
-                    // maybe set all root nodes to position 0,0,0 in the base matrix?
                     objects.back()->x(0.0f);
                     objects.back()->y(0.0f);
                     objects.back()->z(0.0f);
@@ -79,12 +83,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 if (filePath.path() == "assets/glTF/simple_texture.gltf") {
                     objects.back()->x(3.0f);
                     objects.back()->y(-3.0f);
-                    // flip y since vulkan uses -y coordinates
-                    objects.back()->setScale({1.0f, -1.0f, 1.0f});
                 }
                 if (filePath.path() == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
-                    // FIXME:
-                    // flipping the y coordinate inverts the textures
                     objects.back()->z(5.0f);
                     objects.back()->setScale({5.0f, 5.0f, 5.0f});
                 }
@@ -107,7 +107,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
                                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(3);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(5);
 
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
@@ -122,9 +122,17 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (auto it = ssboBuffers->uniqueNormalMapsMap.begin(); it != ssboBuffers->uniqueNormalMapsMap.end(); ++it) {
         normalMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
+    metallicRoughnessMapInfos.resize(ssboBuffers->uniqueMetallicRoughnessMapsMap.size());
+    for (auto it = ssboBuffers->uniqueMetallicRoughnessMapsMap.begin(); it != ssboBuffers->uniqueMetallicRoughnessMapsMap.end(); ++it) {
+        metallicRoughnessMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
+    }
+    aoMapInfos.resize(ssboBuffers->uniqueAoMapsMap.size());
+    for (auto it = ssboBuffers->uniqueAoMapsMap.begin(); it != ssboBuffers->uniqueAoMapsMap.end(); ++it) {
+        aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
+    }
     // Material layout
-    std::vector<VkDescriptorSetLayoutBinding> materialBindings =
-        descriptorManager->materialLayout(samplerInfos.size(), imageInfos.size(), normalMapInfos.size());
+    std::vector<VkDescriptorSetLayoutBinding> materialBindings = descriptorManager->materialLayout(
+        samplerInfos.size(), imageInfos.size(), normalMapInfos.size(), metallicRoughnessMapInfos.size(), aoMapInfos.size());
     materialSet = descriptorManager->allocateSet(descriptorManager->createLayout(materialBindings, 1));
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -151,7 +159,23 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[2].descriptorCount = normalMapInfos.size();
     descriptorWrites[2].pImageInfo = normalMapInfos.data();
 
-    vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
+    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[3].dstSet = materialSet;
+    descriptorWrites[3].dstBinding = 3;
+    descriptorWrites[3].dstArrayElement = 0;
+    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    descriptorWrites[3].descriptorCount = metallicRoughnessMapInfos.size();
+    descriptorWrites[3].pImageInfo = metallicRoughnessMapInfos.data();
+
+    descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[4].dstSet = materialSet;
+    descriptorWrites[4].dstBinding = 4;
+    descriptorWrites[4].dstArrayElement = 0;
+    descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    descriptorWrites[4].descriptorCount = aoMapInfos.size();
+    descriptorWrites[4].pImageInfo = aoMapInfos.data();
+
+    vkUpdateDescriptorSets(device->device(), 5, descriptorWrites.data(), 0, nullptr);
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
     VkDescriptorBufferInfo ssboInfo{};
@@ -197,6 +221,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+    std::cout << "objects loaded: " << objects.size() << std::endl;
 }
 
 void VulkanObjects::bind(VulkanRenderer* renderer) {

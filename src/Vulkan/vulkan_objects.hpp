@@ -30,6 +30,8 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> samplerInfos;
     std::vector<VkDescriptorImageInfo> imageInfos;
     std::vector<VkDescriptorImageInfo> normalMapInfos;
+    std::vector<VkDescriptorImageInfo> metallicRoughnessMapInfos;
+    std::vector<VkDescriptorImageInfo> aoMapInfos;
 
     VulkanDevice* device;
 

@@ -41,7 +41,8 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::passLayout() {
 }
 
 std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint32_t samplersSize, uint32_t imagesSize,
-                                                                            uint32_t normalMapsSize) {
+                                                                            uint32_t normalMapsSize, uint32_t metallicRoughnessMapsSize,
+                                                                            uint32_t aoMapsSize) {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
     VkDescriptorSetLayoutBinding samplersBufferLayoutBinding{};
@@ -68,6 +69,21 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::materialLayout(uint
     normalMapsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings.push_back(normalMapsBufferLayoutBinding);
 
+    VkDescriptorSetLayoutBinding metallicRoughnessBufferLayoutBinding{};
+    metallicRoughnessBufferLayoutBinding.binding = 3;
+    metallicRoughnessBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    metallicRoughnessBufferLayoutBinding.descriptorCount = metallicRoughnessMapsSize;
+    metallicRoughnessBufferLayoutBinding.pImmutableSamplers = nullptr;
+    metallicRoughnessBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings.push_back(metallicRoughnessBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding aoMapsBufferLayoutBinding{};
+    aoMapsBufferLayoutBinding.binding = 4;
+    aoMapsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    aoMapsBufferLayoutBinding.descriptorCount = aoMapsSize;
+    aoMapsBufferLayoutBinding.pImmutableSamplers = nullptr;
+    aoMapsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings.push_back(aoMapsBufferLayoutBinding);
     return bindings;
 }
 

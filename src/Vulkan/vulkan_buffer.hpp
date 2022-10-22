@@ -85,6 +85,12 @@ struct MaterialData {
     uint32_t samplerIndex;
     uint32_t imageIndex;
     uint32_t normalMapIndex;
+    uint normalScale;
+    uint32_t metallicRoughnessMapIndex;
+    uint metallicFactor;
+    uint roughnessFactor;
+    uint32_t aoMapIndex;
+    uint occlusionStrength;
 };
 
 struct IndicesData {
@@ -105,6 +111,8 @@ class SSBOBuffers {
     std::shared_ptr<void> defaultImage;
     std::shared_ptr<void> defaultSampler;
     std::shared_ptr<void> defaultNormalMap;
+    std::shared_ptr<void> defaultMetallicRoughnessMap;
+    std::shared_ptr<void> defaultAoMap;
 
     uint32_t samplersCount = 1;
     std::map<void*, int> uniqueSamplersMap;
@@ -112,6 +120,10 @@ class SSBOBuffers {
     std::map<void*, int> uniqueImagesMap;
     uint32_t normalMapsCount = 1;
     std::map<void*, int> uniqueNormalMapsMap;
+    uint32_t metallicRoughnessMapsCount = 1;
+    std::map<void*, int> uniqueMetallicRoughnessMapsMap;
+    uint32_t aoMapsCount = 1;
+    std::map<void*, int> uniqueAoMapsMap;
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor

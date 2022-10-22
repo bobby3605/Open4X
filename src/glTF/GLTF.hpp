@@ -174,6 +174,7 @@ class GLTF {
         };
         std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
         std::optional<std::shared_ptr<TextureInfo>> normalTexture;
+        std::optional<std::shared_ptr<TextureInfo>> occlusionTexture;
     };
     std::vector<Material> materials;
 

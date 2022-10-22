@@ -95,11 +95,12 @@ void VulkanRenderer::createPipeline() {
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+    // Flipping the viewport doesn't seem to change anything
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.y = swapChain->getExtent().height;
     viewport.width = swapChain->getExtent().width;
-    viewport.height = swapChain->getExtent().height;
+    viewport.height = -swapChain->getExtent().height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 

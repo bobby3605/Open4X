@@ -507,6 +507,10 @@ GLTF::Material::Material(Value& materialJSON) {
         Value& normalTextureJSON = materialJSON["normalTexture"];
         normalTexture = std::make_shared<TextureInfo>(normalTextureJSON);
     }
+    if (materialJSON.HasMember("occlusionTexture")) {
+        Value& occlusionTextureJSON = materialJSON["occlusionTexture"];
+        occlusionTexture = std::make_shared<TextureInfo>(occlusionTextureJSON);
+    }
 }
 
 GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON) {
@@ -551,6 +555,10 @@ GLTF::Material::TextureInfo::TextureInfo(Value& textureInfoJSON) {
     if (textureInfoJSON.HasMember("scale")) {
         Value& scaleJSON = textureInfoJSON["scale"];
         scale = scaleJSON.GetFloat();
+    }
+    if (textureInfoJSON.HasMember("strength")) {
+        Value& strengthJSON = textureInfoJSON["strength"];
+        scale = strengthJSON.GetFloat();
     }
 }
 

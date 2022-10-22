@@ -113,11 +113,13 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     if (glfwGetKey(window, keys.pitchDown) == GLFW_PRESS)
         rotate.x += 1.f;
     if (glfwGetKey(window, keys.rollLeft) == GLFW_PRESS)
-        rotate.z -= 1.f;
-    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
         rotate.z += 1.f;
+    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
+        rotate.z -= 1.f;
     if (glfwGetKey(window, keys.speedUp) == GLFW_PRESS)
         speedUp = 2;
+    if (glfwGetKey(window, keys.slowDown) == GLFW_PRESS)
+        speedUp = 0.5;
 
     if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
         setRotation(rotation() * glm::quat(speedUp * lookSpeed * frameTime * glm::normalize(rotate)));
@@ -142,7 +144,9 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)
         moveDir -= upDir;
     if (glfwGetKey(window, keys.speedUp) == GLFW_PRESS)
-        speedUp = 5;
+        speedUp = 2.5;
+    if (glfwGetKey(window, keys.slowDown) == GLFW_PRESS)
+        speedUp = 0.4;
 
     if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
         setPostion(position() + (speedUp * moveSpeed * frameTime * glm::normalize(moveDir)));
