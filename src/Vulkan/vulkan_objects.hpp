@@ -29,6 +29,7 @@ class VulkanObjects {
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
     std::vector<VkDescriptorImageInfo> samplerInfos;
     std::vector<VkDescriptorImageInfo> imageInfos;
+    std::vector<VkDescriptorImageInfo> normalMapInfos;
 
     VulkanDevice* device;
 

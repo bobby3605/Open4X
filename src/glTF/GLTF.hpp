@@ -155,22 +155,24 @@ class GLTF {
     class Material {
       public:
         Material(Value& materialJSON);
+        class TextureInfo {
+          public:
+            TextureInfo(Value& textureInfoJSON);
+            int index;
+            int texCoord = 0;
+            float scale = 1.0f;
+        };
         class PBRMetallicRoughness {
           public:
             PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON);
             glm::vec4 baseColorFactor{1.0f};
-            class TextureInfo {
-              public:
-                TextureInfo(Value& textureInfoJSON);
-                int index;
-                int texCoord = 0;
-            };
             std::optional<std::shared_ptr<TextureInfo>> baseColorTexture;
             float metallicFactor = 1.0f;
             float roughnessFactor = 1.0f;
             std::optional<std::shared_ptr<TextureInfo>> metallicRoughnessTexture;
         };
         std::shared_ptr<PBRMetallicRoughness> pbrMetallicRoughness;
+        std::optional<std::shared_ptr<TextureInfo>> normalTexture;
     };
     std::vector<Material> materials;
 

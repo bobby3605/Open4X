@@ -23,8 +23,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
+    ssboBuffers->defaultNormalMap = std::make_shared<VulkanImage>(device, "assets/defaultNormalMap.png", VK_FORMAT_R8G8B8A8_UNORM);
     ssboBuffers->uniqueImagesMap.insert({(void*)ssboBuffers->defaultImage.get(), 0});
     ssboBuffers->uniqueSamplersMap.insert({(void*)ssboBuffers->defaultSampler.get(), 0});
+    ssboBuffers->uniqueNormalMapsMap.insert({(void*)ssboBuffers->defaultNormalMap.get(), 0});
     uint32_t fileNum = 0;
     for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
         // For some reason, !filePath.is_regular_file() isn't short circuiting
@@ -82,10 +84,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 }
                 if (filePath.path() == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
                     // FIXME:
-                    // models look 'inverted', the inside of the pieces can be seen
-                    // maybe implementing normal maps will fix this
+                    // flipping the y coordinate inverts the textures
                     objects.back()->z(5.0f);
-                    objects.back()->setScale({5.0f, -5.0f, 5.0f});
+                    objects.back()->setScale({5.0f, 5.0f, 5.0f});
                 }
                 for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                     for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
@@ -117,8 +118,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (auto it = ssboBuffers->uniqueImagesMap.begin(); it != ssboBuffers->uniqueImagesMap.end(); ++it) {
         imageInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
+    normalMapInfos.resize(ssboBuffers->uniqueNormalMapsMap.size());
+    for (auto it = ssboBuffers->uniqueNormalMapsMap.begin(); it != ssboBuffers->uniqueNormalMapsMap.end(); ++it) {
+        normalMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
+    }
     // Material layout
-    std::vector<VkDescriptorSetLayoutBinding> materialBindings = descriptorManager->materialLayout(samplerInfos.size(), imageInfos.size());
+    std::vector<VkDescriptorSetLayoutBinding> materialBindings =
+        descriptorManager->materialLayout(samplerInfos.size(), imageInfos.size(), normalMapInfos.size());
     materialSet = descriptorManager->allocateSet(descriptorManager->createLayout(materialBindings, 1));
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -137,7 +143,15 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[1].descriptorCount = imageInfos.size();
     descriptorWrites[1].pImageInfo = imageInfos.data();
 
-    vkUpdateDescriptorSets(device->device(), 2, descriptorWrites.data(), 0, nullptr);
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = materialSet;
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    descriptorWrites[2].descriptorCount = normalMapInfos.size();
+    descriptorWrites[2].pImageInfo = normalMapInfos.data();
+
+    vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
 
     objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
     VkDescriptorBufferInfo ssboInfo{};

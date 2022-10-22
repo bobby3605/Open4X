@@ -84,6 +84,7 @@ struct MaterialData {
     alignas(16) glm::vec4 baseColorFactor;
     uint32_t samplerIndex;
     uint32_t imageIndex;
+    uint32_t normalMapIndex;
 };
 
 struct IndicesData {
@@ -103,11 +104,14 @@ class SSBOBuffers {
     // void* because VulkanImage depends on this header
     std::shared_ptr<void> defaultImage;
     std::shared_ptr<void> defaultSampler;
+    std::shared_ptr<void> defaultNormalMap;
 
     uint32_t samplersCount = 1;
     std::map<void*, int> uniqueSamplersMap;
     uint32_t imagesCount = 1;
     std::map<void*, int> uniqueImagesMap;
+    uint32_t normalMapsCount = 1;
+    std::map<void*, int> uniqueNormalMapsMap;
     IndicesData* indicesMapped;
     int uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor

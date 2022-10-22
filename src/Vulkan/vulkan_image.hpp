@@ -9,8 +9,8 @@
 
 class VulkanImage {
   public:
-    VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID);
-    VulkanImage(VulkanDevice* device, std::string path);
+    VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+    VulkanImage(VulkanDevice* device, std::string path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
     ~VulkanImage();
 
     VkWriteDescriptorSet descriptorWrite{};
@@ -34,6 +34,8 @@ class VulkanImage {
     VkImage _image;
     VkDeviceMemory _imageMemory;
     uint32_t _mipLevels;
+
+    VkFormat _format;
 };
 
 class VulkanSampler {

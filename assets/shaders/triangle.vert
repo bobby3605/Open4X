@@ -14,6 +14,7 @@ struct materialData {
     vec4 baseColorFactor;
     uint samplerIndex;
     uint imageIndex;
+    uint normalIndex;
 };
 
 struct indicesData {
@@ -39,13 +40,13 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 layout(location = 2) out uint samplerIndex;
 layout(location = 3) out uint imageIndex;
-layout(location = 4) out vec3 fragNormal;
-layout(location = 5) out vec3 fragPos;
-/*
-layout(location = 4) out vec3 tangentLightPos;
-layout(location = 4) out vec3 tangentViewPos;
-layout(location = 4) out vec3 tangentFragPos;
-*/
+layout(location = 4) out uint normalIndex;
+layout(location = 5) out vec3 tangentLightPos;
+layout(location = 6) out vec3 tangentViewPos;
+layout(location = 7) out vec3 tangentFragPos;
+layout(location = 8) out vec3 fragNormal;
+
+const vec3 lightPos = vec3(0.0, 2.0, 2.0);
 
 void main() {
     indicesData indexData = indices.data[gl_InstanceIndex];
@@ -63,20 +64,22 @@ void main() {
 
     samplerIndex = material.samplerIndex;
     imageIndex = material.imageIndex;
-    /*
-        // Normal
-        // https://learnopengl.com/Advanced-Lighting/Normal-Mapping
-        vec3 T = normalize(vec3(modelMatrix * vec4(tangent, 0.0)));
-        vec3 N = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
-        // re-orthogonalize T with respect to N
-        T = normalize(T - dot(T, N) * N);
-        // then retrieve perpendicular vector B with the cross product of T and N
-        vec3 B = cross(N, T);
-        mat3 TBN = mat3(T, B, N);
-        */
+    normalIndex = material.normalIndex;
 
-    // FIXME:
-    // do this on the cpu
-    fragNormal = mat3(transpose(inverse(modelMatrix))) * normal;
-    fragPos = vec3(vertPos);
+    // TBN matrix
+    // https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+    vec3 T = normalize(vec3(modelMatrix * vec4(tangent, 0.0)));
+    vec3 N = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
+    // re-orthogonalize T with respect to N
+    T = normalize(T - dot(T, N) * N);
+    // then retrieve perpendicular vector B with the cross product of T and N
+    vec3 B = cross(N, T);
+    mat3 TBN = transpose(mat3(T, B, N));
+
+    tangentLightPos = TBN * lightPos;
+    // get position of camera
+    tangentViewPos = TBN * vec3(ubo.view[3]);
+    tangentFragPos = TBN * vec3(vertPos);
+
+    fragNormal = normal;
 }

@@ -92,7 +92,8 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
     materialData.samplerIndex = 0;
-    //    materialData.imageIndex = 0;
+    materialData.normalMapIndex = 0;
+    materialData.imageIndex = 0;
     materialMapped[0] = materialData;
 }
 

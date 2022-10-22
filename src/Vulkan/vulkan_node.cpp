@@ -159,6 +159,8 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     // get the material buffer index from the map and set materialIndex to it
     //
     // If it doesn't have a material, then leave materialIndex at 0, which is the default material
+    // TODO
+    // might need separate texCoordSelector and texCoord for normal map
     int texCoordSelector = 0;
     MaterialData materialData{};
     if (primitive->material.has_value()) {
@@ -178,6 +180,15 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
                 sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
             }
+
+            if (material->normalTexture.has_value()) {
+                normalMap = std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), material->normalTexture.value()->index,
+                                                          VK_FORMAT_R8G8B8A8_UNORM);
+                normalScale = material->normalTexture.value()->scale;
+            } else {
+                normalMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultNormalMap));
+            }
+
             ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
             materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
             materialIndex = ssboBuffers->uniqueMaterialID++;
@@ -186,12 +197,14 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             materialIndex = materialIDMap->find(primitive->material.value())->second;
             image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
             sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
+            normalMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultNormalMap));
         }
     } else {
         image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));
         sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
+        normalMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultNormalMap));
     }
-    // Check for unique image and sampler
+    // Check for unique image, sampler, and normal map
     if (ssboBuffers->uniqueImagesMap.count((void*)image.get()) == 0) {
         ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount});
         ++ssboBuffers->imagesCount;
@@ -200,8 +213,13 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         ssboBuffers->uniqueSamplersMap.insert({(void*)sampler.get(), ssboBuffers->samplersCount});
         ++ssboBuffers->samplersCount;
     }
+    if (ssboBuffers->uniqueNormalMapsMap.count((void*)normalMap.get()) == 0) {
+        ssboBuffers->uniqueNormalMapsMap.insert({(void*)normalMap.get(), ssboBuffers->normalMapsCount});
+        ++ssboBuffers->normalMapsCount;
+    }
     ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
     ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
+    ssboBuffers->materialMapped[materialIndex].normalMapIndex = ssboBuffers->uniqueNormalMapsMap.find((void*)normalMap.get())->second;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {
@@ -260,11 +278,11 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             vertex.normal = {1.0f, 1.0f, 1.0f};
             if (primitive->attributes->normal.has_value()) {
                 vertex.normal = loadAccessor<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()], count_index);
-                // TODO
-                // is this needed?
-                // flip y coordinate of normal for vulkan's -y system
-                //                vertex.normal *= glm::vec3{1.0f, -1.0f, 1.0f};
             }
+
+            // FIXME:
+            // get or calculate tangents
+            vertex.tangent = {1.0f, 1.0f, 1.0f};
 
             vertices.push_back(vertex);
             // Generate indices if none exist

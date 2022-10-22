@@ -24,6 +24,8 @@ class VulkanMesh {
         int gl_BaseInstance = 0;
         std::shared_ptr<VulkanImage> image;
         std::shared_ptr<VulkanSampler> sampler;
+        std::shared_ptr<VulkanImage> normalMap;
+        float normalScale = 1;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

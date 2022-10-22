@@ -497,6 +497,10 @@ GLTF::Material::Material(Value& materialJSON) {
         Value& defaultPBRMetallicRoughnessJSON = defaultDocument["pbrMetallicRoughness"];
         pbrMetallicRoughness = std::make_shared<PBRMetallicRoughness>(defaultPBRMetallicRoughnessJSON);
     }
+    if (materialJSON.HasMember("normalTexture")) {
+        Value& normalTextureJSON = materialJSON["normalTexture"];
+        normalTexture = std::make_shared<TextureInfo>(normalTextureJSON);
+    }
 }
 
 GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRoughnessJSON) {
@@ -515,7 +519,6 @@ GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRou
         Value& baseColorTextureJSON = pbrMetallicRoughnessJSON["baseColorTexture"];
         baseColorTexture = std::make_shared<TextureInfo>(baseColorTextureJSON);
     }
-
     if (pbrMetallicRoughnessJSON.HasMember("metallicFactor")) {
         Value& metallicFactorJSON = pbrMetallicRoughnessJSON["metallicFactor"];
         metallicFactor = metallicFactorJSON.GetFloat();
@@ -531,13 +534,17 @@ GLTF::Material::PBRMetallicRoughness::PBRMetallicRoughness(Value& pbrMetallicRou
     }
 }
 
-GLTF::Material::PBRMetallicRoughness::TextureInfo::TextureInfo(Value& textureInfoJSON) {
+GLTF::Material::TextureInfo::TextureInfo(Value& textureInfoJSON) {
     assert(textureInfoJSON.IsObject());
     Value& indexJSON = textureInfoJSON["index"];
     index = indexJSON.GetInt();
     if (textureInfoJSON.HasMember("texCoord")) {
         Value& texCoordJSON = textureInfoJSON["texCoord"];
         texCoord = texCoordJSON.GetInt();
+    }
+    if (textureInfoJSON.HasMember("scale")) {
+        Value& scaleJSON = textureInfoJSON["scale"];
+        scale = scaleJSON.GetFloat();
     }
 }
 
