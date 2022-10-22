@@ -273,16 +273,15 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
 
             // Normal
-            // FIXME:
-            // generate flat normals and ignore tangent if normals not found
-            vertex.normal = {1.0f, 1.0f, 1.0f};
+            vertex.normal = {0.0f, 0.0f, 1.0f};
             if (primitive->attributes->normal.has_value()) {
                 vertex.normal = loadAccessor<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()], count_index);
             }
 
-            // FIXME:
-            // get or calculate tangents
-            vertex.tangent = {1.0f, 1.0f, 1.0f};
+            vertex.tangent = {0.0f, 1.0f, 0.0f, 1.0f};
+            if (primitive->attributes->tangent.has_value()) {
+                vertex.tangent = loadAccessor<glm::vec4>(model, &model->accessors[primitive->attributes->tangent.value()], count_index);
+            }
 
             vertices.push_back(vertex);
             // Generate indices if none exist
@@ -293,6 +292,48 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
                 }
                 indices.push_back(uniqueVertices[vertex]);
             }
+        }
+    }
+
+    // Calculate tangents
+    // TODO
+    // possibly calculate tangents in only one pass
+    // FIXME:
+    // doesn't work
+    if (!primitive->attributes->tangent.has_value() && 0) {
+        for (int i = 0; i < vertices.size(); i += 3) {
+
+            Vertex vertex = vertices[i];
+
+            glm::vec3 pos1 = vertex.pos;
+            glm::vec3 pos2 = vertices[i + 1].pos;
+            glm::vec3 pos3 = vertices[i + 2].pos;
+            glm::vec2 uv1 = vertices[i].texCoord;
+            glm::vec2 uv2 = vertices[i + 1].texCoord;
+            glm::vec2 uv3 = vertices[i + 2].texCoord;
+
+            // https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+            glm::vec3 edge1 = pos2 - pos1;
+            glm::vec3 edge2 = pos3 - pos1;
+            glm::vec2 deltaUV1 = uv2 - uv1;
+            glm::vec2 deltaUV2 = uv3 - uv1;
+            float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+            vertices[i].tangent[0] = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+            vertices[i].tangent[1] = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+            vertices[i].tangent[2] = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+            vertices[i].tangent[3] = 1.0f;
+            /*
+                        vertices[i + 1].tangent[0] = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+                        vertices[i + 1].tangent[1] = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+                        vertices[i + 1].tangent[2] = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+                        vertices[i + 1].tangent[3] = 1.0f;
+
+                        vertices[i + 2].tangent[0] = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+                        vertices[i + 2].tangent[1] = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+                        vertices[i + 2].tangent[2] = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+                        vertices[i + 2].tangent[3] = 1.0f;
+                        */
         }
     }
     if (primitive->indices.has_value()) {

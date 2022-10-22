@@ -19,7 +19,7 @@ struct Vertex {
     glm::vec3 pos;
     glm::vec2 texCoord;
     glm::vec3 normal;
-    glm::vec3 tangent;
+    glm::vec4 tangent;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -49,7 +49,7 @@ struct Vertex {
 
         attributeDescriptions[3].binding = 0;
         attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
         attributeDescriptions[3].offset = offsetof(Vertex, tangent);
         return attributeDescriptions;
     }

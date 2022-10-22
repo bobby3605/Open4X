@@ -56,6 +56,7 @@ class GLTF {
                 Attributes(Value& attributesJSON);
                 std::optional<int> position;
                 std::optional<int> normal;
+                std::optional<int> tangent;
                 std::vector<int> texcoords;
             };
             std::optional<int> indices;
