@@ -44,7 +44,6 @@ layout(location = 4) out uint normalIndex;
 layout(location = 5) out vec3 tangentLightPos;
 layout(location = 6) out vec3 tangentViewPos;
 layout(location = 7) out vec3 tangentFragPos;
-layout(location = 8) out vec3 fragNormal;
 
 const vec3 lightPos = vec3(0.0, 2.0, 2.0);
 
@@ -80,6 +79,4 @@ void main() {
     // get position of camera
     tangentViewPos = TBN * vec3(ubo.view[3]);
     tangentFragPos = TBN * vec3(vertPos);
-
-    fragNormal = normal;
 }

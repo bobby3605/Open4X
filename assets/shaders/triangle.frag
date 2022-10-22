@@ -9,7 +9,6 @@ layout(location = 4) in flat uint normalIndex;
 layout(location = 5) in vec3 tangentLightPos;
 layout(location = 6) in vec3 tangentViewPos;
 layout(location = 7) in vec3 tangentFragPos;
-layout(location = 8) in vec3 fragNormal;
 
 layout(set = 1, binding = 0) uniform sampler samplers[];
 layout(set = 1, binding = 1) uniform texture2D images[];
@@ -26,12 +25,8 @@ void main() {
 
     // Diffuse
     vec3 normal;
-    if (normalIndex == 0) {
-        normal = fragNormal;
-    } else {
-        normal = texture(sampler2D(normals[nonuniformEXT(normalIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb;
-        normal = normalize(normal * 2.0 - 1.0);
-    }
+    normal = texture(sampler2D(normals[nonuniformEXT(normalIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb;
+    normal = normalize(normal * 2.0 - 1.0);
     // convert +y normals to vulkan -y
     normal = vec3(normal.r, 1.0 - normal.g, normal.b);
     vec3 lightDir = normalize(tangentLightPos - tangentFragPos);
