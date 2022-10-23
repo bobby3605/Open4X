@@ -602,8 +602,10 @@ GLTF::Sampler::Sampler(Value& samplerJSON) {
 
 GLTF::Texture::Texture(Value& textureJSON) {
     assert(textureJSON.IsObject());
-    Value& samplerJSON = textureJSON["sampler"];
-    sampler = samplerJSON.GetInt();
+    if (textureJSON.HasMember("sampler")) {
+        Value& samplerJSON = textureJSON["sampler"];
+        sampler = samplerJSON.GetInt();
+    }
     Value& sourceJSON = textureJSON["source"];
     source = sourceJSON.GetInt();
 }

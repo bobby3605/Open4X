@@ -175,8 +175,13 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             if (pbrMetallicRoughness->baseColorTexture.has_value()) {
                 image =
                     std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
-                sampler = std::make_shared<VulkanSampler>(ssboBuffers->device, model.get(), model->textures[image->textureID()].sampler,
-                                                          image->mipLevels());
+                if (model->textures[image->textureID()].sampler.has_value()) {
+                    sampler = std::make_shared<VulkanSampler>(ssboBuffers->device, model.get(),
+                                                              model->textures[image->textureID()].sampler.value(), image->mipLevels());
+                } else {
+
+                    sampler = std::shared_ptr<VulkanSampler>(std::static_pointer_cast<VulkanSampler>(ssboBuffers->defaultSampler));
+                }
                 texCoordSelector = pbrMetallicRoughness->baseColorTexture.value()->texCoord;
             } else {
                 image = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultImage));

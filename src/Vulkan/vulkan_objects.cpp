@@ -92,6 +92,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     objects.back()->z(5.0f);
                     objects.back()->y(-5.0f);
                 }
+                if (filePath.path() == "assets/glTF/WaterBottle.glb") {
+                    objects.back()->z(-3.0f);
+                }
                 for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                     for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
                         primitive->indirectDraw.vertexOffset = vertices.size();

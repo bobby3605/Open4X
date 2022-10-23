@@ -202,7 +202,7 @@ class GLTF {
     class Texture {
       public:
         Texture(Value& textureJSON);
-        int sampler;
+        std::optional<int> sampler;
         int source;
     };
     std::vector<Texture> textures;
