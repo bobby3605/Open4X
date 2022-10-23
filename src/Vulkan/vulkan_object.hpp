@@ -12,8 +12,9 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name);
     VulkanObject();
+    std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);
     glm::vec3 const position() const { return _position; }
     glm::quat const rotation() const { return _rotation; }
@@ -37,7 +38,11 @@ class VulkanObject {
     std::map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
     std::map<int, int> materialIDMap;
 
+    std::vector<std::shared_ptr<VulkanObject>> children;
+
   private:
+    std::string _name;
+
     std::vector<std::shared_ptr<VulkanNode>> animatedNodes;
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};

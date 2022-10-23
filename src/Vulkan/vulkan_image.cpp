@@ -64,9 +64,13 @@ VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, 
             throw std::runtime_error("failed to load texture image: " + model->path() + model->images[sourceID].uri.value());
         }
     } else if (model->images[sourceID].bufferView.has_value()) {
-        // FIXME:
-        // support loading from a bufferView
-        throw std::runtime_error("not supporting image bufferView loading yet");
+        GLTF::BufferView* bufferView = &model->bufferViews[model->images[sourceID].bufferView.value()];
+        pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
+                                       &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels) {
+            throw std::runtime_error("failed to load texture image from bufferView: " +
+                                     std::to_string(model->images[sourceID].bufferView.value()));
+        }
     } else {
         throw std::runtime_error("no data found for image on textureID: " + std::to_string(textureID));
     }

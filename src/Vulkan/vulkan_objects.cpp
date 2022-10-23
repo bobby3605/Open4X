@@ -42,7 +42,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
                 ++fileNum;
                 gltf_models.insert({filePath.path(), model});
-                objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers));
+                objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath.path()));
                 if (model->animations.size() > 0) {
                     animatedObjects.push_back(objects.back());
                 }
@@ -87,6 +87,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 if (filePath.path() == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
                     objects.back()->z(5.0f);
                     objects.back()->setScale({5.0f, 5.0f, 5.0f});
+                }
+                if (filePath.path() == "assets/glTF/uss_enterprise_d_star_trek_tng.glb") {
+                    objects.back()->z(5.0f);
+                    objects.back()->y(-5.0f);
                 }
                 for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
                     for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
@@ -243,4 +247,13 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
 
     vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), indirectDrawsBuffer->getBuffer(), 0, indirectDraws.size(),
                              sizeof(indirectDraws[0]));
+}
+
+std::shared_ptr<VulkanObject> VulkanObjects::getObjectByName(std::string name) {
+    for (std::shared_ptr<VulkanObject> object : objects) {
+        if (object->name().compare(name) == 0) {
+            return object;
+        }
+    }
+    throw std::runtime_error("failed to find object by name: " + name);
 }

@@ -13,7 +13,8 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers) : model{model} {
+VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name)
+    : model{model}, _name{name} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {
         for (int rootNodeID : scene.nodes) {
@@ -71,27 +72,45 @@ VulkanObject::VulkanObject() {}
 void VulkanObject::setPostion(glm::vec3 newPosition) {
     _position = newPosition;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->setPostion(newPosition);
+    }
 }
 void VulkanObject::setRotation(glm::quat newRotation) {
     _rotation = newRotation;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->setRotation(newRotation);
+    }
 }
 void VulkanObject::setScale(glm::vec3 newScale) {
     _scale = newScale;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->setScale(newScale);
+    }
 }
 
 void VulkanObject::x(float newX) {
     _position.x = newX;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->x(newX);
+    }
 }
 void VulkanObject::y(float newY) {
     _position.y = newY;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->y(newY);
+    }
 }
 void VulkanObject::z(float newZ) {
     _position.z = newZ;
     updateModelMatrix();
+    for (std::shared_ptr<VulkanObject> child : children) {
+        child->z(newZ);
+    }
 }
 
 void VulkanObject::updateModelMatrix() {
@@ -113,9 +132,9 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     if (glfwGetKey(window, keys.pitchDown) == GLFW_PRESS)
         rotate.x += 1.f;
     if (glfwGetKey(window, keys.rollLeft) == GLFW_PRESS)
-        rotate.z += 1.f;
-    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
         rotate.z -= 1.f;
+    if (glfwGetKey(window, keys.rollRight) == GLFW_PRESS)
+        rotate.z += 1.f;
     if (glfwGetKey(window, keys.speedUp) == GLFW_PRESS)
         speedUp = 2;
     if (glfwGetKey(window, keys.slowDown) == GLFW_PRESS)

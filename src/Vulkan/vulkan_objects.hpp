@@ -15,6 +15,7 @@ class VulkanObjects {
     VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
+    std::shared_ptr<VulkanObject> getObjectByName(std::string name);
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;

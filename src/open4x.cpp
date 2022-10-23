@@ -85,6 +85,7 @@ void Open4X::run() {
     }
 
     camera = new VulkanObject();
+    //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
 
     UniformBufferObject ubo{};
 

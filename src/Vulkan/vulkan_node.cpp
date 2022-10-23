@@ -163,9 +163,11 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     // might need separate texCoordSelector and texCoord for normal map
     int texCoordSelector = 0;
     MaterialData materialData{};
+    bool unique = 0;
     if (primitive->material.has_value()) {
         GLTF::Material* material = &model->materials[primitive->material.value()];
         if (materialIDMap->count(primitive->material.value()) == 0) {
+            unique = 1;
             GLTF::Material::PBRMetallicRoughness* pbrMetallicRoughness = material->pbrMetallicRoughness.get();
 
             materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
@@ -229,37 +231,40 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         normalMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultNormalMap));
         aoMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultAoMap));
     }
-    // Check for unique maps
-    if (ssboBuffers->uniqueImagesMap.count((void*)image.get()) == 0) {
-        ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount});
-        ++ssboBuffers->imagesCount;
+    if (unique) {
+        // Check for unique maps
+        if (ssboBuffers->uniqueImagesMap.count((void*)image.get()) == 0) {
+            ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount});
+            ++ssboBuffers->imagesCount;
+        }
+        if (ssboBuffers->uniqueSamplersMap.count((void*)sampler.get()) == 0) {
+            ssboBuffers->uniqueSamplersMap.insert({(void*)sampler.get(), ssboBuffers->samplersCount});
+            ++ssboBuffers->samplersCount;
+        }
+        if (ssboBuffers->uniqueMetallicRoughnessMapsMap.count((void*)metallicRoughnessMap.get()) == 0) {
+            ssboBuffers->uniqueMetallicRoughnessMapsMap.insert(
+                {(void*)metallicRoughnessMap.get(), ssboBuffers->metallicRoughnessMapsCount});
+            ++ssboBuffers->metallicRoughnessMapsCount;
+        }
+        if (ssboBuffers->uniqueNormalMapsMap.count((void*)normalMap.get()) == 0) {
+            ssboBuffers->uniqueNormalMapsMap.insert({(void*)normalMap.get(), ssboBuffers->normalMapsCount});
+            ++ssboBuffers->normalMapsCount;
+        }
+        if (ssboBuffers->uniqueAoMapsMap.count((void*)aoMap.get()) == 0) {
+            ssboBuffers->uniqueAoMapsMap.insert({(void*)aoMap.get(), ssboBuffers->aoMapsCount});
+            ++ssboBuffers->aoMapsCount;
+        }
+        ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
+        ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
+        ssboBuffers->materialMapped[materialIndex].metallicRoughnessMapIndex =
+            ssboBuffers->uniqueMetallicRoughnessMapsMap.find((void*)metallicRoughnessMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].metallicFactor = metallicFactor;
+        ssboBuffers->materialMapped[materialIndex].roughnessFactor = roughnessFactor;
+        ssboBuffers->materialMapped[materialIndex].normalMapIndex = ssboBuffers->uniqueNormalMapsMap.find((void*)normalMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].normalScale = normalScale;
+        ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
-    if (ssboBuffers->uniqueSamplersMap.count((void*)sampler.get()) == 0) {
-        ssboBuffers->uniqueSamplersMap.insert({(void*)sampler.get(), ssboBuffers->samplersCount});
-        ++ssboBuffers->samplersCount;
-    }
-    if (ssboBuffers->uniqueMetallicRoughnessMapsMap.count((void*)metallicRoughnessMap.get()) == 0) {
-        ssboBuffers->uniqueMetallicRoughnessMapsMap.insert({(void*)metallicRoughnessMap.get(), ssboBuffers->metallicRoughnessMapsCount});
-        ++ssboBuffers->metallicRoughnessMapsCount;
-    }
-    if (ssboBuffers->uniqueNormalMapsMap.count((void*)normalMap.get()) == 0) {
-        ssboBuffers->uniqueNormalMapsMap.insert({(void*)normalMap.get(), ssboBuffers->normalMapsCount});
-        ++ssboBuffers->normalMapsCount;
-    }
-    if (ssboBuffers->uniqueAoMapsMap.count((void*)aoMap.get()) == 0) {
-        ssboBuffers->uniqueAoMapsMap.insert({(void*)aoMap.get(), ssboBuffers->aoMapsCount});
-        ++ssboBuffers->aoMapsCount;
-    }
-    ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
-    ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
-    ssboBuffers->materialMapped[materialIndex].metallicRoughnessMapIndex =
-        ssboBuffers->uniqueMetallicRoughnessMapsMap.find((void*)metallicRoughnessMap.get())->second;
-    ssboBuffers->materialMapped[materialIndex].metallicFactor = metallicFactor;
-    ssboBuffers->materialMapped[materialIndex].roughnessFactor = roughnessFactor;
-    ssboBuffers->materialMapped[materialIndex].normalMapIndex = ssboBuffers->uniqueNormalMapsMap.find((void*)normalMap.get())->second;
-    ssboBuffers->materialMapped[materialIndex].normalScale = normalScale;
-    ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
-    ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {
