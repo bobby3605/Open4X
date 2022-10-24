@@ -10,7 +10,7 @@
 #include <memory>
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers)
+                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
     : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -19,7 +19,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(
-                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
+                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers, indirectDraws)});
         }
         // Set _modelMatrix
         _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueObjectID].modelMatrix;
@@ -30,14 +30,14 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
 
             // -1 because gl_InstanceIndex starts at gl_BaseInstance + 0, but indirectDraw.instanceCount starts at 1
             // if indirectDraw.instanceCount == 0, then no instances are drawn
-            ++primitive->indirectDraw.instanceCount;
-            int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount - 1;
+            ++primitive->indirectDraw->instanceCount;
+            int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw->instanceCount - 1;
             ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
         }
         ++ssboBuffers->uniqueObjectID;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
+        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, indirectDraws));
         children.back()->setLocationMatrix(_baseMatrix);
     }
 }
@@ -130,14 +130,14 @@ void VulkanNode::updateAnimation() {
 }
 
 VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap,
-                       std::shared_ptr<SSBOBuffers> ssboBuffers) {
+                       std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
-        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers, indirectDraws));
     }
 }
 
 VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
-                                 std::shared_ptr<SSBOBuffers> ssboBuffers) {
+                                 std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
@@ -264,7 +264,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
     // meshID + primitiveID = gl_DrawID
-    ssboBuffers->materialIndicesMapped[meshID + primitiveID].materialIndex = materialIndex;
+    ssboBuffers->materialIndicesMapped[indirectDraws.size()].materialIndex = materialIndex;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {
@@ -388,9 +388,11 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         }
     }
 
-    indirectDraw.indexCount = indices.size();
-    indirectDraw.instanceCount = 0;
-    indirectDraw.firstIndex = 0;
-    indirectDraw.vertexOffset = 0;
-    indirectDraw.firstInstance = gl_BaseInstance;
+    indirectDraws.resize(indirectDraws.size() + 1);
+    indirectDraw = &indirectDraws.back();
+    indirectDraw->indexCount = indices.size();
+    indirectDraw->instanceCount = 0;
+    indirectDraw->firstIndex = 0;
+    indirectDraw->vertexOffset = 0;
+    indirectDraw->firstInstance = gl_BaseInstance;
 }

@@ -54,7 +54,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::string filePath = pathModelPair.first;
         std::shared_ptr<GLTF> model = pathModelPair.second;
 
-        objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath));
+        objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws));
         if (model->animations.size() > 0) {
             animatedObjects.push_back(objects.back());
         }
@@ -109,9 +109,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
         for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
-                primitive->indirectDraw.vertexOffset = vertices.size();
-                primitive->indirectDraw.firstIndex = indices.size();
-                indirectDraws.push_back(primitive->indirectDraw);
+                primitive->indirectDraw->vertexOffset = vertices.size();
+                primitive->indirectDraw->firstIndex = indices.size();
                 vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                 indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
             }
