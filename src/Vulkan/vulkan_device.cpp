@@ -164,24 +164,8 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
-    VkPhysicalDeviceVulkan12Features vk12_features{};
-    vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 
-    VkPhysicalDeviceShaderDrawParameterFeatures ext_feature = {};
-    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_feature.pNext = &vk12_features;
-    ext_feature.shaderDrawParameters = VK_TRUE;
-    VkPhysicalDeviceFeatures2 supportedFeatures;
-    supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supportedFeatures.pNext = &ext_feature;
-
-    vkGetPhysicalDeviceFeatures2(device, &supportedFeatures);
-
-    // TODO
-    // refactor
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.features.samplerAnisotropy &&
-           supportedFeatures.features.multiDrawIndirect && ext_feature.shaderDrawParameters && vk12_features.runtimeDescriptorArray &&
-           vk12_features.shaderSampledImageArrayNonUniformIndexing;
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && checkFeatures(device);
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -347,23 +331,6 @@ void VulkanDevice::createLogicalDevice() {
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
-
-    VkPhysicalDeviceVulkan12Features vk12_features{};
-    vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vk12_features.runtimeDescriptorArray = VK_TRUE;
-    vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-
-    VkPhysicalDeviceShaderDrawParameterFeatures ext_feature{};
-    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_feature.pNext = &vk12_features;
-    ext_feature.shaderDrawParameters = VK_TRUE;
-
-    VkPhysicalDeviceFeatures2 deviceFeatures{};
-    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    deviceFeatures.features.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.features.sampleRateShading = sampleShading;
-    deviceFeatures.features.multiDrawIndirect = VK_TRUE;
-    deviceFeatures.pNext = &ext_feature;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -658,6 +625,20 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::generateMipmap
 }
 
 VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
+    vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vk12_features.runtimeDescriptorArray = VK_TRUE;
+    vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+
+    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+    ext_feature.pNext = &vk12_features;
+    ext_feature.shaderDrawParameters = VK_TRUE;
+
+    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures.features.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.features.sampleRateShading = sampleShading;
+    deviceFeatures.features.multiDrawIndirect = VK_TRUE;
+    deviceFeatures.pNext = &ext_feature;
+
     createInstance();
     setupDebugMessenger();
     createSurface();
@@ -665,6 +646,26 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     createLogicalDevice();
     commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     singleTimeCommandPool = createCommandPool(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+}
+
+bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
+
+    VkPhysicalDeviceVulkan12Features vk12_featuresCheck{};
+    vk12_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+
+    VkPhysicalDeviceShaderDrawParameterFeatures ext_featureCheck{};
+    ext_featureCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+    ext_featureCheck.pNext = &vk12_featuresCheck;
+
+    VkPhysicalDeviceFeatures2 supportedFeaturesCheck{};
+    supportedFeaturesCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supportedFeaturesCheck.pNext = &ext_featureCheck;
+
+    vkGetPhysicalDeviceFeatures2(device, &supportedFeaturesCheck);
+
+    return supportedFeaturesCheck.features.samplerAnisotropy && supportedFeaturesCheck.features.multiDrawIndirect &&
+           ext_featureCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
+           vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing;
 }
 
 VulkanDevice::~VulkanDevice() {

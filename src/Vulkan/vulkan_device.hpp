@@ -91,8 +91,12 @@ class VulkanDevice {
     VkQueue presentQueue_;
 
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-    VkBool32 msaaEnable = VK_FALSE;
-    VkBool32 sampleShading = VK_FALSE;
+    static const VkBool32 msaaEnable = VK_FALSE;
+    static const VkBool32 sampleShading = VK_FALSE;
+    VkPhysicalDeviceVulkan12Features vk12_features{};
+    VkPhysicalDeviceShaderDrawParameterFeatures ext_feature{};
+    VkPhysicalDeviceFeatures2 deviceFeatures{};
+    bool checkFeatures(VkPhysicalDevice device);
 
     void createInstance();
     void setupDebugMessenger();
