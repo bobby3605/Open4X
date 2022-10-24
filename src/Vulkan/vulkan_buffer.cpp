@@ -68,10 +68,6 @@ UniformBuffer::~UniformBuffer() {
 void UniformBuffer::write(void* data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
 
 StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
-    // TODO
-    // Dynamically resize this buffer
-    // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    // is only 256MB on GPUs without resizable bar support
     storageBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 

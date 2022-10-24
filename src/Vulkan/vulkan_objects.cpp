@@ -16,10 +16,24 @@
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
+    // Load models
+    uint32_t fileNum = 0;
+    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
+        // For some reason, !filePath.is_regular_file() isn't short circuiting
+        // so it will try to get the file extension of a directory if these are in the same if statement
+        if (filePath.exists() && filePath.is_regular_file()) {
+            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
+                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
+                std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
+                ++fileNum;
+                gltf_models.insert({filePath.path(), model});
+            }
+        }
+    }
+
     // TODO
-    // ssboBuffers should be dynamically sized
-    // also, the object and material buffers don't need to be the same size
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 1000);
+    // object and material buffers don't need to be the same size
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -32,78 +46,73 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     ssboBuffers->uniqueNormalMapsMap.insert({(void*)ssboBuffers->defaultNormalMap.get(), 0});
     ssboBuffers->uniqueMetallicRoughnessMapsMap.insert({(void*)ssboBuffers->defaultMetallicRoughnessMap.get(), 0});
     ssboBuffers->uniqueAoMapsMap.insert({(void*)ssboBuffers->defaultAoMap.get(), 0});
-    uint32_t fileNum = 0;
-    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
-        // For some reason, !filePath.is_regular_file() isn't short circuiting
-        // so it will try to get the file extension of a directory if these are in the same if statement
-        if (filePath.exists() && filePath.is_regular_file()) {
-            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
-                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
-                std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
-                ++fileNum;
-                gltf_models.insert({filePath.path(), model});
-                objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath.path()));
-                if (model->animations.size() > 0) {
-                    animatedObjects.push_back(objects.back());
-                }
-                if (filePath.path() == "assets/glTF/TriangleWithoutIndices.gltf") {
-                    objects.back()->x(-3.0f);
-                }
-                if (filePath.path() == "assets/glTF/simple_meshes.gltf") {
-                    objects.back()->x(5.0f);
-                }
-                if (filePath.path() == "assets/glTF/basic_sparse_triangles.gltf") {
-                    objects.back()->y(2.0f);
-                }
-                if (filePath.path() == "assets/glTF/simple_animation.gltf") {
-                    objects.back()->x(-3.0f);
-                    objects.back()->y(3.0f);
-                }
-                if (filePath.path() == "assets/glTF/Box.glb") {
-                    objects.back()->y(-3.0f);
-                }
-                if (filePath.path() == "assets/glTF/GearboxAssy.glb") {
-                    // FIXME:
-                    // setting the scale and position seem to be affected by the dimensions of the model
-                    // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
-                    // setting the scale to 0.1 and translation of 0,0,0 would give a translation of 15.5, 0.8, 3.7,
-                    // which is close to the real position that it shows up at
-                    objects.back()->x(0.0f);
-                    objects.back()->y(0.0f);
-                    objects.back()->z(0.0f);
-                    objects.back()->setScale({0.1f, 0.1f, 0.1f});
-                }
-                if (filePath.path() == "assets/glTF/2CylinderEngine.glb") {
-                    objects.back()->setScale({0.01f, 0.01f, 0.01f});
-                    objects.back()->y(5.0f);
-                }
-                if (filePath.path() == "assets/glTF/simple_material.gltf") {
-                    objects.back()->x(3.0f);
-                }
-                if (filePath.path() == "assets/glTF/simple_texture.gltf") {
-                    objects.back()->x(3.0f);
-                    objects.back()->y(-3.0f);
-                }
-                if (filePath.path() == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
-                    objects.back()->z(5.0f);
-                    objects.back()->setScale({5.0f, 5.0f, 5.0f});
-                }
-                if (filePath.path() == "assets/glTF/uss_enterprise_d_star_trek_tng.glb") {
-                    objects.back()->z(5.0f);
-                    objects.back()->y(-5.0f);
-                }
-                if (filePath.path() == "assets/glTF/WaterBottle.glb") {
-                    objects.back()->z(-3.0f);
-                }
-                for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
-                    for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
-                        primitive->indirectDraw.vertexOffset = vertices.size();
-                        primitive->indirectDraw.firstIndex = indices.size();
-                        indirectDraws.push_back(primitive->indirectDraw);
-                        vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
-                        indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
-                    }
-                }
+
+    // Load objects
+    // This needs to be in a separate loop from loading models in order to dynamically size ssboBuffers
+    for (std::pair<std::string, std::shared_ptr<GLTF>> pathModelPair : gltf_models) {
+        std::string filePath = pathModelPair.first;
+        std::shared_ptr<GLTF> model = pathModelPair.second;
+
+        objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath));
+        if (model->animations.size() > 0) {
+            animatedObjects.push_back(objects.back());
+        }
+        if (filePath == "assets/glTF/TriangleWithoutIndices.gltf") {
+            objects.back()->x(-3.0f);
+        }
+        if (filePath == "assets/glTF/simple_meshes.gltf") {
+            objects.back()->x(5.0f);
+        }
+        if (filePath == "assets/glTF/basic_sparse_triangles.gltf") {
+            objects.back()->y(2.0f);
+        }
+        if (filePath == "assets/glTF/simple_animation.gltf") {
+            objects.back()->x(-3.0f);
+            objects.back()->y(3.0f);
+        }
+        if (filePath == "assets/glTF/Box.glb") {
+            objects.back()->y(-3.0f);
+        }
+        if (filePath == "assets/glTF/GearboxAssy.glb") {
+            // FIXME:
+            // setting the scale and position seem to be affected by the dimensions of the model
+            // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
+            // setting the scale to 0.1 and translation of 0,0,0 would give a translation of 15.5, 0.8, 3.7,
+            // which is close to the real position that it shows up at
+            objects.back()->x(0.0f);
+            objects.back()->y(0.0f);
+            objects.back()->z(0.0f);
+            objects.back()->setScale({0.1f, 0.1f, 0.1f});
+        }
+        if (filePath == "assets/glTF/2CylinderEngine.glb") {
+            objects.back()->setScale({0.01f, 0.01f, 0.01f});
+            objects.back()->y(5.0f);
+        }
+        if (filePath == "assets/glTF/simple_material.gltf") {
+            objects.back()->x(3.0f);
+        }
+        if (filePath == "assets/glTF/simple_texture.gltf") {
+            objects.back()->x(3.0f);
+            objects.back()->y(-3.0f);
+        }
+        if (filePath == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
+            objects.back()->z(5.0f);
+            objects.back()->setScale({5.0f, 5.0f, 5.0f});
+        }
+        if (filePath == "assets/glTF/uss_enterprise_d_star_trek_tng.glb") {
+            objects.back()->z(5.0f);
+            objects.back()->y(-5.0f);
+        }
+        if (filePath == "assets/glTF/WaterBottle.glb") {
+            objects.back()->z(-3.0f);
+        }
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
+            for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
+                primitive->indirectDraw.vertexOffset = vertices.size();
+                primitive->indirectDraw.firstIndex = indices.size();
+                indirectDraws.push_back(primitive->indirectDraw);
+                vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
+                indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
             }
         }
     }

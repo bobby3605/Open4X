@@ -224,6 +224,8 @@ class GLTF {
         }
     }
 
+    static int baseInstanceCount;
+
   private:
     uint32_t _fileNum = 0;
     std::string _path;

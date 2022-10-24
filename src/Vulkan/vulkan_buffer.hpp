@@ -8,9 +8,6 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 
-// TODO
-// Refactor this
-
 class VulkanBuffer {
 
   public:

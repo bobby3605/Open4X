@@ -11,6 +11,8 @@
 #include <iostream>
 #include <sstream>
 
+int GLTF::baseInstanceCount = 0;
+
 GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
     _path = filePath.substr(0, filePath.find_last_of("/") + 1);
@@ -158,7 +160,6 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     // Creating this map ensures that each primitive has a unique gl_BaseInstance,
     // each instance of each primitive does not overwrite another instance,
     // and memory is used perfectly efficiently (no gaps between instance indices)
-    static int baseInstanceCount = 0;
     for (int meshID = 0; meshID < meshes.size(); ++meshID) {
         for (int primitiveID = 0; primitiveID < meshes[meshID].primitives.size(); ++primitiveID) {
             primitiveBaseInstanceMap.insert({{fileNum, meshID, primitiveID}, baseInstanceCount});
