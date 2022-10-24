@@ -21,7 +21,8 @@ class VulkanMesh {
         std::vector<uint32_t> indices;
         int materialIndex = 0;
         int gl_BaseInstance = 0;
-        VkDrawIndexedIndirectCommand* indirectDraw = nullptr;
+            // -1 because it should cause a memory error if it hasn't been set
+        uint32_t indirectDrawIndex = -1;
         std::shared_ptr<VulkanImage> image;
         std::shared_ptr<VulkanSampler> sampler;
         std::shared_ptr<VulkanImage> normalMap;

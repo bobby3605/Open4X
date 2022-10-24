@@ -30,8 +30,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
 
             // -1 because gl_InstanceIndex starts at gl_BaseInstance + 0, but indirectDraw.instanceCount starts at 1
             // if indirectDraw.instanceCount == 0, then no instances are drawn
-            ++primitive->indirectDraw->instanceCount;
-            int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw->instanceCount - 1;
+            ++indirectDraws[primitive->indirectDrawIndex].instanceCount;
+            int currIndex = primitive->gl_BaseInstance + indirectDraws[primitive->indirectDrawIndex].instanceCount - 1;
             ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
         }
         ++ssboBuffers->uniqueObjectID;
@@ -389,10 +389,10 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     }
 
     indirectDraws.resize(indirectDraws.size() + 1);
-    indirectDraw = &indirectDraws.back();
-    indirectDraw->indexCount = indices.size();
-    indirectDraw->instanceCount = 0;
-    indirectDraw->firstIndex = 0;
-    indirectDraw->vertexOffset = 0;
-    indirectDraw->firstInstance = gl_BaseInstance;
+    indirectDrawIndex = indirectDraws.size() - 1;
+    indirectDraws[indirectDrawIndex].indexCount = indices.size();
+    indirectDraws[indirectDrawIndex].instanceCount = 0;
+    indirectDraws[indirectDrawIndex].firstIndex = 0;
+    indirectDraws[indirectDrawIndex].vertexOffset = 0;
+    indirectDraws[indirectDrawIndex].firstInstance = gl_BaseInstance;
 }

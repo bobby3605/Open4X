@@ -109,8 +109,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
         for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
-                primitive->indirectDraw->vertexOffset = vertices.size();
-                primitive->indirectDraw->firstIndex = indices.size();
+                indirectDraws[primitive->indirectDrawIndex].vertexOffset = vertices.size();
+                indirectDraws[primitive->indirectDrawIndex].firstIndex = indices.size();
                 vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                 indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
             }
