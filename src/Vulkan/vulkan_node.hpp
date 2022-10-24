@@ -31,9 +31,6 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
-        // gl_DrawID should always be set, -1 should cause an error if it doesn't get set
-        uint32_t gl_DrawID = -1;
-        static uint32_t totalgl_DrawID;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

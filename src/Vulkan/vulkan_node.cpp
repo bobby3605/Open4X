@@ -136,11 +136,8 @@ VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, in
     }
 }
 
-uint32_t VulkanMesh::Primitive::totalgl_DrawID = 0;
-
 VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    gl_DrawID = totalgl_DrawID++;
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
@@ -266,7 +263,8 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
-    ssboBuffers->materialIndicesMapped[gl_DrawID].materialIndex = materialIndex;
+    // meshID + primitiveID = gl_DrawID
+    ssboBuffers->materialIndicesMapped[meshID + primitiveID].materialIndex = materialIndex;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {
