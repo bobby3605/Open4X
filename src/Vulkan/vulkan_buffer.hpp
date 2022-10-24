@@ -90,18 +90,22 @@ struct MaterialData {
     uint occlusionStrength;
 };
 
-struct IndicesData {
+struct InstanceIndicesData {
     uint32_t objectIndex;
+};
+
+struct MaterialIndicesData {
     uint32_t materialIndex;
 };
 
 class SSBOBuffers {
   public:
-    SSBOBuffers(VulkanDevice* device, uint32_t count);
+    SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t materialCount);
     ~SSBOBuffers();
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
-    VkBuffer const indicesBuffer() { return _indicesBuffer->buffer(); }
+    VkBuffer const instanceIndicesBuffer() { return _instanceIndicesBuffer->buffer(); }
+    VkBuffer const materialIndicesBuffer() { return _materialIndicesBuffer->buffer(); }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
     // void* because VulkanImage depends on this header
@@ -121,7 +125,8 @@ class SSBOBuffers {
     std::map<void*, int> uniqueMetallicRoughnessMapsMap;
     uint32_t aoMapsCount = 1;
     std::map<void*, int> uniqueAoMapsMap;
-    IndicesData* indicesMapped;
+    InstanceIndicesData* instanceIndicesMapped;
+    MaterialIndicesData* materialIndicesMapped;
     int uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor
     int uniqueMaterialID = 1;
@@ -130,7 +135,8 @@ class SSBOBuffers {
   private:
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
-    StorageBuffer* _indicesBuffer;
+    StorageBuffer* _instanceIndicesBuffer;
+    StorageBuffer* _materialIndicesBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

@@ -26,20 +26,13 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
-        int primitiveID = 0;
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
 
             // -1 because gl_InstanceIndex starts at gl_BaseInstance + 0, but indirectDraw.instanceCount starts at 1
             // if indirectDraw.instanceCount == 0, then no instances are drawn
             ++primitive->indirectDraw.instanceCount;
             int currIndex = primitive->gl_BaseInstance + primitive->indirectDraw.instanceCount - 1;
-            ssboBuffers->indicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
-            // TODO
-            // Could save memory usage by using 2 different index buffers,
-            // one for per-instance data (objectIndex),
-            // and another for per-primitive data (materialIndex)
-            ssboBuffers->indicesMapped[currIndex].materialIndex = primitive->materialIndex;
-            ++primitiveID;
+            ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
         }
         ++ssboBuffers->uniqueObjectID;
     }
@@ -143,8 +136,11 @@ VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, in
     }
 }
 
+uint32_t VulkanMesh::Primitive::totalgl_DrawID = 0;
+
 VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    gl_DrawID = totalgl_DrawID++;
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
@@ -270,6 +266,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
+    ssboBuffers->materialIndicesMapped[gl_DrawID].materialIndex = materialIndex;
 
     // Load vertices
     if (primitive->attributes->position.has_value()) {

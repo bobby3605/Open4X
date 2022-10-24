@@ -225,6 +225,7 @@ class GLTF {
     }
 
     static int baseInstanceCount;
+    static int materialCount;
 
   private:
     uint32_t _fileNum = 0;

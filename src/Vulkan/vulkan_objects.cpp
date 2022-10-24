@@ -18,7 +18,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     : device{device}, descriptorManager{descriptorManager} {
     // Load models
     uint32_t fileNum = 0;
-    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator("assets/glTF/")) {
+    const std::string baseDir = "assets/glTF/";
+    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator(baseDir)) {
         // For some reason, !filePath.is_regular_file() isn't short circuiting
         // so it will try to get the file extension of a directory if these are in the same if statement
         if (filePath.exists() && filePath.is_regular_file()) {
@@ -33,7 +34,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     // TODO
     // object and material buffers don't need to be the same size
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount, GLTF::materialCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -57,23 +58,23 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (model->animations.size() > 0) {
             animatedObjects.push_back(objects.back());
         }
-        if (filePath == "assets/glTF/TriangleWithoutIndices.gltf") {
+        if (filePath == (baseDir + "TriangleWithoutIndices.gltf")) {
             objects.back()->x(-3.0f);
         }
-        if (filePath == "assets/glTF/simple_meshes.gltf") {
+        if (filePath == (baseDir + "simple_meshes.gltf")) {
             objects.back()->x(5.0f);
         }
-        if (filePath == "assets/glTF/basic_sparse_triangles.gltf") {
+        if (filePath == (baseDir + "basic_sparse_triangles.gltf")) {
             objects.back()->y(2.0f);
         }
-        if (filePath == "assets/glTF/simple_animation.gltf") {
+        if (filePath == (baseDir + "simple_animation.gltf")) {
             objects.back()->x(-3.0f);
             objects.back()->y(3.0f);
         }
-        if (filePath == "assets/glTF/Box.glb") {
+        if (filePath == (baseDir + "Box.glb")) {
             objects.back()->y(-3.0f);
         }
-        if (filePath == "assets/glTF/GearboxAssy.glb") {
+        if (filePath == (baseDir + "GearboxAssy.glb")) {
             // FIXME:
             // setting the scale and position seem to be affected by the dimensions of the model
             // maybe the model has a large offset? the position for the first node in the gltf version of it is 155,8,-37
@@ -84,26 +85,26 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             objects.back()->z(0.0f);
             objects.back()->setScale({0.1f, 0.1f, 0.1f});
         }
-        if (filePath == "assets/glTF/2CylinderEngine.glb") {
+        if (filePath == (baseDir + "2CylinderEngine.glb")) {
             objects.back()->setScale({0.01f, 0.01f, 0.01f});
             objects.back()->y(5.0f);
         }
-        if (filePath == "assets/glTF/simple_material.gltf") {
+        if (filePath == (baseDir + "simple_material.gltf")) {
             objects.back()->x(3.0f);
         }
-        if (filePath == "assets/glTF/simple_texture.gltf") {
+        if (filePath == (baseDir + "simple_texture.gltf")) {
             objects.back()->x(3.0f);
             objects.back()->y(-3.0f);
         }
-        if (filePath == "assets/glTF/ABeautifulGame/ABeautifulGame.gltf") {
+        if (filePath == (baseDir + "ABeautifulGame/ABeautifulGame.gltf")) {
             objects.back()->z(5.0f);
             objects.back()->setScale({5.0f, 5.0f, 5.0f});
         }
-        if (filePath == "assets/glTF/uss_enterprise_d_star_trek_tng.glb") {
+        if (filePath == (baseDir + "uss_enterprise_d_star_trek_tng.glb")) {
             objects.back()->z(5.0f);
             objects.back()->y(-5.0f);
         }
-        if (filePath == "assets/glTF/WaterBottle.glb") {
+        if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
         for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
@@ -220,10 +221,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pBufferInfo = &materialBufferInfo;
 
-    VkDescriptorBufferInfo indicesBufferInfo{};
-    indicesBufferInfo.buffer = ssboBuffers->indicesBuffer();
-    indicesBufferInfo.offset = 0;
-    indicesBufferInfo.range = VK_WHOLE_SIZE;
+    VkDescriptorBufferInfo instanceIndicesBufferInfo{};
+    instanceIndicesBufferInfo.buffer = ssboBuffers->instanceIndicesBuffer();
+    instanceIndicesBufferInfo.offset = 0;
+    instanceIndicesBufferInfo.range = VK_WHOLE_SIZE;
 
     descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[2].dstSet = objectSet;
@@ -231,9 +232,22 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[2].dstArrayElement = 0;
     descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     descriptorWrites[2].descriptorCount = 1;
-    descriptorWrites[2].pBufferInfo = &indicesBufferInfo;
+    descriptorWrites[2].pBufferInfo = &instanceIndicesBufferInfo;
 
-    vkUpdateDescriptorSets(device->device(), 3, descriptorWrites.data(), 0, nullptr);
+    VkDescriptorBufferInfo materialIndicesBufferInfo{};
+    materialIndicesBufferInfo.buffer = ssboBuffers->materialIndicesBuffer();
+    materialIndicesBufferInfo.offset = 0;
+    materialIndicesBufferInfo.range = VK_WHOLE_SIZE;
+
+    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[3].dstSet = objectSet;
+    descriptorWrites[3].dstBinding = 4;
+    descriptorWrites[3].dstArrayElement = 0;
+    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[3].descriptorCount = 1;
+    descriptorWrites[3].pBufferInfo = &materialIndicesBufferInfo;
+
+    vkUpdateDescriptorSets(device->device(), 4, descriptorWrites.data(), 0, nullptr);
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);

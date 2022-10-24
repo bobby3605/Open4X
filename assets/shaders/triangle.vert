@@ -23,8 +23,10 @@ struct materialData {
     uint occlusionStrength;
 };
 
-struct indicesData {
+struct instanceIndicesData {
     uint objectIndex;
+};
+struct materialIndicesData {
     uint materialIndex;
 };
 
@@ -34,8 +36,11 @@ objects;
 layout(std140, set = 2, binding = 2) readonly buffer Materials { materialData data[]; }
 materials;
 
-layout(set = 2, binding = 3) readonly buffer Indices { indicesData data[]; }
-indices;
+layout(set = 2, binding = 3) readonly buffer InstanceIndices { instanceIndicesData data[]; }
+instanceIndices;
+
+layout(set = 2, binding = 4) readonly buffer MaterialIndices { materialIndicesData data[]; }
+materialIndices;
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 texCoord;
@@ -58,11 +63,13 @@ layout(location = 12) out uint roughnessFactor;
 layout(location = 13) out uint occulsionStrength;
 
 void main() {
-    indicesData indexData = indices.data[gl_InstanceIndex];
+    instanceIndicesData instanceIndexData = instanceIndices.data[gl_InstanceIndex];
+    materialIndicesData materialIndexData = materialIndices.data[gl_DrawID];
 
-    materialData material = materials.data[indexData.materialIndex];
+    objectData object = objects.data[instanceIndexData.objectIndex];
+    materialData material = materials.data[materialIndexData.materialIndex];
 
-    mat4 modelMatrix = objects.data[indexData.objectIndex].modelMatrix;
+    mat4 modelMatrix = object.modelMatrix;
 
     vec4 vertPos = modelMatrix * vec4(inPosition, 1.0);
 

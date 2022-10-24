@@ -77,13 +77,17 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
-SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} {
-    _ssboBuffer = new StorageBuffer(device, count * sizeof(SSBOData));
-    _materialBuffer = new StorageBuffer(device, count * sizeof(MaterialData));
-    _indicesBuffer = new StorageBuffer(device, count * sizeof(IndicesData));
+SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t materialCount) : device{device} {
+    _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
+    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(InstanceIndicesData));
+    // NOTE:
+    // could be optimized further by only using referenced materials
+    _materialBuffer = new StorageBuffer(device, (materialCount + uniqueMaterialID) * sizeof(MaterialData));
+    _materialIndicesBuffer = new StorageBuffer(device, (materialCount + uniqueMaterialID) * sizeof(MaterialIndicesData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
+    instanceIndicesMapped = reinterpret_cast<InstanceIndicesData*>(_instanceIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
-    indicesMapped = reinterpret_cast<IndicesData*>(_indicesBuffer->mapped);
+    materialIndicesMapped = reinterpret_cast<MaterialIndicesData*>(_materialIndicesBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -96,5 +100,6 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t count) : device{device} 
 SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
-    delete _indicesBuffer;
+    delete _instanceIndicesBuffer;
+    delete _materialIndicesBuffer;
 }

@@ -106,13 +106,21 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     materialBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(materialBufferLayoutBinding);
 
-    VkDescriptorSetLayoutBinding indicesBufferLayoutBinding{};
-    indicesBufferLayoutBinding.binding = 3;
-    indicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    indicesBufferLayoutBinding.descriptorCount = 1;
-    indicesBufferLayoutBinding.pImmutableSamplers = nullptr;
-    indicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings.push_back(indicesBufferLayoutBinding);
+    VkDescriptorSetLayoutBinding instanceIndicesBufferLayoutBinding{};
+    instanceIndicesBufferLayoutBinding.binding = 3;
+    instanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    instanceIndicesBufferLayoutBinding.descriptorCount = 1;
+    instanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    instanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings.push_back(instanceIndicesBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding materialIndicesBufferLayoutBinding{};
+    materialIndicesBufferLayoutBinding.binding = 4;
+    materialIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    materialIndicesBufferLayoutBinding.descriptorCount = 1;
+    materialIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    materialIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings.push_back(materialIndicesBufferLayoutBinding);
 
     return bindings;
 }
