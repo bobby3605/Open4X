@@ -12,7 +12,7 @@
 #include <sstream>
 
 int GLTF::baseInstanceCount = 0;
-int GLTF::materialCount = 0;
+int GLTF::primitiveCount = 0;
 
 GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
@@ -126,7 +126,6 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
         assert(materialsJSON.IsArray());
         for (SizeType i = 0; i < materialsJSON.Size(); ++i) {
             materials.push_back(materialsJSON[i]);
-            ++materialCount;
         }
     }
     if (d.HasMember("images")) {
@@ -249,6 +248,7 @@ GLTF::Mesh::Mesh(Value& meshJSON) {
     assert(primitivesJSON.IsArray());
     for (SizeType i = 0; i < primitivesJSON.Size(); ++i) {
         primitives.push_back(primitivesJSON[i]);
+        ++primitiveCount;
     }
 }
 

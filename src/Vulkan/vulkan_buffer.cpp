@@ -77,13 +77,13 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
-SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t materialCount) : device{device} {
+SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t drawsCount) : device{device} {
     _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
     _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(InstanceIndicesData));
     // NOTE:
     // could be optimized further by only using referenced materials
-    _materialBuffer = new StorageBuffer(device, (materialCount + uniqueMaterialID) * sizeof(MaterialData));
-    _materialIndicesBuffer = new StorageBuffer(device, (materialCount + uniqueMaterialID) * sizeof(MaterialIndicesData));
+    _materialBuffer = new StorageBuffer(device, (drawsCount + uniqueMaterialID) * sizeof(MaterialData));
+    _materialIndicesBuffer = new StorageBuffer(device, (drawsCount + uniqueMaterialID) * sizeof(MaterialIndicesData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     instanceIndicesMapped = reinterpret_cast<InstanceIndicesData*>(_instanceIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
