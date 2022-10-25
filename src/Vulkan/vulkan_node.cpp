@@ -10,7 +10,8 @@
 #include <memory>
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
+                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+                       std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
     : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -18,8 +19,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert(
-                {meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers, indirectDraws)});
+            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap,
+                                                                            ssboBuffers, indirectDraws)});
         }
         // Set _modelMatrix
         _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueObjectID].modelMatrix;
@@ -129,10 +130,11 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap,
-                       std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
+VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+                       std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
-        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers, indirectDraws));
+        primitives.push_back(
+            std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers, indirectDraws));
     }
 }
 
@@ -152,7 +154,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     // get the material buffer index from the map and set materialIndex to it
     //
     // If it doesn't have a material, then leave materialIndex at 0, which is the default material
-    // TODO
+    // NOTE:
     // might need separate texCoordSelector and texCoord for normal map
     int texCoordSelector = 0;
     MaterialData materialData{};
@@ -340,10 +342,12 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
         }
     }
 
+    // NOTE:
+    // Not currently used because the fragment shader calculates tangents
     // Calculate tangents
-    // TODO
+    // NOTE:
     // possibly calculate tangents in only one pass
-    // FIXME:
+    // NOTE:
     // doesn't work
     if (!primitive->attributes->tangent.has_value() && 0) {
         for (int i = 0; i < vertices.size(); i += 3) {

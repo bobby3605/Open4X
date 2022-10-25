@@ -12,7 +12,8 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
+    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
+                 std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
     VulkanObject();
     std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);

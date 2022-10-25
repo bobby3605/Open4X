@@ -13,7 +13,8 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
+VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
+                           std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
     : model{model}, _name{name} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {

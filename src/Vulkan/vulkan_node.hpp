@@ -12,7 +12,8 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
+    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+               std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
     class Primitive {
       public:
         Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
@@ -21,7 +22,7 @@ class VulkanMesh {
         std::vector<uint32_t> indices;
         int materialIndex = 0;
         int gl_BaseInstance = 0;
-            // -1 because it should cause a memory error if it hasn't been set
+        // -1 because it should cause a memory error if it hasn't been set
         uint32_t indirectDrawIndex = -1;
         std::shared_ptr<VulkanImage> image;
         std::shared_ptr<VulkanSampler> sampler;
@@ -39,7 +40,8 @@ class VulkanMesh {
 class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-               std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
+               std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+               std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
     void setLocationMatrix(glm::mat4 locationMatrix);
     std::shared_ptr<GLTF> model;
     int nodeID;
