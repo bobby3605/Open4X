@@ -387,6 +387,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
     }
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
+        indices.reserve(accessor->count);
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             indices.push_back(loadAccessor<uint32_t>(model, accessor, count_index));
         }

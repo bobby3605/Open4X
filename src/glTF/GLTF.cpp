@@ -51,7 +51,16 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
             file.read((char*)dataBuffer.data(), chunkLength);
             if (chunkType == 0x4E4F534A) {
                 // JSON chunk
-                d.Parse((char*)dataBuffer.data());
+                // for some reason, there's a crash when running with valgrind
+                // if, d.Parse((char*)dataBuffer.data()) is used
+                // the same crash happens always
+                // if, std::stringstream jsonString((char*)dataBuffer.data()) is used
+                std::stringstream jsonString;
+                for (uint32_t i = 0; i < dataBuffer.size(); ++i) {
+                    jsonString << dataBuffer[i];
+                }
+                IStreamWrapper jsonStream(jsonString);
+                d.ParseStream(jsonStream);
             } else if (chunkType == 0x004E4942) {
                 // binary chunk
                 binaryBuffers.push(dataBuffer);
@@ -303,17 +312,15 @@ GLTF::Buffer::Buffer(Value& bufferJSON, std::string path, std::queue<std::vector
                 if (!file.is_open()) {
                     throw std::runtime_error("Failed to open binary file: " + uri.value());
                 } else {
-                    // https://stackoverflow.com/a/21802936
-                    file.unsetf(std::ios::skipws);
-                    // get its size:
+                    // get file size
                     std::streampos fileSize;
                     file.seekg(0, std::ios::end);
                     fileSize = file.tellg();
                     file.seekg(0, std::ios::beg);
                     // reserve capacity
                     data.reserve(fileSize);
-                    // read the data:
-                    data.insert(data.begin(), std::istream_iterator<unsigned char>(file), std::istream_iterator<unsigned char>());
+                    // read into data buffer
+                    file.read((char*)data.data(), fileSize);
                 }
             }
         }
