@@ -16,6 +16,7 @@
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
+    auto startTime = std::chrono::high_resolution_clock::now();
     // Load models
     uint32_t fileNum = 0;
     const std::string baseDir = "assets/glTF/";
@@ -246,7 +247,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     indirectDrawsBuffer = std::make_shared<StagedBuffer>(
         device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
-    std::cout << "objects loaded: " << objects.size() << std::endl;
+    auto endTime = std::chrono::high_resolution_clock::now();
+    std::cout << "Loaded " << objects.size() << " objects in "
+              << std::chrono::duration<float, std::chrono::milliseconds::period>(endTime - startTime).count() << "ms" << std::endl;
 }
 
 void VulkanObjects::bind(VulkanRenderer* renderer) {

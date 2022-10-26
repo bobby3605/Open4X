@@ -17,6 +17,7 @@ int GLTF::primitiveCount = 0;
 GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
     _path = filePath.substr(0, filePath.find_last_of("/") + 1);
+    _fileName = filePath.substr(filePath.find_last_of("/") + 1);
     if (getFileExtension(filePath).compare(".gltf") == 0) {
         std::ifstream file(filePath);
         if (!file.is_open()) {

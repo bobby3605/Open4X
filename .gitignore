@@ -2,3 +2,4 @@ build/
 .ccls-cache/
 compile_commands.json
 uss_enterprise_d_star_trek_tng.glb
+assets/cache

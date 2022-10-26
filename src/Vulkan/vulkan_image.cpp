@@ -2,8 +2,13 @@
 #include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_swapchain.hpp"
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <vector>
 
 VkSamplerAddressMode switchWrap(uint32_t wrap) {
     switch (wrap) {
@@ -53,29 +58,107 @@ VkSamplerMipmapMode switchMipmapFilter(uint32_t filter) {
     }
 }
 
+void VulkanImage::writeImage(std::string path) {
+    // get the writing directory and fileName of an image cache file
+    // Example:
+    // path: ABeautifulGame/ABeautifulGame-gltf/bishop_white_normal.jpg
+    // directory: assets/cache/images/ABeautifulGame/ABeautifulGame-gltf/
+    // fileName: bishop_white_normal.jpg.imageCache
+    std::string directory = "assets/cache/images/" + path.substr(0, path.find_last_of("/")) + "/";
+    // create the directory if it doesn't exist
+    std::filesystem::create_directories(directory);
+    // get the file name
+    std::string fileName = path.substr(path.find_last_of("/") + 1) + ".imageCache";
+    // open image cache file for writing
+    std::ofstream rawPixelWriteFile(directory + fileName, std::ios::binary);
+    if (!rawPixelWriteFile.is_open()) {
+        throw std::runtime_error(std::string("failed to open file for writing: ") + "assets/cache/images/" + path +
+                                 std::string(".imageCache"));
+    }
+    // write image data to the file
+    rawPixelWriteFile.write((char*)&texWidth, sizeof(texWidth));
+    rawPixelWriteFile.write((char*)&texHeight, sizeof(texHeight));
+    rawPixelWriteFile.write((char*)&texChannels, sizeof(texChannels));
+    rawPixelWriteFile.write((char*)pixels, texWidth * texHeight * 4);
+    rawPixelWriteFile.close();
+}
+bool VulkanImage::readImage(std::string path) {
+    std::ifstream rawPixelReadFile("assets/cache/images/" + path + std::string(".imageCache"), std::ios::binary);
+    if (rawPixelReadFile.is_open()) {
+        rawPixelReadFile.read((char*)&texWidth, sizeof(texWidth));
+        rawPixelReadFile.read((char*)&texHeight, sizeof(texHeight));
+        rawPixelReadFile.read((char*)&texChannels, sizeof(texChannels));
+        pixelBuffer.reserve(texWidth * texHeight * 4);
+        rawPixelReadFile.read((char*)pixelBuffer.data(), texWidth * texHeight * 4);
+        rawPixelReadFile.close();
+        // NOTE:
+        // pixelBuffer should never be changed after this point,
+        // if it does, then pixels should get a new pointer,
+        // since vector operations can change the base memory location
+        pixels = pixelBuffer.data();
+        return true;
+    } else {
+        return false;
+    }
+}
+
 VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, VkFormat format)
     : device{device}, model{model}, _textureID{textureID}, _format{format} {
     uint32_t sourceID = model->textures[textureID].source;
 
+    // Get the directory path for the image cache
+    // Example:
+    // model-path(): assets/glTF/ABeautifulGame/
+    // model->fileName(): ABeautifulGame.gltf
+    // gltfPath: glTF/ABeautifulGame/
+    // path: ABeautifulGame/
+    // cacheFilePath: ABeautifulGame/ABeautifulGame-gltf/
+
+    std::string gltfPath = model->path().substr(model->path().find_first_of("/") + 1);
+    std::string path = gltfPath.substr(gltfPath.find_first_of("/") + 1);
+    std::string cacheFilePath = path + model->fileName().substr(0, model->fileName().find_last_of(".")) + "-" +
+                                model->fileName().substr(model->fileName().find_last_of(".") + 1) + "/";
+
+    // TODO
+    // 1. memory mapped io
+    // 2. check if file has already been loaded
     if (model->images[sourceID].uri.has_value()) {
-        pixels =
-            stbi_load((model->path() + model->images[sourceID].uri.value()).c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels) {
-            throw std::runtime_error("failed to load texture image: " + model->path() + model->images[sourceID].uri.value());
+        // add the uri to the directory path
+        cacheFilePath += model->images[sourceID].uri.value();
+        // check if the image file has been loaded from the cache
+        if (!readImage(cacheFilePath)) {
+            // if it hasn't been loaded,
+            // load it from the gltf image and cache it
+            pixels = stbi_load((model->path() + model->images[sourceID].uri.value()).c_str(), &texWidth, &texHeight, &texChannels,
+                               STBI_rgb_alpha);
+            if (!pixels) {
+                throw std::runtime_error("failed to load texture image: " + model->path() + model->images[sourceID].uri.value());
+            }
+            stbiFlag = 1;
+            writeImage(cacheFilePath);
         }
     } else if (model->images[sourceID].bufferView.has_value()) {
-        GLTF::BufferView* bufferView = &model->bufferViews[model->images[sourceID].bufferView.value()];
-        pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
-                                       &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels) {
-            throw std::runtime_error("failed to load texture image from bufferView: " +
-                                     std::to_string(model->images[sourceID].bufferView.value()));
+        // add bufferView-n to the directory path
+        cacheFilePath += "bufferView-" + std::to_string(model->images[sourceID].bufferView.value());
+        if (!readImage(cacheFilePath)) {
+            GLTF::BufferView* bufferView = &model->bufferViews[model->images[sourceID].bufferView.value()];
+            pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
+                                           &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+            if (!pixels) {
+                throw std::runtime_error("failed to load texture image from bufferView: " +
+                                         std::to_string(model->images[sourceID].bufferView.value()));
+            }
+            stbiFlag = 1;
+            writeImage(cacheFilePath);
         }
     } else {
         throw std::runtime_error("no data found for image on textureID: " + std::to_string(textureID));
     }
 
     loadPixels();
+    if (stbiFlag) {
+        stbi_image_free(pixels);
+    }
 }
 
 VulkanImage::VulkanImage(VulkanDevice* device, std::string path, VkFormat format) : device{device}, _format{format} {
@@ -97,8 +180,6 @@ void VulkanImage::loadPixels() {
     stagingBuffer.map();
     stagingBuffer.write(pixels, imageSize);
     stagingBuffer.unmap();
-
-    stbi_image_free(pixels);
 
     device->createImage(texWidth, texHeight, _mipLevels, VK_SAMPLE_COUNT_1_BIT, _format, VK_IMAGE_TILING_OPTIMAL,
                         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

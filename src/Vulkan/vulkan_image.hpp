@@ -23,7 +23,10 @@ class VulkanImage {
 
   private:
     void loadPixels();
+    void writeImage(std::string path);
+    bool readImage(std::string path);
     stbi_uc* pixels;
+    std::vector<unsigned char> pixelBuffer;
 
     VulkanDevice* device;
     GLTF* model = nullptr;
@@ -36,6 +39,8 @@ class VulkanImage {
     uint32_t _mipLevels;
 
     VkFormat _format;
+
+    bool stbiFlag = 0;
 };
 
 class VulkanSampler {

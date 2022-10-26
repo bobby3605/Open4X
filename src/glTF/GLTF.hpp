@@ -21,6 +21,7 @@ class GLTF {
   public:
     GLTF(std::string filePath, uint32_t fileNum);
     std::string const path() { return _path; }
+    std::string const fileName() { return _fileName; }
 
     class Scene {
       public:
@@ -230,6 +231,7 @@ class GLTF {
   private:
     uint32_t _fileNum = 0;
     std::string _path;
+    std::string _fileName;
 };
 
 template <typename T> static T getBufferData(unsigned char* ptr, int offset) { return *reinterpret_cast<T*>(ptr + offset); }

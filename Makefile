@@ -1,5 +1,5 @@
 # Makefile used to control cmake and ninja for building
-.PHONY: open4x run clean shaders
+.PHONY: open4x run clean shaders cleanCache
 
 open4x:
 	mkdir -p build
@@ -17,3 +17,6 @@ shaders:
 
 clean:
 	rm -r build
+
+cleanCache:
+	rm -r assets/cache/*
