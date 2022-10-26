@@ -2,6 +2,7 @@
 #include "../../external/rapidjson/istreamwrapper.h"
 #include "../Vulkan/common.hpp"
 #include "base64.hpp"
+#include <cstdint>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,6 +10,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 
 int GLTF::baseInstanceCount = 0;
@@ -44,24 +46,15 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
             // Get chunk header
             uint32_t chunkLength = readuint32(file);
             uint32_t chunkType = readuint32(file);
-            unsigned char dataBuffer;
+            // read data into buffer
+            std::vector<unsigned char> dataBuffer(chunkLength);
+            file.read((char*)dataBuffer.data(), chunkLength);
             if (chunkType == 0x4E4F534A) {
                 // JSON chunk
-                std::stringstream jsonString;
-                for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
-                    file.read((char*)&dataBuffer, sizeof(dataBuffer));
-                    jsonString << dataBuffer;
-                }
-                IStreamWrapper jsonStream(jsonString);
-                d.ParseStream(jsonStream);
+                d.Parse((char*)dataBuffer.data());
             } else if (chunkType == 0x004E4942) {
-                // Binary chunk
-                std::vector<unsigned char> binaryChunk;
-                for (uint32_t i = 0; i < chunkLength; i += sizeof(dataBuffer)) {
-                    file.read((char*)&dataBuffer, sizeof(dataBuffer));
-                    binaryChunk.push_back(dataBuffer);
-                }
-                binaryBuffers.push(binaryChunk);
+                // binary chunk
+                binaryBuffers.push(dataBuffer);
             } else {
                 throw std::runtime_error("Unknown chunk type: " + std::to_string(chunkType));
             }
