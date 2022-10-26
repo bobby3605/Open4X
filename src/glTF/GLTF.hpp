@@ -332,6 +332,8 @@ template <typename T> static T getComponent(int componentType, unsigned char* da
     }
 }
 
+// TODO
+// create an accessor loader object which can cache expensive string compare calls
 template <typename T> static size_t typeSwitch(std::string type) {
     if (type.compare("SCALAR") == 0) {
         return sizeof(T);
@@ -379,6 +381,8 @@ static size_t sizeSwitch(uint32_t componentType, std::string type) {
 }
 
 template <typename T> static T loadAccessor(GLTF* model, GLTF::Accessor* accessor, int count_index) {
+    // TODO
+    // accessor loader object should also cache this
     GLTF::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
     int offset = accessor->byteOffset + bufferView.byteOffset +
                  count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value()
