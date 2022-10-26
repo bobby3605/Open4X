@@ -378,7 +378,7 @@ static size_t sizeSwitch(uint32_t componentType, std::string type) {
     }
 }
 
-template <typename T> static T loadAccessor(std::shared_ptr<GLTF> model, GLTF::Accessor* accessor, int count_index) {
+template <typename T> static T loadAccessor(GLTF* model, GLTF::Accessor* accessor, int count_index) {
     GLTF::BufferView bufferView = model->bufferViews[accessor->bufferView.value()];
     int offset = accessor->byteOffset + bufferView.byteOffset +
                  count_index * (bufferView.byteStride.has_value() ? bufferView.byteStride.value()

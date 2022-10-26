@@ -33,11 +33,11 @@ VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuff
                 }
                 GLTF::Accessor* inputAccessor = &model->accessors[sampler->inputIndex];
                 for (int i = 0; i < inputAccessor->count; ++i) {
-                    sampler->inputData.push_back(loadAccessor<float>(model, inputAccessor, i));
+                    sampler->inputData.push_back(loadAccessor<float>(model.get(), inputAccessor, i));
                 }
                 GLTF::Accessor* outputAccessor = &model->accessors[sampler->outputIndex];
                 for (int i = 0; i < outputAccessor->count; ++i) {
-                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(model, outputAccessor, i))));
+                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(model.get(), outputAccessor, i))));
                 }
             }
         }

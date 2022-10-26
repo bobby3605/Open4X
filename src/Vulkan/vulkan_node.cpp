@@ -19,7 +19,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model, model->nodes[nodeID].mesh.value(), materialIDMap,
+            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap,
                                                                             ssboBuffers, indirectDraws)});
         }
         // Set _modelMatrix
@@ -130,7 +130,7 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
                        std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
         primitives.push_back(
@@ -138,7 +138,7 @@ VulkanMesh::VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, in
     }
 }
 
-VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
+VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
@@ -168,10 +168,9 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             materialData.baseColorFactor = pbrMetallicRoughness->baseColorFactor;
 
             if (pbrMetallicRoughness->baseColorTexture.has_value()) {
-                image =
-                    std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), pbrMetallicRoughness->baseColorTexture.value()->index);
+                image = std::make_shared<VulkanImage>(ssboBuffers->device, model, pbrMetallicRoughness->baseColorTexture.value()->index);
                 if (model->textures[image->textureID()].sampler.has_value()) {
-                    sampler = std::make_shared<VulkanSampler>(ssboBuffers->device, model.get(),
+                    sampler = std::make_shared<VulkanSampler>(ssboBuffers->device, model,
                                                               model->textures[image->textureID()].sampler.value(), image->mipLevels());
                 } else {
 
@@ -184,9 +183,8 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
 
             if (pbrMetallicRoughness->metallicRoughnessTexture.has_value()) {
-                metallicRoughnessMap =
-                    std::make_shared<VulkanImage>(ssboBuffers->device, model.get(),
-                                                  pbrMetallicRoughness->metallicRoughnessTexture.value()->index, VK_FORMAT_R8G8B8A8_UNORM);
+                metallicRoughnessMap = std::make_shared<VulkanImage>(
+                    ssboBuffers->device, model, pbrMetallicRoughness->metallicRoughnessTexture.value()->index, VK_FORMAT_R8G8B8A8_UNORM);
                 metallicFactor = pbrMetallicRoughness->metallicFactor;
                 roughnessFactor = pbrMetallicRoughness->roughnessFactor;
             } else {
@@ -195,7 +193,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
 
             if (material->normalTexture.has_value()) {
-                normalMap = std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), material->normalTexture.value()->index,
+                normalMap = std::make_shared<VulkanImage>(ssboBuffers->device, model, material->normalTexture.value()->index,
                                                           VK_FORMAT_R8G8B8A8_UNORM);
                 normalScale = material->normalTexture.value()->scale;
             } else {
@@ -203,7 +201,7 @@ VulkanMesh::Primitive::Primitive(std::shared_ptr<GLTF> model, int meshID, int pr
             }
 
             if (material->occlusionTexture.has_value()) {
-                aoMap = std::make_shared<VulkanImage>(ssboBuffers->device, model.get(), material->occlusionTexture.value()->index,
+                aoMap = std::make_shared<VulkanImage>(ssboBuffers->device, model, material->occlusionTexture.value()->index,
                                                       VK_FORMAT_R8G8B8A8_UNORM);
                 occlusionStrength = material->occlusionTexture.value()->scale;
             } else {

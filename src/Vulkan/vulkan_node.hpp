@@ -12,12 +12,12 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(std::shared_ptr<GLTF> model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+    VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
                std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
     class Primitive {
       public:
-        Primitive(std::shared_ptr<GLTF> model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
-                  std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
+        Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
+                  std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         int materialIndex = 0;
