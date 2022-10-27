@@ -305,7 +305,7 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         vertices.resize(accessor->count);
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             Vertex vertex{};
-            if (sparseIndices.count(count_index) == 1) {
+            if (sparseIndices.size() != 0 && sparseIndices.count(count_index) == 1) {
                 vertex.pos = *sparseValuesIterator;
                 ++sparseValuesIterator;
             } else {
