@@ -274,61 +274,62 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         // Vector of vertices to replace with
         std::vector<glm::vec3> sparseValues;
         if (accessor->sparse.has_value()) {
-            GLTF::BufferView* bufferView;
+            AccessorLoader<uint32_t> sparseIndicesLoader(model, accessor, &model->bufferViews[accessor->sparse->indices->bufferView],
+                                                         accessor->sparse->indices->byteOffset, accessor->sparse->indices->componentType,
+                                                         "SCALAR");
+            AccessorLoader<glm::vec3> sparseValuesLoader(model, accessor, &model->bufferViews[accessor->sparse->values->bufferView],
+                                                         accessor->sparse->values->byteOffset, accessor->componentType, accessor->type);
+            sparseValues.reserve(accessor->sparse->count);
             for (uint32_t count_index = 0; count_index < accessor->sparse->count; ++count_index) {
                 // load the index
-                bufferView = &model->bufferViews[accessor->sparse->indices->bufferView];
-                int offset =
-                    accessor->sparse->indices->byteOffset + bufferView->byteOffset +
-                    count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value()
-                                                                      : sizeSwitch(accessor->sparse->indices->componentType, "SCALAR"));
-                sparseIndices.insert(getComponent<uint32_t>(accessor->sparse->indices->componentType,
-                                                            model->buffers[bufferView->buffer].data.data(), offset));
+                sparseIndices.insert(sparseIndicesLoader.at(count_index));
                 // load the vertex
-                bufferView = &model->bufferViews[accessor->sparse->values->bufferView];
-                offset = accessor->sparse->values->byteOffset + bufferView->byteOffset +
-                         count_index * (bufferView->byteStride.has_value() ? bufferView->byteStride.value()
-                                                                           : sizeSwitch(accessor->componentType, accessor->type));
-                sparseValues.push_back(
-                    getComponent<glm::vec3>(accessor->componentType, model->buffers[bufferView->buffer].data.data(), offset));
+                sparseValues.push_back(sparseValuesLoader.at(count_index));
             }
         }
         std::vector<glm::vec3>::iterator sparseValuesIterator = sparseValues.begin();
 
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+        // Create accessor loaders for each attribute
+        AccessorLoader<glm::vec3> positionAccessor(model, accessor);
+        AccessorLoader<glm::vec2>* texCoordAccessor = nullptr;
+        if (primitive->attributes->texcoords.size() > 0) {
+            texCoordAccessor = new AccessorLoader<glm::vec2>(model, &model->accessors[primitive->attributes->texcoords[texCoordSelector]]);
+        }
+        AccessorLoader<glm::vec3>* normalAccessor = nullptr;
+        if (primitive->attributes->normal.has_value()) {
+            normalAccessor = new AccessorLoader<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()]);
+        }
+
+        vertices.resize(accessor->count);
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             Vertex vertex{};
             if (sparseIndices.count(count_index) == 1) {
                 vertex.pos = *sparseValuesIterator;
                 ++sparseValuesIterator;
             } else {
-                vertex.pos = loadAccessor<glm::vec3>(model, accessor, count_index);
+                vertex.pos = positionAccessor.at(count_index);
             }
 
-            // Texcoord
             vertex.texCoord = {0.0f, 0.0f};
+            // Texcoord
             if (primitive->attributes->texcoords.size() > 0) {
-                for (int texCoordSelected = 0; texCoordSelected < primitive->attributes->texcoords.size(); ++texCoordSelected) {
-                    if (texCoordSelected == texCoordSelector) {
-                        vertex.texCoord = loadAccessor<glm::vec2>(
-                            model, &model->accessors[primitive->attributes->texcoords[texCoordSelected]], count_index);
-                        break;
-                    }
-                }
+                vertex.texCoord = texCoordAccessor->at(count_index);
             }
 
             // Normal
             vertex.normal = {0.0f, 0.0f, 1.0f};
             if (primitive->attributes->normal.has_value()) {
-                vertex.normal = loadAccessor<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()], count_index);
+                vertex.normal = normalAccessor->at(count_index);
             }
 
             vertex.tangent = {0.0f, 1.0f, 0.0f, 1.0f};
             if (primitive->attributes->tangent.has_value()) {
-                vertex.tangent = loadAccessor<glm::vec4>(model, &model->accessors[primitive->attributes->tangent.value()], count_index);
+                // vertex.tangent = loadAccessor<glm::vec4>(model, &model->accessors[primitive->attributes->tangent.value()], count_index);
             }
 
-            vertices.push_back(vertex);
+            vertices[count_index] = vertex;
             // Generate indices if none exist
             if (!primitive->indices.has_value()) {
                 if (uniqueVertices.count(vertex) == 0) {
@@ -337,6 +338,12 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
                 }
                 indices.push_back(uniqueVertices[vertex]);
             }
+        }
+        if (texCoordAccessor != nullptr) {
+            delete texCoordAccessor;
+        }
+        if (normalAccessor != nullptr) {
+            delete normalAccessor;
         }
     }
 
@@ -385,9 +392,10 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
     }
     if (primitive->indices.has_value()) {
         accessor = &model->accessors[primitive->indices.value()];
-        indices.reserve(accessor->count);
+        indices.resize(accessor->count);
+        AccessorLoader<uint32_t> indicesAccessor(model, accessor);
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
-            indices.push_back(loadAccessor<uint32_t>(model, accessor, count_index));
+            indices[count_index] = indicesAccessor.at(count_index);
         }
     }
 

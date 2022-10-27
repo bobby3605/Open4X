@@ -1,5 +1,6 @@
 #ifndef VULKAN_NODE_H_
 #define VULKAN_NODE_H_
+#include "../glTF/AccessorLoader.hpp"
 #include "../glTF/GLTF.hpp"
 #include "vulkan_image.hpp"
 #include "vulkan_model.hpp"

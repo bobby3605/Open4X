@@ -1,4 +1,5 @@
 #include "vulkan_object.hpp"
+#include "../glTF/AccessorLoader.hpp"
 #include "vulkan_renderer.hpp"
 #include <chrono>
 #include <cstdint>
@@ -32,12 +33,14 @@ VulkanObject::VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuff
                     node.value()->animationPair = {channel, sampler};
                 }
                 GLTF::Accessor* inputAccessor = &model->accessors[sampler->inputIndex];
-                for (int i = 0; i < inputAccessor->count; ++i) {
-                    sampler->inputData.push_back(loadAccessor<float>(model.get(), inputAccessor, i));
+                AccessorLoader<float> inputAccessorLoader(model.get(), inputAccessor);
+                for (int count_index = 0; count_index < inputAccessor->count; ++count_index) {
+                    sampler->inputData.push_back(inputAccessorLoader.at(count_index));
                 }
                 GLTF::Accessor* outputAccessor = &model->accessors[sampler->outputIndex];
-                for (int i = 0; i < outputAccessor->count; ++i) {
-                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(loadAccessor<glm::vec4>(model.get(), outputAccessor, i))));
+                AccessorLoader<glm::vec4> outputAccessorLoader(model.get(), outputAccessor);
+                for (int count_index = 0; count_index < outputAccessor->count; ++count_index) {
+                    sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(outputAccessorLoader.at(count_index))));
                 }
             }
         }
