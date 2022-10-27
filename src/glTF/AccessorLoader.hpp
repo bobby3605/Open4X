@@ -18,6 +18,7 @@ template <typename OT> class AccessorLoader {
     uint32_t baseOffset;
     uint32_t multiplyOffset;
     uint32_t _componentType = -1;
+    OT (*getComponentFunc)(unsigned char*, int);
 
     template <typename T> static T getBufferData(unsigned char* ptr, int offset) { return *reinterpret_cast<T*>(ptr + offset); }
 
@@ -91,25 +92,25 @@ template <typename OT> class AccessorLoader {
         }
     };
 
-    template <typename T> T getComponent(uint32_t offset) {
+    template <typename T> auto getComponent() {
         switch (_componentType) {
         case 5120:
-            return AccessorLoaders<T, char>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, char>::getAccessorValue;
             break;
         case 5121:
-            return AccessorLoaders<T, unsigned char>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, unsigned char>::getAccessorValue;
             break;
         case 5122:
-            return AccessorLoaders<T, short>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, short>::getAccessorValue;
             break;
         case 5123:
-            return AccessorLoaders<T, unsigned short>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, unsigned short>::getAccessorValue;
             break;
         case 5125:
-            return AccessorLoaders<T, uint32_t>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, uint32_t>::getAccessorValue;
             break;
         case 5126:
-            return AccessorLoaders<T, float>::getAccessorValue(data, offset);
+            return AccessorLoaders<T, float>::getAccessorValue;
             break;
         default:
             throw std::runtime_error("Unknown component type: " + std::to_string(_componentType));

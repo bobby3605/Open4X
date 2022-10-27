@@ -7,6 +7,7 @@ template <typename OT> AccessorLoader<OT>::AccessorLoader(GLTF* model, GLTF::Acc
         _bufferView->byteStride.has_value() ? _bufferView->byteStride.value() : sizeSwitch(accessor->componentType, accessor->type);
     data = model->buffers[_bufferView->buffer].data.data();
     _componentType = accessor->componentType;
+    getComponentFunc = getComponent<OT>();
 }
 
 template <typename OT>
@@ -18,9 +19,10 @@ AccessorLoader<OT>::AccessorLoader(GLTF* model, GLTF::Accessor* accessor, GLTF::
     multiplyOffset = _bufferView->byteStride.has_value() ? _bufferView->byteStride.value() : sizeSwitch(componentType, type);
     _componentType = componentType;
     data = model->buffers[_bufferView->buffer].data.data();
+    getComponentFunc = getComponent<OT>();
 }
 
 template <typename OT> OT AccessorLoader<OT>::at(uint32_t count_index) {
     uint32_t offset = baseOffset + count_index * multiplyOffset;
-    return getComponent<OT>(offset);
+    return getComponentFunc(data, offset);
 }
