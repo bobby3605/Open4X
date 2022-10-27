@@ -267,8 +267,9 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
     ssboBuffers->materialIndicesMapped[indirectDraws.size()].materialIndex = materialIndex;
 
     // Load vertices
-    if (primitive->attributes->position.has_value()) {
-        accessor = &model->accessors[primitive->attributes->position.value()];
+    GLTF::Mesh::Primitive::Attributes* attributes = primitive->attributes.get();
+    if (attributes->position.has_value()) {
+        accessor = &model->accessors[attributes->position.value()];
         // Set of sparse indices
         std::set<uint32_t> sparseIndices;
         // Vector of vertices to replace with
@@ -294,12 +295,12 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         // Create accessor loaders for each attribute
         AccessorLoader<glm::vec3> positionAccessor(model, accessor);
         AccessorLoader<glm::vec2>* texCoordAccessor = nullptr;
-        if (primitive->attributes->texcoords.size() > 0) {
-            texCoordAccessor = new AccessorLoader<glm::vec2>(model, &model->accessors[primitive->attributes->texcoords[texCoordSelector]]);
+        if (attributes->texcoords.size() > 0) {
+            texCoordAccessor = new AccessorLoader<glm::vec2>(model, &model->accessors[attributes->texcoords[texCoordSelector]]);
         }
         AccessorLoader<glm::vec3>* normalAccessor = nullptr;
-        if (primitive->attributes->normal.has_value()) {
-            normalAccessor = new AccessorLoader<glm::vec3>(model, &model->accessors[primitive->attributes->normal.value()]);
+        if (attributes->normal.has_value()) {
+            normalAccessor = new AccessorLoader<glm::vec3>(model, &model->accessors[attributes->normal.value()]);
         }
 
         vertices.resize(accessor->count);
@@ -314,19 +315,19 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
 
             vertex.texCoord = {0.0f, 0.0f};
             // Texcoord
-            if (primitive->attributes->texcoords.size() > 0) {
+            if (attributes->texcoords.size() > 0) {
                 vertex.texCoord = texCoordAccessor->at(count_index);
             }
 
             // Normal
             vertex.normal = {0.0f, 0.0f, 1.0f};
-            if (primitive->attributes->normal.has_value()) {
+            if (attributes->normal.has_value()) {
                 vertex.normal = normalAccessor->at(count_index);
             }
 
             vertex.tangent = {0.0f, 1.0f, 0.0f, 1.0f};
-            if (primitive->attributes->tangent.has_value()) {
-                // vertex.tangent = loadAccessor<glm::vec4>(model, &model->accessors[primitive->attributes->tangent.value()], count_index);
+            if (attributes->tangent.has_value()) {
+                // vertex.tangent = loadAccessor<glm::vec4>(model, &model->accessors[attributes->tangent.value()], count_index);
             }
 
             vertices[count_index] = vertex;
@@ -354,7 +355,7 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
     // possibly calculate tangents in only one pass
     // NOTE:
     // doesn't work
-    if (!primitive->attributes->tangent.has_value() && 0) {
+    if (!attributes->tangent.has_value() && 0) {
         for (int i = 0; i < vertices.size(); i += 3) {
 
             Vertex vertex = vertices[i];
