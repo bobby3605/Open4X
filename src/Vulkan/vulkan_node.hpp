@@ -34,6 +34,9 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
+
+      private:
+        static std::mutex primitiveMutex;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

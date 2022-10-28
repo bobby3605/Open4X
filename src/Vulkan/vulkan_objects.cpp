@@ -26,11 +26,16 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath.exists() && filePath.is_regular_file()) {
             if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
                 (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
-                std::shared_ptr<GLTF> model = std::make_shared<GLTF>(filePath.path(), fileNum);
+                futureGLTF_Models.push_back(
+                    std::async(std::launch::async, [filePath, fileNum]() { return std::make_shared<GLTF>(filePath.path(), fileNum); }));
                 ++fileNum;
-                gltf_models.insert({filePath.path(), model});
             }
         }
+    }
+
+    for (int modelIndex = 0; modelIndex < futureGLTF_Models.size(); ++modelIndex) {
+        std::shared_ptr<GLTF> model = futureGLTF_Models[modelIndex].get();
+        gltf_models.insert({model->path() + model->fileName(), model});
     }
 
     ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount, GLTF::primitiveCount);
@@ -53,7 +58,16 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::string filePath = pathModelPair.first;
         std::shared_ptr<GLTF> model = pathModelPair.second;
 
-        objects.push_back(std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws));
+        futureObjects.push_back(std::async(std::launch::async, [model, filePath, this]() {
+            return std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws);
+        }));
+    }
+
+    for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
+        objects.push_back(futureObjects[objectIndex].get());
+        std::shared_ptr<GLTF> model = objects.back()->model;
+        std::string filePath = model->path() + model->fileName();
+
         if (model->animations.size() > 0) {
             animatedObjects.push_back(objects.back());
         }

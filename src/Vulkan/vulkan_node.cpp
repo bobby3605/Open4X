@@ -35,6 +35,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             int currIndex = primitive->gl_BaseInstance + indirectDraws[primitive->indirectDrawIndex].instanceCount - 1;
             ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
         }
+        // Probably isn't thread safe without a mutex, but there doesn't seem to be a rendering bug
         ++ssboBuffers->uniqueObjectID;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
@@ -138,8 +139,12 @@ VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMa
     }
 }
 
+std::mutex VulkanMesh::Primitive::primitiveMutex;
 VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
+    // TODO
+    // get rid of the mutex and make this thread safe
+    const std::lock_guard<std::mutex> lock(primitiveMutex);
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;

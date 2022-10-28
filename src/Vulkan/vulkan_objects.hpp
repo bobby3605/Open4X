@@ -5,6 +5,7 @@
 #include "vulkan_device.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include <future>
 #include <map>
 #include <memory>
 #include <vector>
@@ -23,8 +24,10 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
     std::shared_ptr<SSBOBuffers> ssboBuffers;
     std::vector<std::shared_ptr<VulkanObject>> objects;
+    std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
     std::unordered_map<std::string, std::shared_ptr<GLTF>> gltf_models;
+    std::vector<std::future<std::shared_ptr<GLTF>>> futureGLTF_Models;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;

@@ -402,10 +402,14 @@ void VulkanDevice::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
     vkBindBufferMemory(device_, buffer, bufferMemory, 0);
 }
 
+// Initialize the mutex
+std::mutex VulkanDevice::singleTimeBuilder::singleTimeMutex;
+
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeCommands() { return *(new singleTimeBuilder(this, singleTimeCommandPool)); }
 
 VulkanDevice::singleTimeBuilder::singleTimeBuilder(VulkanDevice* vulkanDevice, VkCommandPool commandPool)
     : vulkanDevice(vulkanDevice), commandPool(commandPool) {
+    singleTimeMutex.lock();
     beginSingleTimeCommands();
 }
 
@@ -443,6 +447,7 @@ void VulkanDevice::singleTimeBuilder::endSingleTimeCommands() {
 
 void VulkanDevice::singleTimeBuilder::run() {
     endSingleTimeCommands();
+    singleTimeMutex.unlock();
     delete this;
 }
 

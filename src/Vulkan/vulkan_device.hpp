@@ -4,6 +4,7 @@
 #include "vulkan_window.hpp"
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -69,6 +70,10 @@ class VulkanDevice {
         VkCommandPool commandPool;
         VkCommandBuffer commandBuffer;
         VulkanDevice* vulkanDevice;
+
+        // TODO
+        // Use multiple command buffers and pools instead of a mutex
+        static std::mutex singleTimeMutex;
 
         void beginSingleTimeCommands();
         void endSingleTimeCommands();
