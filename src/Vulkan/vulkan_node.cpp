@@ -16,6 +16,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
         meshID = model->nodes[nodeID].mesh.value();
+        objectID = ssboBuffers->uniqueObjectID.fetch_add(1, std::memory_order_relaxed);
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
@@ -23,7 +24,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
                                                                             ssboBuffers, indirectDraws)});
         }
         // Set _modelMatrix
-        _modelMatrix = &ssboBuffers->ssboMapped[ssboBuffers->uniqueObjectID].modelMatrix;
+        _modelMatrix = &ssboBuffers->ssboMapped[objectID].modelMatrix;
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
@@ -33,10 +34,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             // if indirectDraw.instanceCount == 0, then no instances are drawn
             ++indirectDraws[primitive->indirectDrawIndex].instanceCount;
             int currIndex = primitive->gl_BaseInstance + indirectDraws[primitive->indirectDrawIndex].instanceCount - 1;
-            ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = ssboBuffers->uniqueObjectID;
+            ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = objectID;
         }
-        // Probably isn't thread safe without a mutex, but there doesn't seem to be a rendering bug
-        ++ssboBuffers->uniqueObjectID;
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, indirectDraws));
@@ -139,12 +138,10 @@ VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMa
     }
 }
 
-std::mutex VulkanMesh::Primitive::primitiveMutex;
 VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
-    // TODO
-    // get rid of the mutex and make this thread safe
-    const std::lock_guard<std::mutex> lock(primitiveMutex);
+
+    indirectDrawIndex = ssboBuffers->currDrawIndex.fetch_add(1, std::memory_order_relaxed);
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
     gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
@@ -237,25 +234,22 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
     if (unique) {
         // Check for unique maps
         if (ssboBuffers->uniqueImagesMap.count((void*)image.get()) == 0) {
-            ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount});
-            ++ssboBuffers->imagesCount;
+            ssboBuffers->uniqueImagesMap.insert({(void*)image.get(), ssboBuffers->imagesCount.fetch_add(1, std::memory_order_relaxed)});
         }
         if (ssboBuffers->uniqueSamplersMap.count((void*)sampler.get()) == 0) {
-            ssboBuffers->uniqueSamplersMap.insert({(void*)sampler.get(), ssboBuffers->samplersCount});
-            ++ssboBuffers->samplersCount;
+            ssboBuffers->uniqueSamplersMap.insert(
+                {(void*)sampler.get(), ssboBuffers->samplersCount.fetch_add(1, std::memory_order_relaxed)});
         }
         if (ssboBuffers->uniqueMetallicRoughnessMapsMap.count((void*)metallicRoughnessMap.get()) == 0) {
             ssboBuffers->uniqueMetallicRoughnessMapsMap.insert(
-                {(void*)metallicRoughnessMap.get(), ssboBuffers->metallicRoughnessMapsCount});
-            ++ssboBuffers->metallicRoughnessMapsCount;
+                {(void*)metallicRoughnessMap.get(), ssboBuffers->metallicRoughnessMapsCount.fetch_add(1, std::memory_order_relaxed)});
         }
         if (ssboBuffers->uniqueNormalMapsMap.count((void*)normalMap.get()) == 0) {
-            ssboBuffers->uniqueNormalMapsMap.insert({(void*)normalMap.get(), ssboBuffers->normalMapsCount});
-            ++ssboBuffers->normalMapsCount;
+            ssboBuffers->uniqueNormalMapsMap.insert(
+                {(void*)normalMap.get(), ssboBuffers->normalMapsCount.fetch_add(1, std::memory_order_relaxed)});
         }
         if (ssboBuffers->uniqueAoMapsMap.count((void*)aoMap.get()) == 0) {
-            ssboBuffers->uniqueAoMapsMap.insert({(void*)aoMap.get(), ssboBuffers->aoMapsCount});
-            ++ssboBuffers->aoMapsCount;
+            ssboBuffers->uniqueAoMapsMap.insert({(void*)aoMap.get(), ssboBuffers->aoMapsCount.fetch_add(1, std::memory_order_relaxed)});
         }
         ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
         ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
@@ -269,7 +263,7 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
     // meshID + primitiveID = gl_DrawID
-    ssboBuffers->materialIndicesMapped[indirectDraws.size()].materialIndex = materialIndex;
+    ssboBuffers->materialIndicesMapped[indirectDrawIndex].materialIndex = materialIndex;
 
     // Load vertices
     GLTF::Mesh::Primitive::Attributes* attributes = primitive->attributes.get();
@@ -405,8 +399,6 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         }
     }
 
-    indirectDraws.resize(indirectDraws.size() + 1);
-    indirectDrawIndex = indirectDraws.size() - 1;
     indirectDraws[indirectDrawIndex].indexCount = indices.size();
     indirectDraws[indirectDrawIndex].instanceCount = 0;
     indirectDraws[indirectDrawIndex].firstIndex = 0;

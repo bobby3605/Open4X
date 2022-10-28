@@ -34,9 +34,6 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
-
-      private:
-        static std::mutex primitiveMutex;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };
@@ -50,6 +47,7 @@ class VulkanNode {
     std::shared_ptr<GLTF> model;
     int nodeID;
     std::optional<int> meshID;
+    uint32_t objectID;
     std::optional<std::pair<std::shared_ptr<GLTF::Animation::Channel>, std::shared_ptr<GLTF::Animation::Sampler>>> animationPair;
     glm::mat4 const modelMatrix();
     std::vector<std::shared_ptr<VulkanNode>> children;

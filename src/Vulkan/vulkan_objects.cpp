@@ -38,6 +38,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         gltf_models.insert({model->path() + model->fileName(), model});
     }
 
+    indirectDraws.resize(GLTF::primitiveCount);
+
     ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =

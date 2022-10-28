@@ -2,6 +2,7 @@
 #define VULKAN_BUFFER_H_
 #include "glm/glm.hpp"
 #include "vulkan_device.hpp"
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -115,21 +116,22 @@ class SSBOBuffers {
     std::shared_ptr<void> defaultMetallicRoughnessMap;
     std::shared_ptr<void> defaultAoMap;
 
-    uint32_t samplersCount = 1;
+    std::atomic<uint32_t> samplersCount = 1;
     std::map<void*, int> uniqueSamplersMap;
-    uint32_t imagesCount = 1;
+    std::atomic<uint32_t> imagesCount = 1;
     std::map<void*, int> uniqueImagesMap;
-    uint32_t normalMapsCount = 1;
+    std::atomic<uint32_t> normalMapsCount = 1;
     std::map<void*, int> uniqueNormalMapsMap;
-    uint32_t metallicRoughnessMapsCount = 1;
+    std::atomic<uint32_t> metallicRoughnessMapsCount = 1;
     std::map<void*, int> uniqueMetallicRoughnessMapsMap;
-    uint32_t aoMapsCount = 1;
+    std::atomic<uint32_t> aoMapsCount = 1;
     std::map<void*, int> uniqueAoMapsMap;
     InstanceIndicesData* instanceIndicesMapped;
     MaterialIndicesData* materialIndicesMapped;
-    int uniqueObjectID = 0;
+    std::atomic<uint32_t> uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor
-    int uniqueMaterialID = 1;
+    std::atomic<uint32_t> uniqueMaterialID = 1;
+    std::atomic<uint32_t> currDrawIndex = 0;
     VulkanDevice* device;
 
   private:
