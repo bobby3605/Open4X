@@ -8,6 +8,7 @@
 #include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 #include "glTF/GLTF.hpp"
+#include <chrono>
 
 class Open4X {
   public:
@@ -23,6 +24,8 @@ class Open4X {
     VulkanRenderer* vulkanRenderer;
 
     std::shared_ptr<VulkanObjects> objects;
+
+    std::chrono::system_clock::time_point creationTime;
 };
 
 #endif // OPEN4X_H_

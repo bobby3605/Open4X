@@ -11,7 +11,6 @@
 #include "Vulkan/vulkan_swapchain.hpp"
 #include "open4x.hpp"
 #include <GLFW/glfw3.h>
-#include <chrono>
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
@@ -41,6 +40,7 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 }
 
 Open4X::Open4X() {
+    creationTime = std::chrono::high_resolution_clock::now();
     vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
     glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
@@ -93,6 +93,8 @@ void Open4X::run() {
                                      0.001f, 1000.0f);
 
     auto startTime = std::chrono::high_resolution_clock::now();
+    std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
+              << "ms" << std::endl;
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
 

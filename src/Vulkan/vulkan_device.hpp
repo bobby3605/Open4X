@@ -116,6 +116,7 @@ class VulkanDevice {
     std::vector<const char*> getRequiredExtensions();
     bool checkValidationLayerSupport();
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+    VkPhysicalDeviceMemoryProperties memProperties;
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     VkSampleCountFlagBits getMaxUsableSampleCount();
 

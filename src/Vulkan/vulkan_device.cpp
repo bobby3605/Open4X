@@ -368,9 +368,6 @@ VkCommandPool VulkanDevice::createCommandPool(VkCommandPoolCreateFlags flags) {
 }
 
 uint32_t VulkanDevice::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
@@ -642,6 +639,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     setupDebugMessenger();
     createSurface();
     pickPhysicalDevice();
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
     createLogicalDevice();
     commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     commandPoolAllocator = new VulkanCommandPoolAllocator(this);
