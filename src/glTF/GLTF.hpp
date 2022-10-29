@@ -1,6 +1,7 @@
 #ifndef GLTF_H_
 #define GLTF_H_
 #include "../../external/rapidjson/document.h"
+#include <atomic>
 #include <fstream>
 #include <glm/detail/qualifier.hpp>
 #include <glm/glm.hpp>
@@ -209,7 +210,7 @@ class GLTF {
     std::vector<Texture> textures;
 
     // file number, meshid, primitiveid -> gl_BaseInstance
-    inline static std::map<std::tuple<int, int, int>, int> primitiveBaseInstanceMap;
+    inline static std::map<std::tuple<int, int, int>, uint32_t> primitiveBaseInstanceMap;
     uint32_t const fileNum() { return _fileNum; }
 
     static uint32_t readuint32(std::ifstream& file) {
@@ -225,8 +226,8 @@ class GLTF {
         }
     }
 
-    static int baseInstanceCount;
-    static int primitiveCount;
+    static std::atomic<uint32_t> baseInstanceCount;
+    static std::atomic<uint32_t> primitiveCount;
 
   private:
     uint32_t _fileNum = 0;

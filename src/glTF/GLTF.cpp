@@ -13,8 +13,8 @@
 #include <iterator>
 #include <sstream>
 
-int GLTF::baseInstanceCount = 0;
-int GLTF::primitiveCount = 0;
+std::atomic<uint32_t> GLTF::baseInstanceCount = 0;
+std::atomic<uint32_t> GLTF::primitiveCount = 0;
 
 GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
@@ -166,8 +166,8 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     // and memory is used perfectly efficiently (no gaps between instance indices)
     for (int meshID = 0; meshID < meshes.size(); ++meshID) {
         for (int primitiveID = 0; primitiveID < meshes[meshID].primitives.size(); ++primitiveID) {
-            primitiveBaseInstanceMap.insert({{fileNum, meshID, primitiveID}, baseInstanceCount});
-            baseInstanceCount += meshes[meshID].instanceCount;
+            primitiveBaseInstanceMap.insert(
+                {{fileNum, meshID, primitiveID}, baseInstanceCount.fetch_add(meshes[meshID].instanceCount, std::memory_order_relaxed)});
         }
     }
 }
