@@ -6,6 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -56,9 +57,11 @@ class VulkanDevice {
     VkFence getFence();
     void releaseFence(VkFence fence);
 
+    VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
+
     class singleTimeBuilder {
       public:
-        singleTimeBuilder(VulkanDevice* vulkanDevice, VkCommandPool commandPool);
+        singleTimeBuilder(VulkanDevice* vulkanDevice);
         singleTimeBuilder& copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
         singleTimeBuilder& transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                                  uint32_t mipLevels);
@@ -70,10 +73,7 @@ class VulkanDevice {
         VkCommandPool commandPool;
         VkCommandBuffer commandBuffer;
         VulkanDevice* vulkanDevice;
-
-        // TODO
-        // Use multiple command buffers and pools instead of a mutex
-        static std::mutex singleTimeMutex;
+        static std::mutex submitQueueMutex;
 
         void beginSingleTimeCommands();
         void endSingleTimeCommands();
@@ -88,7 +88,6 @@ class VulkanDevice {
     VkDebugUtilsMessengerEXT debugMessenger;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkCommandPool commandPool_;
-    VkCommandPool singleTimeCommandPool;
 
     VkDevice device_;
     VkSurfaceKHR surface_;
@@ -108,7 +107,6 @@ class VulkanDevice {
     void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
-    VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
 
     std::vector<VkFence> fencePool;
 
@@ -123,6 +121,25 @@ class VulkanDevice {
 
     const std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+    class VulkanCommandPoolAllocator {
+      public:
+        VulkanCommandPoolAllocator(VulkanDevice* device);
+        ~VulkanCommandPoolAllocator();
+        VkCommandPool getPool();
+        VkCommandBuffer getBuffer(VkCommandPool pool);
+        void releasePool(VkCommandPool pool);
+        void releaseBuffer(VkCommandPool pool, VkCommandBuffer buffer);
+
+      private:
+        std::unordered_map<VkCommandPool, std::pair<bool, std::unordered_map<VkCommandBuffer, bool>>> pools;
+        VulkanDevice* device;
+        static std::mutex getPoolMutex;
+        static std::mutex getBufferMutex;
+    };
+
+  public:
+    VulkanCommandPoolAllocator* commandPoolAllocator;
 };
 
 #endif // VULKAN_DEVICE_H_

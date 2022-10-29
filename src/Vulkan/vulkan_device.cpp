@@ -402,32 +402,23 @@ void VulkanDevice::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkM
     vkBindBufferMemory(device_, buffer, bufferMemory, 0);
 }
 
-// Initialize the mutex
-std::mutex VulkanDevice::singleTimeBuilder::singleTimeMutex;
+VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeCommands() { return *(new singleTimeBuilder(this)); }
 
-VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeCommands() { return *(new singleTimeBuilder(this, singleTimeCommandPool)); }
-
-VulkanDevice::singleTimeBuilder::singleTimeBuilder(VulkanDevice* vulkanDevice, VkCommandPool commandPool)
-    : vulkanDevice(vulkanDevice), commandPool(commandPool) {
-    singleTimeMutex.lock();
+VulkanDevice::singleTimeBuilder::singleTimeBuilder(VulkanDevice* vulkanDevice) : vulkanDevice(vulkanDevice) {
+    commandPool = vulkanDevice->commandPoolAllocator->getPool();
+    commandBuffer = vulkanDevice->commandPoolAllocator->getBuffer(commandPool);
     beginSingleTimeCommands();
 }
 
 void VulkanDevice::singleTimeBuilder::beginSingleTimeCommands() {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
-    allocInfo.commandBufferCount = 1;
-
-    vkAllocateCommandBuffers(vulkanDevice->device(), &allocInfo, &commandBuffer);
-
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 }
+
+std::mutex VulkanDevice::singleTimeBuilder::submitQueueMutex;
 
 void VulkanDevice::singleTimeBuilder::endSingleTimeCommands() {
     vkEndCommandBuffer(commandBuffer);
@@ -437,17 +428,20 @@ void VulkanDevice::singleTimeBuilder::endSingleTimeCommands() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
+    submitQueueMutex.lock();
     VkFence fence = vulkanDevice->getFence();
     vkQueueSubmit(vulkanDevice->graphicsQueue(), 1, &submitInfo, fence);
+    submitQueueMutex.unlock();
     vkWaitForFences(vulkanDevice->device(), 1, &fence, VK_TRUE, UINT64_MAX);
     vulkanDevice->releaseFence(fence);
 
-    vkFreeCommandBuffers(vulkanDevice->device(), commandPool, 1, &commandBuffer);
+    vkResetCommandBuffer(commandBuffer, 0);
 }
 
 void VulkanDevice::singleTimeBuilder::run() {
     endSingleTimeCommands();
-    singleTimeMutex.unlock();
+    vulkanDevice->commandPoolAllocator->releaseBuffer(commandPool, commandBuffer);
+    vulkanDevice->commandPoolAllocator->releasePool(commandPool);
     delete this;
 }
 
@@ -650,7 +644,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     pickPhysicalDevice();
     createLogicalDevice();
     commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    singleTimeCommandPool = createCommandPool(VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    commandPoolAllocator = new VulkanCommandPoolAllocator(this);
 }
 
 bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
@@ -678,7 +672,7 @@ VulkanDevice::~VulkanDevice() {
         vkDestroyFence(device_, fence, nullptr);
     }
     vkDestroyCommandPool(device_, commandPool_, nullptr);
-    vkDestroyCommandPool(device_, singleTimeCommandPool, nullptr);
+    delete commandPoolAllocator;
     vkDestroyDevice(device_, nullptr);
 
     if (enableValidationLayers) {
