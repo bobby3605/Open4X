@@ -47,7 +47,7 @@ template <typename OT> class AccessorLoader {
         static auto getAccessorValue() { return getBufferData<glm::mat<3, 3, T>>; }
     };
     template <typename T> struct AccessorLoaders<glm::mat4, T> {
-        static auto getAccessorValue() { return getBufferData<glm::mat<3, 3, T>>; }
+        static auto getAccessorValue() { return getBufferData<glm::mat<4, 4, T>>; }
     };
 
     template <typename RT> auto getComponent() {
