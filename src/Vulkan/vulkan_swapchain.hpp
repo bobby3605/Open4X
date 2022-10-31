@@ -22,6 +22,8 @@ class VulkanSwapChain {
     VkImageView getColorImageView() { return colorImageView; }
     VkImage getDepthImage() { return depthImage; }
     VkImageView getDepthImageView() { return depthImageView; }
+    VkImage getSwapChainImage() { return swapChainImages[currentFrame]; }
+    VkImageView getSwapChainImageView() { return swapChainImageViews[currentFrame]; }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkFormat findDepthFormat();
 

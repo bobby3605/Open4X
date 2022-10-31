@@ -254,7 +254,7 @@ void VulkanRenderer::beginSwapChainrenderPass() {
     passInfo.pDepthAttachment = &depthAttachment;
 
     device->singleTimeCommands()
-        .transitionImageLayout(swapChain->getColorImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
         .run();
 
@@ -271,7 +271,7 @@ void VulkanRenderer::endSwapChainrenderPass() {
     vkCmdEndRendering(commandBuffers[currentFrame]);
 
     device->singleTimeCommands()
-        .transitionImageLayout(swapChain->getColorImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
         .run();
 }
