@@ -265,7 +265,7 @@ void VulkanDevice::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Open 4X Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_2;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -621,19 +621,24 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::generateMipmap
 }
 
 VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
+    vk13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    vk13_features.dynamicRendering = VK_TRUE;
+
     vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vk12_features.runtimeDescriptorArray = VK_TRUE;
     vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
 
-    ext_feature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_feature.pNext = &vk12_features;
-    ext_feature.shaderDrawParameters = VK_TRUE;
+    vk11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    vk11_features.shaderDrawParameters = VK_TRUE;
 
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures.features.samplerAnisotropy = VK_TRUE;
     deviceFeatures.features.sampleRateShading = sampleShading;
     deviceFeatures.features.multiDrawIndirect = VK_TRUE;
-    deviceFeatures.pNext = &ext_feature;
+
+    deviceFeatures.pNext = &vk11_features;
+    vk11_features.pNext = &vk12_features;
+    vk12_features.pNext = &vk13_features;
 
     createInstance();
     setupDebugMessenger();
@@ -647,21 +652,25 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
 
 bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
 
+    VkPhysicalDeviceVulkan13Features vk13_featuresCheck{};
+    vk13_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+
     VkPhysicalDeviceVulkan12Features vk12_featuresCheck{};
     vk12_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vk12_features.pNext = &vk13_featuresCheck;
 
-    VkPhysicalDeviceShaderDrawParameterFeatures ext_featureCheck{};
-    ext_featureCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-    ext_featureCheck.pNext = &vk12_featuresCheck;
+    VkPhysicalDeviceShaderDrawParameterFeatures vk11_featuresCheck{};
+    vk11_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+    vk11_featuresCheck.pNext = &vk12_featuresCheck;
 
     VkPhysicalDeviceFeatures2 supportedFeaturesCheck{};
     supportedFeaturesCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supportedFeaturesCheck.pNext = &ext_featureCheck;
+    supportedFeaturesCheck.pNext = &vk11_featuresCheck;
 
     vkGetPhysicalDeviceFeatures2(device, &supportedFeaturesCheck);
 
     return supportedFeaturesCheck.features.samplerAnisotropy && supportedFeaturesCheck.features.multiDrawIndirect &&
-           ext_featureCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
+           vk11_featuresCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
            vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing;
 }
 

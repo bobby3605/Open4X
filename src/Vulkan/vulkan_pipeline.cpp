@@ -44,7 +44,6 @@ static std::vector<char> readFile(const std::string& filename) {
 
 void VulkanPipeline::createGraphicsPipeline() {
     assert(pipelineInfo_.layout != nullptr && "Graphics pipeline layout == nullptr");
-    assert(pipelineInfo_.renderPass != nullptr && "Graphics pipeline render pass == nullptr");
 
     auto vertShaderCode = readFile("build/assets/shaders/triangle.vert.spv");
     auto fragShaderCode = readFile("build/assets/shaders/triangle.frag.spv");

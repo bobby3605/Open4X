@@ -18,6 +18,10 @@ class VulkanSwapChain {
     VkRenderPass getRenderPass() { return renderPass; }
     VkFramebuffer getFramebuffer(uint32_t index) { return swapChainFramebuffers[index]; }
     VkExtent2D getExtent() { return swapChainExtent; }
+    VkImageView getColorImageView() { return colorImageView; }
+    VkImageView getDepthImageView() { return depthImageView; }
+    VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
+    VkFormat findDepthFormat();
 
   private:
     void init();
@@ -32,7 +36,6 @@ class VulkanSwapChain {
 
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-    VkFormat findDepthFormat();
     bool hasStencilComponent(VkFormat format);
 
     VulkanDevice* device;

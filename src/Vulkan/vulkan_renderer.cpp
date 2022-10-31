@@ -200,11 +200,17 @@ void VulkanRenderer::createPipeline() {
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = swapChain->getRenderPass();
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
     pipelineInfo.pDepthStencilState = &depthStencil;
+    VkPipelineRenderingCreateInfo renderingInfo{};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    renderingInfo.colorAttachmentCount = 1;
+    VkFormat colorFormat = swapChain->getSwapChainImageFormat();
+    renderingInfo.pColorAttachmentFormats = &colorFormat;
+    renderingInfo.depthAttachmentFormat = swapChain->findDepthFormat();
+    pipelineInfo.pNext = &renderingInfo;
 
     graphicsPipeline = new VulkanPipeline(device, pipelineInfo);
 }
@@ -221,23 +227,34 @@ void VulkanRenderer::createCommandBuffers() {
 }
 
 void VulkanRenderer::beginSwapChainrenderPass() {
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = swapChain->getRenderPass();
-    renderPassInfo.framebuffer = swapChain->getFramebuffer(imageIndex);
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapChain->getExtent();
+    VkRenderingAttachmentInfo colorAttachment{};
+    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAttachment.imageView = swapChain->getColorImageView();
+    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-    clearValues[1].depthStencil = {1.0f, 0};
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    VkRenderingAttachmentInfo depthAttachment{};
+    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depthAttachment.imageView = swapChain->getDepthImageView();
+    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.clearValue.depthStencil = {1.0f, 0};
 
-    vkCmdBeginRenderPass(commandBuffers[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    VkRenderingInfo passInfo{};
+    passInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    passInfo.renderArea.extent = swapChain->getExtent();
+    passInfo.layerCount = 1;
+    passInfo.colorAttachmentCount = 1;
+    passInfo.pColorAttachments = &colorAttachment;
+    passInfo.pDepthAttachment = &depthAttachment;
+
+    vkCmdBeginRendering(commandBuffers[currentFrame], &passInfo);
 }
 
-void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRenderPass(commandBuffers[currentFrame]); }
+void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRendering(commandBuffers[currentFrame]); }
 
 void VulkanRenderer::startFrame() {
     VkResult result = swapChain->acquireNextImage(&imageIndex);
