@@ -96,6 +96,8 @@ void VulkanRenderer::createPipeline() {
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     // Flipping the viewport doesn't seem to change anything
+    // FIXME:
+    // viewport is being dynamically set, this shouldn't be here
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = swapChain->getExtent().height;
@@ -251,10 +253,28 @@ void VulkanRenderer::beginSwapChainrenderPass() {
     passInfo.pColorAttachments = &colorAttachment;
     passInfo.pDepthAttachment = &depthAttachment;
 
+    device->singleTimeCommands()
+        .transitionImageLayout(swapChain->getColorImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                               VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
+        .run();
+
+    device->singleTimeCommands()
+        .transitionImageLayout(
+            swapChain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT /* | VK_IMAGE_ASPECT_STENCIL_BIT // TODO this might be needed */, 0, 1, 0, 1})
+        .run();
+
     vkCmdBeginRendering(commandBuffers[currentFrame], &passInfo);
 }
 
-void VulkanRenderer::endSwapChainrenderPass() { vkCmdEndRendering(commandBuffers[currentFrame]); }
+void VulkanRenderer::endSwapChainrenderPass() {
+    vkCmdEndRendering(commandBuffers[currentFrame]);
+
+    device->singleTimeCommands()
+        .transitionImageLayout(swapChain->getColorImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                               VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
+        .run();
+}
 
 void VulkanRenderer::startFrame() {
     VkResult result = swapChain->acquireNextImage(&imageIndex);

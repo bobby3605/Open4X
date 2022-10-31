@@ -186,7 +186,7 @@ void VulkanImage::loadPixels() {
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _image, _imageMemory);
 
     device->singleTimeCommands()
-        .transitionImageLayout(_image, _format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mipLevels)
+        .transitionImageLayout(_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mipLevels)
         .copyBufferToImage(stagingBuffer.buffer, _image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
         // TODO
         // Save and load mipmaps from a file

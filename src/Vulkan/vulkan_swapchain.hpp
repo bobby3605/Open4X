@@ -18,7 +18,9 @@ class VulkanSwapChain {
     VkRenderPass getRenderPass() { return renderPass; }
     VkFramebuffer getFramebuffer(uint32_t index) { return swapChainFramebuffers[index]; }
     VkExtent2D getExtent() { return swapChainExtent; }
+    VkImage getColorImage() { return colorImage; }
     VkImageView getColorImageView() { return colorImageView; }
+    VkImage getDepthImage() { return depthImage; }
     VkImageView getDepthImageView() { return depthImageView; }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkFormat findDepthFormat();

@@ -63,8 +63,9 @@ class VulkanDevice {
       public:
         singleTimeBuilder(VulkanDevice* vulkanDevice);
         singleTimeBuilder& copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-        singleTimeBuilder& transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                 uint32_t mipLevels);
+        singleTimeBuilder& transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+        singleTimeBuilder& transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                 VkImageSubresourceRange subresourceRange);
         singleTimeBuilder& copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
         singleTimeBuilder& generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
         void run();
@@ -75,6 +76,7 @@ class VulkanDevice {
         VulkanDevice* vulkanDevice;
         static std::mutex submitQueueMutex;
 
+        singleTimeBuilder& actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, VkImageLayout oldLayout, VkImageLayout newLayout);
         void beginSingleTimeCommands();
         void endSingleTimeCommands();
     };

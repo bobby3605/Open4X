@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <pthread.h>
 #include <set>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
@@ -485,9 +486,9 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLeve
     vkBindImageMemory(device_, image, imageMemory, 0);
 }
 
-VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkFormat format,
-                                                                                        VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                                                        uint32_t miplevels) {
+VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
+                                                                                        VkImageLayout newLayout,
+                                                                                        VkImageSubresourceRange subresourceRange) {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -495,12 +496,34 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImag
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
+
+    barrier.subresourceRange = subresourceRange;
+
+    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
+}
+
+VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
+                                                                                        VkImageLayout newLayout, uint32_t mipLevels) {
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = miplevels;
+    barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
+    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
+}
+
+VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::actuallyTransitionImageLayout(VkImageMemoryBarrier barrier,
+                                                                                                VkImageLayout oldLayout,
+                                                                                                VkImageLayout newLayout) {
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
 
@@ -516,6 +539,24 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImag
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = 0;
+
+        sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     } else {
         throw std::invalid_argument("unsupported layout transition!");
     }
