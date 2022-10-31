@@ -228,7 +228,7 @@ void VulkanRenderer::createCommandBuffers() {
     checkResult(vkAllocateCommandBuffers(device->device(), &allocInfo, commandBuffers.data()), "failed to create command buffers");
 }
 
-void VulkanRenderer::beginSwapChainrenderPass() {
+void VulkanRenderer::beginRendering() {
     VkRenderingAttachmentInfo colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAttachment.imageView = swapChain->getColorImageView();
@@ -253,27 +253,20 @@ void VulkanRenderer::beginSwapChainrenderPass() {
     passInfo.pColorAttachments = &colorAttachment;
     passInfo.pDepthAttachment = &depthAttachment;
 
-    device->singleTimeCommands()
-        .transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                               VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
-        .run();
+    device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                  VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
-    device->singleTimeCommands()
-        .transitionImageLayout(
-            swapChain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT /* | VK_IMAGE_ASPECT_STENCIL_BIT // TODO this might be needed */, 0, 1, 0, 1})
-        .run();
+    device->transitionImageLayout(swapChain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                  VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
     vkCmdBeginRendering(commandBuffers[currentFrame], &passInfo);
 }
 
-void VulkanRenderer::endSwapChainrenderPass() {
+void VulkanRenderer::endRendering() {
     vkCmdEndRendering(commandBuffers[currentFrame]);
 
-    device->singleTimeCommands()
-        .transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                               VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})
-        .run();
+    device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                  VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 }
 
 void VulkanRenderer::startFrame() {

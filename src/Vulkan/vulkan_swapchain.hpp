@@ -15,8 +15,6 @@ class VulkanSwapChain {
     VkResult acquireNextImage(uint32_t* imageIndex);
     VkResult submitCommandBuffers(const VkCommandBuffer* buffer, uint32_t* imageIndex);
 
-    VkRenderPass getRenderPass() { return renderPass; }
-    VkFramebuffer getFramebuffer(uint32_t index) { return swapChainFramebuffers[index]; }
     VkExtent2D getExtent() { return swapChainExtent; }
     VkImage getColorImage() { return colorImage; }
     VkImageView getColorImageView() { return colorImageView; }
@@ -31,10 +29,8 @@ class VulkanSwapChain {
     void init();
     void createSwapChain();
     void createImageViews();
-    void createRenderPass();
     void createColorResources();
     void createDepthResources();
-    void createFramebuffers();
     void createSyncObjects();
     void startFrame();
 
@@ -44,7 +40,6 @@ class VulkanSwapChain {
 
     VulkanDevice* device;
     VkSwapchainKHR swapChain;
-    VkRenderPass renderPass;
 
     VkFormat swapChainImageFormat;
 
@@ -55,7 +50,6 @@ class VulkanSwapChain {
 
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;

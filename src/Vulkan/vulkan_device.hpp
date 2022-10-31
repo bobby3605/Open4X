@@ -59,6 +59,16 @@ class VulkanDevice {
 
     VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
 
+    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels,
+                               VkCommandBuffer commandBuffer);
+    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange subresourceRange,
+                               VkCommandBuffer commandBuffer);
+
+  private:
+    void actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                       VkCommandBuffer commandBuffer);
+
+  public:
     class singleTimeBuilder {
       public:
         singleTimeBuilder(VulkanDevice* vulkanDevice);

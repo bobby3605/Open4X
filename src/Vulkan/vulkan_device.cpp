@@ -489,6 +489,17 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLeve
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
                                                                                         VkImageLayout newLayout,
                                                                                         VkImageSubresourceRange subresourceRange) {
+    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, subresourceRange, commandBuffer);
+    return *this;
+}
+VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
+                                                                                        VkImageLayout newLayout, uint32_t mipLevels) {
+    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, mipLevels, commandBuffer);
+    return *this;
+}
+
+void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                         VkImageSubresourceRange subresourceRange, VkCommandBuffer commandBuffer) {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -499,11 +510,11 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImag
 
     barrier.subresourceRange = subresourceRange;
 
-    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
+    actuallyTransitionImageLayout(barrier, oldLayout, newLayout, commandBuffer);
 }
 
-VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
-                                                                                        VkImageLayout newLayout, uint32_t mipLevels) {
+void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels,
+                                         VkCommandBuffer commandBuffer) {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -518,12 +529,11 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImag
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
-    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
+    actuallyTransitionImageLayout(barrier, oldLayout, newLayout, commandBuffer);
 }
 
-VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::actuallyTransitionImageLayout(VkImageMemoryBarrier barrier,
-                                                                                                VkImageLayout oldLayout,
-                                                                                                VkImageLayout newLayout) {
+void VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                 VkCommandBuffer commandBuffer) {
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
 
@@ -562,7 +572,6 @@ VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::actuallyTransi
     }
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-    return *this;
 }
 
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,

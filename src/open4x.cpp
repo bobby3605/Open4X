@@ -112,7 +112,7 @@ void Open4X::run() {
 
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
-        vulkanRenderer->beginSwapChainrenderPass();
+        vulkanRenderer->beginRendering();
         vulkanRenderer->bindPipeline();
 
         vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
@@ -125,7 +125,7 @@ void Open4X::run() {
 
         objects.drawIndirect(vulkanRenderer);
 
-        vulkanRenderer->endSwapChainrenderPass();
+        vulkanRenderer->endRendering();
 
         if (vulkanRenderer->endFrame()) {
             ubo.proj = perspectiveProjection(

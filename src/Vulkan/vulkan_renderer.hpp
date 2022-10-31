@@ -25,8 +25,8 @@ class VulkanRenderer {
     void recordCommandBuffer(uint32_t imageIndex);
     void startFrame();
     bool endFrame();
-    void beginSwapChainrenderPass();
-    void endSwapChainrenderPass();
+    void beginRendering();
+    void endRendering();
     VkCommandBuffer getCurrentCommandBuffer();
     uint32_t getCurrentFrame() { return currentFrame; }
     void bindPipeline();
