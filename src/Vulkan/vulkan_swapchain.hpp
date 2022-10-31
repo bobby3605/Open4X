@@ -16,8 +16,6 @@ class VulkanSwapChain {
     VkResult submitCommandBuffers(const VkCommandBuffer* buffer, uint32_t* imageIndex);
 
     VkExtent2D getExtent() { return swapChainExtent; }
-    VkImage getColorImage() { return colorImage; }
-    VkImageView getColorImageView() { return colorImageView; }
     VkImage getDepthImage() { return depthImage; }
     VkImageView getDepthImageView() { return depthImageView; }
     VkImage getSwapChainImage() { return swapChainImages[currentFrame]; }

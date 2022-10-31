@@ -231,7 +231,7 @@ void VulkanRenderer::createCommandBuffers() {
 void VulkanRenderer::beginRendering() {
     VkRenderingAttachmentInfo colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    colorAttachment.imageView = swapChain->getColorImageView();
+    colorAttachment.imageView = swapChain->getSwapChainImageView();
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -259,11 +259,11 @@ void VulkanRenderer::beginRendering() {
     device->transitionImageLayout(swapChain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
-    vkCmdBeginRendering(commandBuffers[currentFrame], &passInfo);
+    vkCmdBeginRendering(getCurrentCommandBuffer(), &passInfo);
 }
 
 void VulkanRenderer::endRendering() {
-    vkCmdEndRendering(commandBuffers[currentFrame]);
+    vkCmdEndRendering(getCurrentCommandBuffer());
 
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
