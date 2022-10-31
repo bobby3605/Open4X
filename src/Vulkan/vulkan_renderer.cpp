@@ -34,9 +34,14 @@ void VulkanRenderer::init() {
 void VulkanRenderer::bindPipeline() {
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
     viewport.width = swapChain->getExtent().width;
+#ifdef FLIP_VIEWPORT
+    viewport.y = swapChain->getExtent().height;
+    viewport.height = -(float)swapChain->getExtent().height;
+#else
+    viewport.y = 0.0f;
     viewport.height = swapChain->getExtent().height;
+#endif
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -95,14 +100,11 @@ void VulkanRenderer::createPipeline() {
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    // Flipping the viewport doesn't seem to change anything
-    // FIXME:
-    // viewport is being dynamically set, this shouldn't be here
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = swapChain->getExtent().height;
     viewport.width = swapChain->getExtent().width;
-    viewport.height = -swapChain->getExtent().height;
+    viewport.height = swapChain->getExtent().height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
