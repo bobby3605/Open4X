@@ -657,7 +657,7 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
 
     VkPhysicalDeviceVulkan12Features vk12_featuresCheck{};
     vk12_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vk12_features.pNext = &vk13_featuresCheck;
+    vk12_featuresCheck.pNext = &vk13_featuresCheck;
 
     VkPhysicalDeviceShaderDrawParameterFeatures vk11_featuresCheck{};
     vk11_featuresCheck.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
@@ -671,7 +671,7 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
 
     return supportedFeaturesCheck.features.samplerAnisotropy && supportedFeaturesCheck.features.multiDrawIndirect &&
            vk11_featuresCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
-           vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing;
+           vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing && vk13_featuresCheck.dynamicRendering;
 }
 
 VulkanDevice::~VulkanDevice() {

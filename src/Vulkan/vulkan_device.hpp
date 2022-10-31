@@ -97,11 +97,11 @@ class VulkanDevice {
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
     static const VkBool32 msaaEnable = VK_FALSE;
     static const VkBool32 sampleShading = VK_FALSE;
-    VkPhysicalDeviceVulkan13Features vk13_features{};
-    VkPhysicalDeviceVulkan12Features vk12_features{};
-    VkPhysicalDeviceVulkan11Features vk11_features{};
-    VkPhysicalDeviceFeatures2 deviceFeatures{};
     bool checkFeatures(VkPhysicalDevice device);
+    VkPhysicalDeviceFeatures2 deviceFeatures;
+    VkPhysicalDeviceVulkan11Features vk11_features;
+    VkPhysicalDeviceVulkan12Features vk12_features;
+    VkPhysicalDeviceVulkan13Features vk13_features;
 
     void createInstance();
     void setupDebugMessenger();
