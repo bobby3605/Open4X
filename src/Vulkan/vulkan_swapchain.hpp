@@ -22,6 +22,7 @@ class VulkanSwapChain {
     VkImageView getSwapChainImageView() { return swapChainImageViews[currentFrame]; }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkFormat findDepthFormat();
+    size_t currentFrame = 0;
 
   private:
     void init();
@@ -44,7 +45,6 @@ class VulkanSwapChain {
     VkExtent2D windowExtent;
     VkExtent2D swapChainExtent;
 
-    size_t currentFrame = 0;
 
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;

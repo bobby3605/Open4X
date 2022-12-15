@@ -536,6 +536,8 @@ void VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, V
                                                  VkCommandBuffer commandBuffer) {
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
+    std::string srcString;
+    std::string dstString;
 
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
@@ -561,16 +563,24 @@ void VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, V
 
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        srcString = "undefined";
+        dstString = "color_optimal";
     } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
         barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         barrier.dstAccessMask = 0;
 
         sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+        srcString = "color_optimal";
+        dstString = "present_src";
+
     } else {
         throw std::invalid_argument("unsupported layout transition!");
     }
 
+    std::cout << "Setting barrier to transition from: " + srcString + " to: " + dstString << std::endl;
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 

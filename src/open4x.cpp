@@ -95,6 +95,8 @@ void Open4X::run() {
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
               << "ms" << std::endl;
+    uint i = 0;
+    std::cout << "Max frames: " << VulkanSwapChain::MAX_FRAMES_IN_FLIGHT << std::endl;
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
 
@@ -130,6 +132,10 @@ void Open4X::run() {
         if (vulkanRenderer->endFrame()) {
             ubo.proj = perspectiveProjection(
                 45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 1000.0f);
+        }
+        ++i;
+        if(i==4) {
+            break;
         }
     }
     vkDeviceWaitIdle(vulkanDevice->device());

@@ -27,7 +27,7 @@ class VulkanRenderer {
     bool endFrame();
     void beginRendering();
     void endRendering();
-    VkCommandBuffer getCurrentCommandBuffer();
+    VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[currentFrame]; }
     uint32_t getCurrentFrame() { return currentFrame; }
     void bindPipeline();
     VulkanDescriptors* descriptorManager;

@@ -60,8 +60,6 @@ void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
     vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
 }
 
-VkCommandBuffer VulkanRenderer::getCurrentCommandBuffer() { return commandBuffers[currentFrame]; };
-
 void VulkanRenderer::recreateSwapChain() {
     // pause on minimization
     /*
@@ -255,6 +253,7 @@ void VulkanRenderer::beginRendering() {
     passInfo.pColorAttachments = &colorAttachment;
     passInfo.pDepthAttachment = &depthAttachment;
 
+    std::cout << "transitioning image at: " << currentFrame << std::endl;
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
@@ -267,6 +266,8 @@ void VulkanRenderer::beginRendering() {
 void VulkanRenderer::endRendering() {
     vkCmdEndRendering(getCurrentCommandBuffer());
 
+    std::cout << "transitioning image at: " << currentFrame << std::endl;
+    std::cout << "swapChain currentFrame: " << swapChain->currentFrame << std::endl;
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 }
@@ -292,7 +293,8 @@ void VulkanRenderer::startFrame() {
 }
 
 bool VulkanRenderer::endFrame() {
-    checkResult(vkEndCommandBuffer(commandBuffers[currentFrame]), "failed to end command buffer");
+    std::cout << "ending frame: " << currentFrame << std::endl;
+    checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
     VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
         recreateSwapChain();

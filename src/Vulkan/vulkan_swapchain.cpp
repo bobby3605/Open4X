@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <array>
+#include <iostream>
 #include <cstdint>
 #include <limits>
 #include <vector>
