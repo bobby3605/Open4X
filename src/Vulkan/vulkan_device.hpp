@@ -65,7 +65,7 @@ class VulkanDevice {
                                VkCommandBuffer commandBuffer);
 
   private:
-    void actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
+    void actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
                                        VkCommandBuffer commandBuffer);
 
   public:
@@ -86,7 +86,7 @@ class VulkanDevice {
         VulkanDevice* vulkanDevice;
         static std::mutex submitQueueMutex;
 
-        singleTimeBuilder& actuallyTransitionImageLayout(VkImageMemoryBarrier barrier, VkImageLayout oldLayout, VkImageLayout newLayout);
+        singleTimeBuilder& actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout);
         void beginSingleTimeCommands();
         void endSingleTimeCommands();
     };
