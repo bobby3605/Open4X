@@ -27,15 +27,15 @@ class VulkanRenderer {
     bool endFrame();
     void beginRendering();
     void endRendering();
-    VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[currentFrame]; }
-    uint32_t getCurrentFrame() { return currentFrame; }
+    VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[getCurrentFrame()]; }
     void bindPipeline();
     VulkanDescriptors* descriptorManager;
     void bindDescriptorSet(uint32_t setNum, VkDescriptorSet set);
     void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);
     VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
-    const VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
+    VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
     VulkanWindow* getWindow() { return vulkanWindow; }
+    size_t getCurrentFrame() const { return swapChain->currentFrame(); }
 
   private:
     void init();
@@ -51,8 +51,6 @@ class VulkanRenderer {
     VkPipelineLayout pipelineLayout;
 
     std::vector<VkCommandBuffer> commandBuffers;
-    uint32_t currentFrame = 0;
-    uint32_t imageIndex = 0;
 };
 
 #endif // VULKAN_RENDERER_H_

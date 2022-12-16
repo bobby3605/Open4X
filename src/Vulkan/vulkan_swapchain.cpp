@@ -4,8 +4,8 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <array>
-#include <iostream>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -167,23 +167,23 @@ void VulkanSwapChain::createSyncObjects() {
     }
 }
 
-VkResult VulkanSwapChain::acquireNextImage(uint32_t* imageIndex) {
-    vkWaitForFences(device->device(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+VkResult VulkanSwapChain::acquireNextImage() {
+    vkWaitForFences(device->device(), 1, &inFlightFences[currentFrame()], VK_TRUE, UINT64_MAX);
 
-    VkResult result =
-        vkAcquireNextImageKHR(device->device(), swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device->device(), swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame()],
+                                            VK_NULL_HANDLE, &imageIndex);
 
-    vkResetFences(device->device(), 1, &inFlightFences[currentFrame]);
+    vkResetFences(device->device(), 1, &inFlightFences[currentFrame()]);
 
     return result;
 }
 
-VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer* buffer, uint32_t* imageIndex) {
+VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer* buffer) {
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame()]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
@@ -191,11 +191,11 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer* buffer, ui
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = buffer;
 
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame()]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    checkResult(vkQueueSubmit(device->graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
+    checkResult(vkQueueSubmit(device->graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame()]),
                 "failed to submit draw command buffer");
 
     VkPresentInfoKHR presentInfo{};
@@ -206,12 +206,12 @@ VkResult VulkanSwapChain::submitCommandBuffers(const VkCommandBuffer* buffer, ui
     VkSwapchainKHR swapChains[] = {swapChain};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = imageIndex;
+    presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
     VkResult result = vkQueuePresentKHR(device->presentQueue(), &presentInfo);
 
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    _currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
     return result;
 }

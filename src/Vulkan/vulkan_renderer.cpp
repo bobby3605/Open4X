@@ -53,11 +53,11 @@ void VulkanRenderer::bindPipeline() {
 
     vkCmdSetScissor(getCurrentCommandBuffer(), 0, 1, &scissor);
 
-    vkCmdBindPipeline(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
+    vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
 }
 
 void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
-    vkCmdBindDescriptorSets(commandBuffers[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
+    vkCmdBindDescriptorSets(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
 }
 
 void VulkanRenderer::recreateSwapChain() {
@@ -253,7 +253,6 @@ void VulkanRenderer::beginRendering() {
     passInfo.pColorAttachments = &colorAttachment;
     passInfo.pDepthAttachment = &depthAttachment;
 
-    std::cout << "transitioning image at: " << currentFrame << std::endl;
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
@@ -266,14 +265,12 @@ void VulkanRenderer::beginRendering() {
 void VulkanRenderer::endRendering() {
     vkCmdEndRendering(getCurrentCommandBuffer());
 
-    std::cout << "transitioning image at: " << currentFrame << std::endl;
-    std::cout << "swapChain currentFrame: " << swapChain->currentFrame << std::endl;
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 }
 
 void VulkanRenderer::startFrame() {
-    VkResult result = swapChain->acquireNextImage(&imageIndex);
+    VkResult result = swapChain->acquireNextImage();
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapChain();
@@ -287,15 +284,14 @@ void VulkanRenderer::startFrame() {
     beginInfo.flags = 0;
     beginInfo.pInheritanceInfo = nullptr;
 
-    vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+    vkResetCommandBuffer(getCurrentCommandBuffer(), 0);
 
-    checkResult(vkBeginCommandBuffer(commandBuffers[currentFrame], &beginInfo), "failed to begin recording command buffer");
+    checkResult(vkBeginCommandBuffer(getCurrentCommandBuffer(), &beginInfo), "failed to begin recording command buffer");
 }
 
 bool VulkanRenderer::endFrame() {
-    std::cout << "ending frame: " << currentFrame << std::endl;
     checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
-    VkResult result = swapChain->submitCommandBuffers(&commandBuffers[currentFrame], &imageIndex);
+    VkResult result = swapChain->submitCommandBuffers(&commandBuffers[swapChain->currentFrame()]);
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
         recreateSwapChain();
         vulkanWindow->framebufferResized = false;
@@ -304,6 +300,5 @@ bool VulkanRenderer::endFrame() {
     } else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to present swap chain image");
     }
-    currentFrame = (currentFrame + 1) % VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
     return false;
 }

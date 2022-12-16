@@ -12,17 +12,17 @@ class VulkanSwapChain {
     VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent);
     VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain);
     ~VulkanSwapChain();
-    VkResult acquireNextImage(uint32_t* imageIndex);
-    VkResult submitCommandBuffers(const VkCommandBuffer* buffer, uint32_t* imageIndex);
+    VkResult acquireNextImage();
+    VkResult submitCommandBuffers(const VkCommandBuffer* buffer);
 
     VkExtent2D getExtent() { return swapChainExtent; }
     VkImage getDepthImage() { return depthImage; }
     VkImageView getDepthImageView() { return depthImageView; }
-    VkImage getSwapChainImage() { return swapChainImages[currentFrame]; }
-    VkImageView getSwapChainImageView() { return swapChainImageViews[currentFrame]; }
+    VkImage getSwapChainImage() { return swapChainImages[imageIndex]; }
+    VkImageView getSwapChainImageView() { return swapChainImageViews[imageIndex]; }
+    size_t currentFrame() const { return _currentFrame; }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkFormat findDepthFormat();
-    size_t currentFrame = 0;
 
   private:
     void init();
@@ -45,6 +45,8 @@ class VulkanSwapChain {
     VkExtent2D windowExtent;
     VkExtent2D swapChainExtent;
 
+    size_t _currentFrame = 0;
+    uint32_t imageIndex = 0;
 
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
