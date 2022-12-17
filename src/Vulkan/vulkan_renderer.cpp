@@ -292,9 +292,8 @@ void VulkanRenderer::startFrame() {
 bool VulkanRenderer::endFrame() {
     checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
     VkResult result = swapChain->submitCommandBuffers(&commandBuffers[swapChain->currentFrame()]);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || vulkanWindow->framebufferResized) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreateSwapChain();
-        vulkanWindow->framebufferResized = false;
         // return true if framebuffer was resized
         return true;
     } else if (result != VK_SUCCESS) {

@@ -7,11 +7,6 @@ VulkanWindow::~VulkanWindow() {
     glfwTerminate();
 }
 
-void VulkanWindow::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-    auto app = reinterpret_cast<VulkanWindow*>(glfwGetWindowUserPointer(window));
-    app->framebufferResized = true;
-}
-
 void VulkanWindow::initWindow() {
     glfwInit();
 
@@ -20,5 +15,4 @@ void VulkanWindow::initWindow() {
 
     window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
     glfwSetWindowUserPointer(window, this);
-    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }
