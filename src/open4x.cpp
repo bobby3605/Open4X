@@ -95,6 +95,8 @@ void Open4X::run() {
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
               << "ms" << std::endl;
+    float titleFrametime = 0.0f;
+    std::string title;
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
         glfwPollEvents();
 
@@ -102,6 +104,13 @@ void Open4X::run() {
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         startTime = currentTime;
         camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
+        if (titleFrametime == 0.0f) {
+            titleFrametime = frameTime;
+        } else {
+            titleFrametime = titleFrametime * 0.95 + frameTime * 0.05;
+        }
+        title = "Frametime: " + std::to_string(titleFrametime * 1000) + " ms" + " Framerate: " + std::to_string(1.0 / titleFrametime);
+        glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.c_str());
 
         glm::mat4 cameraModel =
             glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
@@ -120,7 +129,6 @@ void Open4X::run() {
         // TODO
         // clean up the frame drawing to be fully bindless
         // also, add support for switching to direct drawing
-        // and benchmarking frametimes and triangle/s count
         objects.bind(vulkanRenderer);
 
         objects.drawIndirect(vulkanRenderer);
