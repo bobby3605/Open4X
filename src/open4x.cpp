@@ -121,14 +121,18 @@ void Open4X::run() {
 
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
+        vulkanRenderer->bindComputePipeline();
+        vulkanRenderer->runComputePipeline(objects.computeSet, objects.indirectDrawCount());
+
         vulkanRenderer->beginRendering();
+
         vulkanRenderer->bindPipeline();
 
-        vulkanRenderer->bindDescriptorSet(0, globalSets[vulkanRenderer->getCurrentFrame()]);
+        vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(), 0,
+                                          globalSets[vulkanRenderer->getCurrentFrame()]);
 
         // TODO
-        // clean up the frame drawing to be fully bindless
-        // also, add support for switching to direct drawing
+        // add support for switching to direct drawing
         objects.bind(vulkanRenderer);
 
         objects.drawIndirect(vulkanRenderer);

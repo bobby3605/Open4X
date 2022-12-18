@@ -20,6 +20,8 @@ VulkanRenderer::VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, Vu
 }
 
 VulkanRenderer::~VulkanRenderer() {
+    delete computePipeline;
+    vkDestroyPipelineLayout(device->device(), computePipelineLayout, nullptr);
     delete graphicsPipeline;
     vkDestroyPipelineLayout(device->device(), pipelineLayout, nullptr);
     delete swapChain;
@@ -28,6 +30,7 @@ VulkanRenderer::~VulkanRenderer() {
 void VulkanRenderer::init() {
     swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent());
     createCommandBuffers();
+    createComputePipeline();
     createPipeline();
 }
 
@@ -56,8 +59,12 @@ void VulkanRenderer::bindPipeline() {
     vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->getPipeline());
 }
 
-void VulkanRenderer::bindDescriptorSet(uint32_t setNum, VkDescriptorSet set) {
-    vkCmdBindDescriptorSets(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setNum, 1, &set, 0, nullptr);
+void VulkanRenderer::bindComputePipeline() {
+    vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline->getPipeline());
+}
+
+void VulkanRenderer::bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set) {
+    vkCmdBindDescriptorSets(getCurrentCommandBuffer(), bindPoint, layout, setNum, 1, &set, 0, nullptr);
 }
 
 void VulkanRenderer::recreateSwapChain() {
@@ -75,6 +82,22 @@ void VulkanRenderer::recreateSwapChain() {
     swapChain = new VulkanSwapChain(device, vulkanWindow->getExtent(), swapChain);
 }
 
+void VulkanRenderer::createComputePipeline() {
+    VkPipelineLayoutCreateInfo computePipelineLayoutInfo{};
+    computePipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    computePipelineLayoutInfo.setLayoutCount = descriptorManager->computeDescriptorLayouts.size();
+    computePipelineLayoutInfo.pSetLayouts = descriptorManager->computeDescriptorLayouts.data();
+
+    checkResult(vkCreatePipelineLayout(device->device(), &computePipelineLayoutInfo, nullptr, &computePipelineLayout),
+                "failed to create compute pipeline layout");
+
+    VkComputePipelineCreateInfo computePipelineInfo{};
+    computePipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineInfo.layout = computePipelineLayout;
+
+    computePipeline = new VulkanPipeline(device, computePipelineInfo);
+}
+
 void VulkanRenderer::createPipeline() {
     /*
     VkPushConstantRange pushConstantRange{};
@@ -85,8 +108,8 @@ void VulkanRenderer::createPipeline() {
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = descriptorManager->getLayouts().size();
-    pipelineLayoutInfo.pSetLayouts = descriptorManager->getLayouts().data();
+    pipelineLayoutInfo.setLayoutCount = descriptorManager->graphicsDescriptorLayouts.size();
+    pipelineLayoutInfo.pSetLayouts = descriptorManager->graphicsDescriptorLayouts.data();
     // pipelineLayoutInfo.pushConstantRangeCount = 1;
     //  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -226,6 +249,31 @@ void VulkanRenderer::createCommandBuffers() {
     allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
     checkResult(vkAllocateCommandBuffers(device->device(), &allocInfo, commandBuffers.data()), "failed to create command buffers");
+}
+// https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
+inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
+
+void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount) {
+    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, computeSet);
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(indirectDrawCount, 64), 1, 1);
+
+    VkMemoryBarrier2 computeBarrier{};
+    computeBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    computeBarrier.pNext = VK_NULL_HANDLE;
+    computeBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    computeBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    computeBarrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    // TODO:
+    // there may be a better dstStageMask to use here
+    computeBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+
+    VkDependencyInfo computeDependencyInfo{};
+    computeDependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    computeDependencyInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    computeDependencyInfo.memoryBarrierCount = 1;
+    computeDependencyInfo.pMemoryBarriers = &computeBarrier;
+
+    vkCmdPipelineBarrier2(getCurrentCommandBuffer(), &computeDependencyInfo);
 }
 
 void VulkanRenderer::beginRendering() {

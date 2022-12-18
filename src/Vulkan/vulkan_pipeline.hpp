@@ -7,33 +7,18 @@
 
 class VulkanPipeline {
   public:
-    VulkanPipeline(VulkanDevice* deviceRef, VkGraphicsPipelineCreateInfo pipelineInfo);
+    VulkanPipeline(VulkanDevice* device, VkGraphicsPipelineCreateInfo pipelineInfo);
+    VulkanPipeline(VulkanDevice* device, VkComputePipelineCreateInfo pipelineInfo);
     ~VulkanPipeline();
     static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
-    VkPipeline getPipeline() { return graphicsPipeline; }
+    VkPipeline getPipeline() { return pipeline; }
 
   private:
     void createGraphicsPipeline();
+    void createComputePipeline();
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
     VulkanDevice* device;
-    VkPipeline graphicsPipeline;
-    VkShaderModule vertShaderModule;
-    VkShaderModule fragShaderModule;
-
-    VkGraphicsPipelineCreateInfo pipelineInfo_;
+    VkPipeline pipeline;
 };
 #endif // VULKAN_PIPELINE_H_
-
-/*
-VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-pipelineLayoutInfo.setLayoutCount = 1;
-pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-pipelineLayoutInfo.pushConstantRangeCount = 0;
-pipelineLayoutInfo.pPushConstantRanges = nullptr;
-
-checkResult(vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo,
-nullptr, &pipelineLayout), "failed to create pipeline layout");
-
-            */

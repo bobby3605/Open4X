@@ -23,7 +23,7 @@ struct materialData {
     uint occlusionStrength;
 };
 
-struct instanceIndicesData {
+struct culledInstanceIndicesData {
     uint objectIndex;
 };
 struct materialIndicesData {
@@ -36,8 +36,8 @@ objects;
 layout(std140, set = 2, binding = 2) readonly buffer Materials { materialData data[]; }
 materials;
 
-layout(set = 2, binding = 3) readonly buffer InstanceIndices { instanceIndicesData data[]; }
-instanceIndices;
+layout(set = 2, binding = 3) readonly buffer CulledInstanceIndices { culledInstanceIndicesData data[]; }
+culledInstanceIndices;
 
 layout(set = 2, binding = 4) readonly buffer MaterialIndices { materialIndicesData data[]; }
 materialIndices;
@@ -63,10 +63,11 @@ layout(location = 12) out uint roughnessFactor;
 layout(location = 13) out uint occulsionStrength;
 
 void main() {
-    instanceIndicesData instanceIndexData = instanceIndices.data[gl_InstanceIndex];
+    culledInstanceIndicesData culledInstanceIndexData = culledInstanceIndices.data[gl_InstanceIndex];
+
     materialIndicesData materialIndexData = materialIndices.data[gl_DrawID];
 
-    objectData object = objects.data[instanceIndexData.objectIndex];
+    objectData object = objects.data[culledInstanceIndexData.objectIndex];
     materialData material = materials.data[materialIndexData.materialIndex];
 
     mat4 modelMatrix = object.modelMatrix;

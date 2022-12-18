@@ -11,8 +11,9 @@
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} {
     pool = createPool();
-    globalL = createLayout(globalLayout(), 0);
-    objectL = createLayout(objectLayout(), 2);
+    globalL = createLayout(globalLayout(), 0, graphicsDescriptorLayouts);
+    objectL = createLayout(objectLayout(), 2, graphicsDescriptorLayouts);
+    computeL = createLayout(computeLayout(), 0, computeDescriptorLayouts);
 }
 
 void VulkanDescriptors::createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
@@ -106,13 +107,13 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     materialBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings.push_back(materialBufferLayoutBinding);
 
-    VkDescriptorSetLayoutBinding instanceIndicesBufferLayoutBinding{};
-    instanceIndicesBufferLayoutBinding.binding = 3;
-    instanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    instanceIndicesBufferLayoutBinding.descriptorCount = 1;
-    instanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
-    instanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings.push_back(instanceIndicesBufferLayoutBinding);
+    VkDescriptorSetLayoutBinding culledInstanceIndicesBufferLayoutBinding{};
+    culledInstanceIndicesBufferLayoutBinding.binding = 3;
+    culledInstanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    culledInstanceIndicesBufferLayoutBinding.descriptorCount = 1;
+    culledInstanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    culledInstanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings.push_back(culledInstanceIndicesBufferLayoutBinding);
 
     VkDescriptorSetLayoutBinding materialIndicesBufferLayoutBinding{};
     materialIndicesBufferLayoutBinding.binding = 4;
@@ -125,7 +126,46 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     return bindings;
 }
 
-VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum) {
+std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::computeLayout() {
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+    VkDescriptorSetLayoutBinding drawCommandsBufferLayoutBinding{};
+    drawCommandsBufferLayoutBinding.binding = 0;
+    drawCommandsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    drawCommandsBufferLayoutBinding.descriptorCount = 1;
+    drawCommandsBufferLayoutBinding.pImmutableSamplers = nullptr;
+    drawCommandsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(drawCommandsBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding instanceIndicesBufferLayoutBinding{};
+    instanceIndicesBufferLayoutBinding.binding = 1;
+    instanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    instanceIndicesBufferLayoutBinding.descriptorCount = 1;
+    instanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    instanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(instanceIndicesBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding culledDrawCommandsBufferLayoutBinding{};
+    culledDrawCommandsBufferLayoutBinding.binding = 2;
+    culledDrawCommandsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    culledDrawCommandsBufferLayoutBinding.descriptorCount = 1;
+    culledDrawCommandsBufferLayoutBinding.pImmutableSamplers = nullptr;
+    culledDrawCommandsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(culledDrawCommandsBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding culledInstanceIndicesBufferLayoutBinding{};
+    culledInstanceIndicesBufferLayoutBinding.binding = 3;
+    culledInstanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    culledInstanceIndicesBufferLayoutBinding.descriptorCount = 1;
+    culledInstanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
+    culledInstanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(culledInstanceIndicesBufferLayoutBinding);
+
+    return bindings;
+}
+
+VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum,
+                                                      std::vector<VkDescriptorSetLayout>& descriptorLayouts) {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -184,7 +224,10 @@ VkDescriptorSet VulkanDescriptors::allocateSet(VkDescriptorSetLayout layout) {
 VulkanDescriptors::~VulkanDescriptors() {
 
     vkDestroyDescriptorPool(device->device(), pool, nullptr);
-    for (VkDescriptorSetLayout layout : descriptorLayouts) {
+    for (VkDescriptorSetLayout layout : graphicsDescriptorLayouts) {
+        vkDestroyDescriptorSetLayout(device->device(), layout, nullptr);
+    }
+    for (VkDescriptorSetLayout layout : computeDescriptorLayouts) {
         vkDestroyDescriptorSetLayout(device->device(), layout, nullptr);
     }
 }

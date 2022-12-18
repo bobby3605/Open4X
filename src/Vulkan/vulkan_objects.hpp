@@ -17,11 +17,15 @@ class VulkanObjects {
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
     std::shared_ptr<VulkanObject> getObjectByName(std::string name);
+    VkDescriptorSet computeSet;
+    uint32_t indirectDrawCount() const { return indirectDraws.size(); }
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;
     std::shared_ptr<StagedBuffer> indexBuffer;
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
+    std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
+    std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
     std::shared_ptr<SSBOBuffers> ssboBuffers;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;

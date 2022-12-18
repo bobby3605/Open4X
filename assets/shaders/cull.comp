@@ -1,0 +1,50 @@
+#version 460
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawCommand {
+   uint indexCount;
+   uint instanceCount;
+   uint firstIndex;
+   int vertexOffset;
+   uint firstInstance;
+};
+
+struct InstanceIndicesData {
+    uint objectIndex;
+};
+
+layout(set = 0, binding = 0) readonly buffer DrawCommands {
+    DrawCommand draws[];
+} drawCommands;
+
+layout(set = 0, binding = 1) readonly buffer InstanceIndices {
+    InstanceIndicesData data[];
+} instanceIndices;
+
+layout(set = 0, binding = 2) writeonly buffer CulledDrawCommands {
+    DrawCommand culledDraws[];
+} culledDrawCommands;
+
+layout(set = 0, binding = 3) writeonly buffer CulledInstanceIndices {
+    InstanceIndicesData data[];
+} culledInstanceIndices;
+
+void main(){
+    // NOTE:
+    // Either drawCommands length needs to have fake draws to be mod 64 (local_size_x) = 0,
+    // or push the size with a push constant and check if it goes over the size
+    uint di = gl_GlobalInvocationID.x;
+
+    DrawCommand drawCommand = drawCommands.draws[di];
+
+    // don't add blank draws to the culledDraws buffer
+    if(drawCommand.instanceCount != 0) {
+        culledDrawCommands.culledDraws[di] = drawCommand;
+
+        for(uint i = 0; i < drawCommand.instanceCount; ++i) {
+            culledInstanceIndices.data[drawCommand.firstInstance+i] = instanceIndices.data[drawCommand.firstInstance+i];
+        }
+    }
+
+}

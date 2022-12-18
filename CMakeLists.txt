@@ -5,6 +5,7 @@ project(Open4X)
 file(GLOB SHADERS
   assets/shaders/*.vert
   assets/shaders/*.frag
+  assets/shaders/*.comp
   )
 
 foreach(shader IN LISTS SHADERS)
