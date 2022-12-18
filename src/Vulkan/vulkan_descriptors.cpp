@@ -161,6 +161,22 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::computeLayout() {
     culledInstanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     bindings.push_back(culledInstanceIndicesBufferLayoutBinding);
 
+    VkDescriptorSetLayoutBinding indirectDrawCountBufferLayoutBinding{};
+    indirectDrawCountBufferLayoutBinding.binding = 4;
+    indirectDrawCountBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    indirectDrawCountBufferLayoutBinding.descriptorCount = 1;
+    indirectDrawCountBufferLayoutBinding.pImmutableSamplers = nullptr;
+    indirectDrawCountBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(indirectDrawCountBufferLayoutBinding);
+
+    VkDescriptorSetLayoutBinding SSBOLayoutBinding{};
+    SSBOLayoutBinding.binding = 5;
+    SSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    SSBOLayoutBinding.descriptorCount = 1;
+    SSBOLayoutBinding.pImmutableSamplers = nullptr;
+    SSBOLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    bindings.push_back(SSBOLayoutBinding);
+
     return bindings;
 }
 

@@ -30,7 +30,7 @@ class VulkanRenderer {
     VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[getCurrentFrame()]; }
     void bindPipeline();
     void bindComputePipeline();
-    void runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount);
+    void runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount, VkBuffer indirectCountBuffer);
     VulkanDescriptors* descriptorManager;
     void bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set);
     void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);

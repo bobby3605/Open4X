@@ -122,7 +122,7 @@ void Open4X::run() {
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
         vulkanRenderer->bindComputePipeline();
-        vulkanRenderer->runComputePipeline(objects.computeSet, objects.indirectDrawCount());
+        vulkanRenderer->runComputePipeline(objects.computeSet, objects.indirectDrawCount(), objects.drawIndirectCountBuffer());
 
         vulkanRenderer->beginRendering();
 

@@ -65,7 +65,7 @@ layout(location = 13) out uint occulsionStrength;
 void main() {
     culledInstanceIndicesData culledInstanceIndexData = culledInstanceIndices.data[gl_InstanceIndex];
 
-    materialIndicesData materialIndexData = materialIndices.data[gl_DrawID];
+    materialIndicesData materialIndexData = materialIndices.data[gl_BaseInstance];
 
     objectData object = objects.data[culledInstanceIndexData.objectIndex];
     materialData material = materials.data[materialIndexData.materialIndex];

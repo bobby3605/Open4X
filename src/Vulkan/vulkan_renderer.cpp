@@ -83,10 +83,17 @@ void VulkanRenderer::recreateSwapChain() {
 }
 
 void VulkanRenderer::createComputePipeline() {
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(uint32_t);
+
     VkPipelineLayoutCreateInfo computePipelineLayoutInfo{};
     computePipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     computePipelineLayoutInfo.setLayoutCount = descriptorManager->computeDescriptorLayouts.size();
     computePipelineLayoutInfo.pSetLayouts = descriptorManager->computeDescriptorLayouts.data();
+    computePipelineLayoutInfo.pushConstantRangeCount = 1;
+    computePipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     checkResult(vkCreatePipelineLayout(device->device(), &computePipelineLayoutInfo, nullptr, &computePipelineLayout),
                 "failed to create compute pipeline layout");
@@ -253,8 +260,29 @@ void VulkanRenderer::createCommandBuffers() {
 // https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
 inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
 
-void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount) {
+void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount, VkBuffer indirectCountBuffer) {
+
+    vkCmdFillBuffer(getCurrentCommandBuffer(), indirectCountBuffer, 0, sizeof(uint32_t), 0);
+
+    VkMemoryBarrier2 indirectCountBarrier{};
+    indirectCountBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    indirectCountBarrier.pNext = VK_NULL_HANDLE;
+    indirectCountBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    indirectCountBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT;
+    indirectCountBarrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    indirectCountBarrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+    VkDependencyInfo indirectCountDependencyInfo{};
+    indirectCountDependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    indirectCountDependencyInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    indirectCountDependencyInfo.memoryBarrierCount = 1;
+    indirectCountDependencyInfo.pMemoryBarriers = &indirectCountBarrier;
+
+    vkCmdPipelineBarrier2(getCurrentCommandBuffer(), &indirectCountDependencyInfo);
+
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, computeSet);
+    vkCmdPushConstants(getCurrentCommandBuffer(), computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t),
+                       &indirectDrawCount);
     vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(indirectDrawCount, 64), 1, 1);
 
     VkMemoryBarrier2 computeBarrier{};
@@ -262,7 +290,7 @@ void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t ind
     computeBarrier.pNext = VK_NULL_HANDLE;
     computeBarrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     computeBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    computeBarrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    computeBarrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
     // TODO:
     // there may be a better dstStageMask to use here
     computeBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;

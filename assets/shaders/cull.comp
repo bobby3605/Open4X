@@ -14,6 +14,10 @@ struct InstanceIndicesData {
     uint objectIndex;
 };
 
+struct objectData {
+    mat4 modelMatrix;
+};
+
 layout(set = 0, binding = 0) readonly buffer DrawCommands {
     DrawCommand draws[];
 } drawCommands;
@@ -30,21 +34,49 @@ layout(set = 0, binding = 3) writeonly buffer CulledInstanceIndices {
     InstanceIndicesData data[];
 } culledInstanceIndices;
 
+layout( push_constant ) uniform constants {
+    uint drawIndirectCount;
+};
+
+layout(set = 0, binding = 4) buffer IndirectDrawCount {
+    uint culledDrawIndirectCount;
+};
+
+layout(std140, set = 0, binding = 5) readonly buffer Objects { objectData data[]; }
+objects;
+
+
+
 void main(){
-    // NOTE:
-    // Either drawCommands length needs to have fake draws to be mod 64 (local_size_x) = 0,
-    // or push the size with a push constant and check if it goes over the size
     uint di = gl_GlobalInvocationID.x;
+    if(di >= drawIndirectCount) {
+        return;
+    }
 
     DrawCommand drawCommand = drawCommands.draws[di];
 
-    // don't add blank draws to the culledDraws buffer
-    if(drawCommand.instanceCount != 0) {
-        culledDrawCommands.culledDraws[di] = drawCommand;
-
+    if(drawCommand.instanceCount > 0) {
+        uint instanceOffset = 0;
+        uint visibleInstanceCount = 0;
         for(uint i = 0; i < drawCommand.instanceCount; ++i) {
-            culledInstanceIndices.data[drawCommand.firstInstance+i] = instanceIndices.data[drawCommand.firstInstance+i];
+            uint objectIndex = instanceIndices.data[drawCommand.firstInstance+i].objectIndex;
+            mat4 modelMatrix = objects.data[objectIndex].modelMatrix;
+            bool visible = true;
+            if(visible) {
+                // put the object index into the culled instance indices
+                culledInstanceIndices.data[drawCommand.firstInstance+i-instanceOffset].objectIndex = objectIndex;
+                // update visibleInstanceCount
+                ++visibleInstanceCount;
+            } else {
+                // if not visible, then increase the instanceOffset so that
+                // culledInstanceIndices doesn't have any gaps
+                ++instanceOffset;
+            }
+        }
+        // add the draw command to the draw commands buffer if it has visible instances
+        if(visibleInstanceCount > 0) {
+            drawCommand.instanceCount = visibleInstanceCount;
+            culledDrawCommands.culledDraws[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
         }
     }
-
 }

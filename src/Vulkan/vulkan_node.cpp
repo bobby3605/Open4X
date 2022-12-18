@@ -262,8 +262,7 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
-    // meshID + primitiveID = gl_DrawID
-    ssboBuffers->materialIndicesMapped[indirectDrawIndex].materialIndex = materialIndex;
+    ssboBuffers->materialIndicesMapped[gl_BaseInstance].materialIndex = materialIndex;
 
     // Load vertices
     GLTF::Mesh::Primitive::Attributes* attributes = primitive->attributes.get();

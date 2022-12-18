@@ -83,7 +83,13 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t 
     // NOTE:
     // could be optimized further by only using referenced materials
     _materialBuffer = new StorageBuffer(device, (drawsCount + uniqueMaterialID) * sizeof(MaterialData));
-    _materialIndicesBuffer = new StorageBuffer(device, (drawsCount + uniqueMaterialID) * sizeof(MaterialIndicesData));
+    // FIXME:
+    // instead of instanceCount, create a culledMaterialIndicesBuffer for the compute shader
+    // this is instanceCount instead of (drawsCount + uniqueMaterialID) because material indices are now
+    // indexed by gl_BaseInstance, which can be up to instanceCount in size
+    // this isn't necessary right now, but once there are millions or more instances,
+    // this will start to use non-insignificant amounts of memory
+    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(MaterialIndicesData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     instanceIndicesMapped = reinterpret_cast<InstanceIndicesData*>(_instanceIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);

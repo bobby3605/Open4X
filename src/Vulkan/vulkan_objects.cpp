@@ -136,7 +136,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
                                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(5);
+    std::vector<VkWriteDescriptorSet> descriptorWrites(6);
 
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
@@ -266,9 +266,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     computeSet = descriptorManager->allocateSet(descriptorManager->getCompute());
 
-    // make indirectDraws divisible by 64 (local_size_x)
-    indirectDraws.resize(indirectDraws.size() + (64 - (indirectDraws.size() % 64)));
-
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
@@ -325,7 +322,33 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     descriptorWrites[3].descriptorCount = 1;
     descriptorWrites[3].pBufferInfo = &culledInstanceIndicesBufferInfo;
 
-    vkUpdateDescriptorSets(device->device(), 4, descriptorWrites.data(), 0, nullptr);
+    indirectDrawCountBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
+                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkDescriptorBufferInfo indirectDrawCountBufferInfo{};
+    indirectDrawCountBufferInfo.buffer = indirectDrawCountBuffer->buffer;
+    indirectDrawCountBufferInfo.offset = 0;
+    indirectDrawCountBufferInfo.range = VK_WHOLE_SIZE;
+
+    descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[4].dstSet = computeSet;
+    descriptorWrites[4].dstBinding = 4;
+    descriptorWrites[4].dstArrayElement = 0;
+    descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[4].descriptorCount = 1;
+    descriptorWrites[4].pBufferInfo = &indirectDrawCountBufferInfo;
+
+    descriptorWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[5].dstSet = computeSet;
+    descriptorWrites[5].dstBinding = 5;
+    descriptorWrites[5].dstArrayElement = 0;
+    descriptorWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[5].descriptorCount = 1;
+    descriptorWrites[5].pBufferInfo = &ssboInfo;
+
+    vkUpdateDescriptorSets(device->device(), 6, descriptorWrites.data(), 0, nullptr);
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
@@ -349,8 +372,8 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
         animatedObject->updateAnimations();
     }
 
-    vkCmdDrawIndexedIndirect(renderer->getCurrentCommandBuffer(), culledIndirectDrawsBuffer->buffer, 0, indirectDraws.size(),
-                             sizeof(indirectDraws[0]));
+    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), culledIndirectDrawsBuffer->buffer, 0,
+                                  indirectDrawCountBuffer->buffer, 0, indirectDraws.size(), sizeof(indirectDraws[0]));
 }
 
 std::shared_ptr<VulkanObject> VulkanObjects::getObjectByName(std::string name) {
