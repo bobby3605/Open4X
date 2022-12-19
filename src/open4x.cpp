@@ -73,9 +73,9 @@ void fillComputePushConstants(ComputePushConstants& computePushConstants, float 
 
 void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, VulkanObject* camera) {
     computePushConstants.camPos = camera->position();
-    computePushConstants.Z = glm::normalize(camera->position() + (camera->rotation() * VulkanObject::forwardVector));
-    computePushConstants.X = glm::normalize(glm::cross(computePushConstants.Z, (camera->rotation() * VulkanObject::upVector)));
-    computePushConstants.Y = glm::cross(computePushConstants.X, computePushConstants.Z);
+    computePushConstants.Z = glm::normalize(camera->rotation() * VulkanObject::forwardVector);
+    computePushConstants.X = glm::normalize(camera->rotation() * VulkanObject::rightVector);
+    computePushConstants.Y = glm::normalize(camera->rotation() * VulkanObject::upVector);
 }
 
 void Open4X::run() {
@@ -114,7 +114,7 @@ void Open4X::run() {
     UniformBufferObject ubo{};
 
     float vFov = 45.0f;
-    float nearClip = 0.001f;
+    float nearClip = 0.0001f;
     float farClip = 1000.0f;
     float aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
 

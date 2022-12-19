@@ -59,7 +59,6 @@ bool sphereInFrustum(vec3 p, float radius) {
 
     vec3 v = p - camPos;
 
-    // might not need to be -Z, maybe just Z
     az = dot(v, -Z);
     if (az > farD + radius || az < nearD - radius)
         return false;
