@@ -116,6 +116,8 @@ void VulkanRenderer::createPipeline() {
     pushConstantRange.size = sizeof(PushConstants);
     */
 
+    // FIXME:
+    // fix the descriptor here for the new allocation method
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = descriptorManager->graphicsDescriptorLayouts.size();

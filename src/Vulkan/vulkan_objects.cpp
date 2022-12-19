@@ -207,62 +207,26 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     vkUpdateDescriptorSets(device->device(), 5, descriptorWrites.data(), 0, nullptr);
 
-    objectSet = descriptorManager->allocateSet(descriptorManager->getObject());
-    VkDescriptorBufferInfo ssboInfo{};
-    ssboInfo.buffer = ssboBuffers->ssboBuffer();
-    ssboInfo.offset = 0;
-    ssboInfo.range = VK_WHOLE_SIZE;
+    VulkanDescriptors::VulkanDescriptor objectDescriptor(descriptorManager, "object");
 
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = objectSet;
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &ssboInfo;
+    objectDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    // leave a blank descriptor space between 0 and 2 for some reason (maybe alignment?)
+    for (uint32_t i = 2; i <= 4; ++i) {
+        objectDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    }
+    objectDescriptor.createLayout();
+    objectDescriptor.allocateSet();
 
-    VkDescriptorBufferInfo materialBufferInfo{};
-    materialBufferInfo.buffer = ssboBuffers->materialBuffer();
-    materialBufferInfo.offset = 0;
-    materialBufferInfo.range = VK_WHOLE_SIZE;
-
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = objectSet;
-    descriptorWrites[1].dstBinding = 2;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pBufferInfo = &materialBufferInfo;
+    objectDescriptor.setBindingBuffer(0, ssboBuffers->ssboBuffer());
+    objectDescriptor.setBindingBuffer(2, ssboBuffers->materialBuffer());
 
     culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(InstanceIndicesData) * GLTF::baseInstanceCount,
                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VkDescriptorBufferInfo culledInstanceIndicesBufferInfo{};
-    culledInstanceIndicesBufferInfo.buffer = culledInstanceIndicesBuffer->buffer;
-    culledInstanceIndicesBufferInfo.offset = 0;
-    culledInstanceIndicesBufferInfo.range = VK_WHOLE_SIZE;
 
-    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[2].dstSet = objectSet;
-    descriptorWrites[2].dstBinding = 3;
-    descriptorWrites[2].dstArrayElement = 0;
-    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[2].descriptorCount = 1;
-    descriptorWrites[2].pBufferInfo = &culledInstanceIndicesBufferInfo;
+    objectDescriptor.setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
+    objectDescriptor.setBindingBuffer(4, ssboBuffers->materialIndicesBuffer());
 
-    VkDescriptorBufferInfo materialIndicesBufferInfo{};
-    materialIndicesBufferInfo.buffer = ssboBuffers->materialIndicesBuffer();
-    materialIndicesBufferInfo.offset = 0;
-    materialIndicesBufferInfo.range = VK_WHOLE_SIZE;
-
-    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[3].dstSet = objectSet;
-    descriptorWrites[3].dstBinding = 4;
-    descriptorWrites[3].dstArrayElement = 0;
-    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[3].descriptorCount = 1;
-    descriptorWrites[3].pBufferInfo = &materialIndicesBufferInfo;
-
-    vkUpdateDescriptorSets(device->device(), 4, descriptorWrites.data(), 0, nullptr);
+    objectDescriptor.update();
 
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =

@@ -65,13 +65,16 @@ void VulkanDescriptors::VulkanDescriptor::update() {
 
     std::vector<VkWriteDescriptorSet> descriptorWrites(bindings.size());
     for (uint32_t i = 0; i < bindings.size(); ++i) {
-        descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[i].dstSet = set;
-        descriptorWrites[i].dstBinding = bindings[i].binding;
-        descriptorWrites[i].dstArrayElement = 0;
-        descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[i].descriptorCount = 1;
-        descriptorWrites[i].pBufferInfo = &bufferInfos[i];
+        // check if a buffer has been set for this descriptor
+        if (bufferInfos[i].buffer != 0) {
+            descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[i].dstSet = set;
+            descriptorWrites[i].dstBinding = bindings[i].binding;
+            descriptorWrites[i].dstArrayElement = 0;
+            descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites[i].descriptorCount = 1;
+            descriptorWrites[i].pBufferInfo = &bufferInfos[i];
+        }
     }
     vkUpdateDescriptorSets(descriptorManager->device->device(), bindings.size(), descriptorWrites.data(), 0, nullptr);
 }
