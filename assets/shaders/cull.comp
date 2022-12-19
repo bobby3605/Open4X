@@ -98,6 +98,8 @@ void main() {
     if (drawCommand.instanceCount > 0) {
         uint instanceOffset = 0;
         uint visibleInstanceCount = 0;
+        // TODO
+        // break out this for loop into gl_GlobalInvocationID.y
         for (uint i = 0; i < drawCommand.instanceCount; ++i) {
             uint objectIndex = instanceIndices.data[drawCommand.firstInstance + i].objectIndex;
             mat4 modelMatrix = objects.data[objectIndex].modelMatrix;
