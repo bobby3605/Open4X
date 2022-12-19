@@ -264,91 +264,30 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     vkUpdateDescriptorSets(device->device(), 4, descriptorWrites.data(), 0, nullptr);
 
-    computeSet = descriptorManager->allocateSet(descriptorManager->getCompute());
-
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    VkDescriptorBufferInfo indirectDrawsBufferInfo{};
-    indirectDrawsBufferInfo.buffer = indirectDrawsBuffer->getBuffer();
-    indirectDrawsBufferInfo.offset = 0;
-    indirectDrawsBufferInfo.range = VK_WHOLE_SIZE;
-
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = computeSet;
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &indirectDrawsBufferInfo;
-
-    VkDescriptorBufferInfo instanceIndicesBufferInfo{};
-    instanceIndicesBufferInfo.buffer = ssboBuffers->instanceIndicesBuffer();
-    instanceIndicesBufferInfo.offset = 0;
-    instanceIndicesBufferInfo.range = VK_WHOLE_SIZE;
-
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = computeSet;
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pBufferInfo = &instanceIndicesBufferInfo;
+    descriptorManager->descriptors["compute"]->setBindingBuffer(0, indirectDrawsBuffer->getBuffer());
+    descriptorManager->descriptors["compute"]->setBindingBuffer(1, ssboBuffers->instanceIndicesBuffer());
 
     culledIndirectDrawsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(indirectDraws[0]) * indirectDraws.size(),
                                                                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    VkDescriptorBufferInfo culledIndirectDrawsBufferInfo{};
-    culledIndirectDrawsBufferInfo.buffer = culledIndirectDrawsBuffer->buffer;
-    culledIndirectDrawsBufferInfo.offset = 0;
-    culledIndirectDrawsBufferInfo.range = VK_WHOLE_SIZE;
-
-    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[2].dstSet = computeSet;
-    descriptorWrites[2].dstBinding = 2;
-    descriptorWrites[2].dstArrayElement = 0;
-    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[2].descriptorCount = 1;
-    descriptorWrites[2].pBufferInfo = &culledIndirectDrawsBufferInfo;
-
-    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[3].dstSet = computeSet;
-    descriptorWrites[3].dstBinding = 3;
-    descriptorWrites[3].dstArrayElement = 0;
-    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[3].descriptorCount = 1;
-    descriptorWrites[3].pBufferInfo = &culledInstanceIndicesBufferInfo;
+    descriptorManager->descriptors["compute"]->setBindingBuffer(2, culledIndirectDrawsBuffer->buffer);
+    descriptorManager->descriptors["compute"]->setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
 
     indirectDrawCountBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
                                                              VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    VkDescriptorBufferInfo indirectDrawCountBufferInfo{};
-    indirectDrawCountBufferInfo.buffer = indirectDrawCountBuffer->buffer;
-    indirectDrawCountBufferInfo.offset = 0;
-    indirectDrawCountBufferInfo.range = VK_WHOLE_SIZE;
+    descriptorManager->descriptors["compute"]->setBindingBuffer(4, indirectDrawCountBuffer->buffer);
+    descriptorManager->descriptors["compute"]->setBindingBuffer(5, ssboBuffers->ssboBuffer());
 
-    descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[4].dstSet = computeSet;
-    descriptorWrites[4].dstBinding = 4;
-    descriptorWrites[4].dstArrayElement = 0;
-    descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[4].descriptorCount = 1;
-    descriptorWrites[4].pBufferInfo = &indirectDrawCountBufferInfo;
-
-    descriptorWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[5].dstSet = computeSet;
-    descriptorWrites[5].dstBinding = 5;
-    descriptorWrites[5].dstArrayElement = 0;
-    descriptorWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[5].descriptorCount = 1;
-    descriptorWrites[5].pBufferInfo = &ssboInfo;
-
-    vkUpdateDescriptorSets(device->device(), 6, descriptorWrites.data(), 0, nullptr);
+    descriptorManager->descriptors["compute"]->update();
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "

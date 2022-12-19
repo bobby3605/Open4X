@@ -17,7 +17,6 @@ class VulkanObjects {
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
     std::shared_ptr<VulkanObject> getObjectByName(std::string name);
-    VkDescriptorSet computeSet;
     uint32_t indirectDrawCount() const { return indirectDraws.size(); }
     VkBuffer drawIndirectCountBuffer() { return indirectDrawCountBuffer->buffer; }
 

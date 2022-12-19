@@ -82,6 +82,14 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
+    VulkanDescriptors::VulkanDescriptor computeDescriptor(&descriptorManager, "compute");
+
+    for (uint32_t i = 0; i <= 5; ++i) {
+        computeDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+    computeDescriptor.createLayout();
+    computeDescriptor.allocateSet();
+
     VulkanObjects objects(vulkanDevice, &descriptorManager);
     vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
@@ -157,7 +165,8 @@ void Open4X::run() {
         computePushConstants.drawIndirectCount = objects.indirectDrawCount();
         setComputePushConstantsCamera(computePushConstants, camera);
 
-        vulkanRenderer->runComputePipeline(objects.computeSet, objects.drawIndirectCountBuffer(), computePushConstants);
+        vulkanRenderer->runComputePipeline(descriptorManager.descriptors["compute"]->getSet(), objects.drawIndirectCountBuffer(),
+                                           computePushConstants);
 
         vulkanRenderer->beginRendering();
 

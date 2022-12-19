@@ -9,11 +9,77 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descriptorManager, std::string name)
+    : descriptorManager(descriptorManager) {
+    descriptorManager->descriptors.insert({name, this});
+}
+
+VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
+    vkDestroyDescriptorSetLayout(descriptorManager->device->device(), layout, nullptr);
+}
+
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
+                                                     uint32_t descriptorCount) {
+    VkDescriptorSetLayoutBinding binding{};
+    binding.binding = bindingID;
+    binding.descriptorType = descriptorType;
+    binding.descriptorCount = descriptorCount;
+    binding.pImmutableSamplers = nullptr;
+    binding.stageFlags = stageFlags;
+
+    if (bindings.size() < (bindingID + 1)) {
+        bindings.resize(bindingID + 1);
+        bufferInfos.resize(bindingID + 1);
+    }
+    bindings[bindingID] = binding;
+}
+
+void VulkanDescriptors::VulkanDescriptor::setBindingBuffer(uint32_t bindingID, VkBuffer buffer) {
+    bufferInfos[bindingID].buffer = buffer;
+    bufferInfos[bindingID].offset = 0;
+    bufferInfos[bindingID].range = VK_WHOLE_SIZE;
+}
+
+void VulkanDescriptors::VulkanDescriptor::createLayout() {
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+
+    checkResult(vkCreateDescriptorSetLayout(descriptorManager->device->device(), &layoutInfo, nullptr, &layout),
+                "failed to create descriptor set layout");
+}
+
+void VulkanDescriptors::VulkanDescriptor::allocateSet() {
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorManager->pool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &layout;
+
+    checkResult(vkAllocateDescriptorSets(descriptorManager->device->device(), &allocInfo, &set), "failed to allocate descriptor sets");
+}
+
+void VulkanDescriptors::VulkanDescriptor::update() {
+
+    std::vector<VkWriteDescriptorSet> descriptorWrites(bindings.size());
+    for (uint32_t i = 0; i < bindings.size(); ++i) {
+        descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[i].dstSet = set;
+        descriptorWrites[i].dstBinding = bindings[i].binding;
+        descriptorWrites[i].dstArrayElement = 0;
+        descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[i].descriptorCount = 1;
+        descriptorWrites[i].pBufferInfo = &bufferInfos[i];
+    }
+    vkUpdateDescriptorSets(descriptorManager->device->device(), bindings.size(), descriptorWrites.data(), 0, nullptr);
+}
+
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} {
     pool = createPool();
     globalL = createLayout(globalLayout(), 0, graphicsDescriptorLayouts);
     objectL = createLayout(objectLayout(), 2, graphicsDescriptorLayouts);
-    computeL = createLayout(computeLayout(), 0, computeDescriptorLayouts);
 }
 
 void VulkanDescriptors::createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets) {
@@ -126,60 +192,6 @@ std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::objectLayout() {
     return bindings;
 }
 
-std::vector<VkDescriptorSetLayoutBinding> VulkanDescriptors::computeLayout() {
-    std::vector<VkDescriptorSetLayoutBinding> bindings;
-
-    VkDescriptorSetLayoutBinding drawCommandsBufferLayoutBinding{};
-    drawCommandsBufferLayoutBinding.binding = 0;
-    drawCommandsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    drawCommandsBufferLayoutBinding.descriptorCount = 1;
-    drawCommandsBufferLayoutBinding.pImmutableSamplers = nullptr;
-    drawCommandsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(drawCommandsBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding instanceIndicesBufferLayoutBinding{};
-    instanceIndicesBufferLayoutBinding.binding = 1;
-    instanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    instanceIndicesBufferLayoutBinding.descriptorCount = 1;
-    instanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
-    instanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(instanceIndicesBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding culledDrawCommandsBufferLayoutBinding{};
-    culledDrawCommandsBufferLayoutBinding.binding = 2;
-    culledDrawCommandsBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    culledDrawCommandsBufferLayoutBinding.descriptorCount = 1;
-    culledDrawCommandsBufferLayoutBinding.pImmutableSamplers = nullptr;
-    culledDrawCommandsBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(culledDrawCommandsBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding culledInstanceIndicesBufferLayoutBinding{};
-    culledInstanceIndicesBufferLayoutBinding.binding = 3;
-    culledInstanceIndicesBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    culledInstanceIndicesBufferLayoutBinding.descriptorCount = 1;
-    culledInstanceIndicesBufferLayoutBinding.pImmutableSamplers = nullptr;
-    culledInstanceIndicesBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(culledInstanceIndicesBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding indirectDrawCountBufferLayoutBinding{};
-    indirectDrawCountBufferLayoutBinding.binding = 4;
-    indirectDrawCountBufferLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    indirectDrawCountBufferLayoutBinding.descriptorCount = 1;
-    indirectDrawCountBufferLayoutBinding.pImmutableSamplers = nullptr;
-    indirectDrawCountBufferLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(indirectDrawCountBufferLayoutBinding);
-
-    VkDescriptorSetLayoutBinding SSBOLayoutBinding{};
-    SSBOLayoutBinding.binding = 5;
-    SSBOLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    SSBOLayoutBinding.descriptorCount = 1;
-    SSBOLayoutBinding.pImmutableSamplers = nullptr;
-    SSBOLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    bindings.push_back(SSBOLayoutBinding);
-
-    return bindings;
-}
-
 VkDescriptorSetLayout VulkanDescriptors::createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum,
                                                       std::vector<VkDescriptorSetLayout>& descriptorLayouts) {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
@@ -241,9 +253,6 @@ VulkanDescriptors::~VulkanDescriptors() {
 
     vkDestroyDescriptorPool(device->device(), pool, nullptr);
     for (VkDescriptorSetLayout layout : graphicsDescriptorLayouts) {
-        vkDestroyDescriptorSetLayout(device->device(), layout, nullptr);
-    }
-    for (VkDescriptorSetLayout layout : computeDescriptorLayouts) {
         vkDestroyDescriptorSetLayout(device->device(), layout, nullptr);
     }
 }

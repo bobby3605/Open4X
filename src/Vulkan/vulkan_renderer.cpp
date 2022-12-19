@@ -88,10 +88,13 @@ void VulkanRenderer::createComputePipeline() {
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(ComputePushConstants);
 
+    std::vector<VkDescriptorSetLayout> descriptorLayouts;
+    descriptorLayouts.push_back(descriptorManager->descriptors["compute"]->getLayout());
+
     VkPipelineLayoutCreateInfo computePipelineLayoutInfo{};
     computePipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    computePipelineLayoutInfo.setLayoutCount = descriptorManager->computeDescriptorLayouts.size();
-    computePipelineLayoutInfo.pSetLayouts = descriptorManager->computeDescriptorLayouts.data();
+    computePipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
+    computePipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
     computePipelineLayoutInfo.pushConstantRangeCount = 1;
     computePipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
