@@ -96,7 +96,6 @@ void main() {
     DrawCommand drawCommand = drawCommands.draws[di];
 
     if (drawCommand.instanceCount > 0) {
-        uint instanceOffset = 0;
         uint visibleInstanceCount = 0;
         // TODO
         // break out this for loop into gl_GlobalInvocationID.y
@@ -115,13 +114,7 @@ void main() {
             float radius = max(xScale, max(yScale, zScale)) * 0.5;
             if (sphereInFrustum(center, radius)) {
                 // put the object index into the culled instance indices
-                culledInstanceIndices.data[drawCommand.firstInstance + i - instanceOffset].objectIndex = objectIndex;
-                // update visibleInstanceCount
-                ++visibleInstanceCount;
-            } else {
-                // if not visible, then increase the instanceOffset so that
-                // culledInstanceIndices doesn't have any gaps
-                ++instanceOffset;
+                culledInstanceIndices.data[drawCommand.firstInstance + visibleInstanceCount++].objectIndex = objectIndex;
             }
         }
         // add the draw command to the draw commands buffer if it has visible instances
