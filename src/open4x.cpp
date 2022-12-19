@@ -1,4 +1,8 @@
 #include "Vulkan/vulkan_descriptors.hpp"
+#include "Vulkan/vulkan_renderer.hpp"
+#include <glm/ext/scalar_constants.hpp>
+#include <glm/gtx/dual_quaternion.hpp>
+#include <glm/trigonometric.hpp>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -54,6 +58,26 @@ Open4X::~Open4X() {
     delete vulkanWindow;
 }
 
+void fillComputePushConstants(ComputePushConstants& computePushConstants, float vFov, float aspectRatio, float nearClip, float farClip) {
+    computePushConstants.nearD = nearClip;
+    computePushConstants.farD = farClip;
+    computePushConstants.ratio = aspectRatio;
+
+    vFov *= glm::pi<double>() / 360.0;
+    computePushConstants.tang = glm::tan(vFov);
+    computePushConstants.sphereFactorY = 1.0 / glm::cos(vFov);
+
+    float angleX = glm::atan(computePushConstants.tang * aspectRatio);
+    computePushConstants.sphereFactorX = 1.0 / glm::cos(angleX);
+}
+
+void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, VulkanObject* camera) {
+    computePushConstants.camPos = camera->position();
+    computePushConstants.Z = glm::normalize(camera->position() + (camera->rotation() * VulkanObject::forwardVector));
+    computePushConstants.X = glm::normalize(glm::cross(computePushConstants.Z, (camera->rotation() * VulkanObject::upVector)));
+    computePushConstants.Y = glm::cross(computePushConstants.X, computePushConstants.Z);
+}
+
 void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
@@ -89,8 +113,15 @@ void Open4X::run() {
 
     UniformBufferObject ubo{};
 
-    ubo.proj = perspectiveProjection(45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height,
-                                     0.001f, 1000.0f);
+    float vFov = 45.0f;
+    float nearClip = 0.001f;
+    float farClip = 1000.0f;
+    float aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+
+    ubo.proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
+
+    ComputePushConstants computePushConstants{};
+    fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
 
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
@@ -122,7 +153,11 @@ void Open4X::run() {
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
         vulkanRenderer->bindComputePipeline();
-        vulkanRenderer->runComputePipeline(objects.computeSet, objects.indirectDrawCount(), objects.drawIndirectCountBuffer());
+
+        computePushConstants.drawIndirectCount = objects.indirectDrawCount();
+        setComputePushConstantsCamera(computePushConstants, camera);
+
+        vulkanRenderer->runComputePipeline(objects.computeSet, objects.drawIndirectCountBuffer(), computePushConstants);
 
         vulkanRenderer->beginRendering();
 
@@ -140,8 +175,9 @@ void Open4X::run() {
         vulkanRenderer->endRendering();
 
         if (vulkanRenderer->endFrame()) {
-            ubo.proj = perspectiveProjection(
-                45.0f, vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height, 0.001f, 1000.0f);
+            aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+            ubo.proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
+            fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
     }
     vkDeviceWaitIdle(vulkanDevice->device());

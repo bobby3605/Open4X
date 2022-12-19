@@ -148,9 +148,9 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
         setRotation(rotation() * glm::quat(speedUp * lookSpeed * frameTime * glm::normalize(rotate)));
     }
 
-    const glm::vec3 forwardDir = rotation() * glm::vec3(0.0f, 0.0f, -1.0f);
-    const glm::vec3 rightDir = rotation() * glm::vec3(-1.0f, 0.0, 0.0f);
-    const glm::vec3 upDir = rotation() * glm::vec3(0.f, -1.0f, 0.f);
+    const glm::vec3 forwardDir = rotation() * forwardVector;
+    const glm::vec3 rightDir = rotation() * rightVector;
+    const glm::vec3 upDir = rotation() * upVector;
 
     glm::vec3 moveDir{0.f};
     speedUp = 1;

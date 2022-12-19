@@ -18,6 +18,24 @@ struct PushConstants {
     bool indirect = 1;
 };
 
+struct ComputePushConstants {
+    uint32_t drawIndirectCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    uint32_t pad0;
+    glm::vec3 X;
+    uint32_t pad1;
+    glm::vec3 Y;
+    uint32_t pad2;
+    glm::vec3 Z;
+    uint32_t pad3;
+    glm::vec3 camPos;
+};
+
 class VulkanRenderer {
   public:
     VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager);
@@ -30,7 +48,7 @@ class VulkanRenderer {
     VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[getCurrentFrame()]; }
     void bindPipeline();
     void bindComputePipeline();
-    void runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount, VkBuffer indirectCountBuffer);
+    void runComputePipeline(VkDescriptorSet computeSet, VkBuffer indirectCountBuffer, ComputePushConstants& computePushConstants);
     VulkanDescriptors* descriptorManager;
     void bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set);
     void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);

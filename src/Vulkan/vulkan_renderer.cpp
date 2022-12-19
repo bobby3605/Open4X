@@ -86,7 +86,7 @@ void VulkanRenderer::createComputePipeline() {
     VkPushConstantRange pushConstantRange{};
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(uint32_t);
+    pushConstantRange.size = sizeof(ComputePushConstants);
 
     VkPipelineLayoutCreateInfo computePipelineLayoutInfo{};
     computePipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -260,7 +260,8 @@ void VulkanRenderer::createCommandBuffers() {
 // https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
 inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
 
-void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t indirectDrawCount, VkBuffer indirectCountBuffer) {
+void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, VkBuffer indirectCountBuffer,
+                                        ComputePushConstants& computePushConstants) {
 
     vkCmdFillBuffer(getCurrentCommandBuffer(), indirectCountBuffer, 0, sizeof(uint32_t), 0);
 
@@ -281,9 +282,11 @@ void VulkanRenderer::runComputePipeline(VkDescriptorSet computeSet, uint32_t ind
     vkCmdPipelineBarrier2(getCurrentCommandBuffer(), &indirectCountDependencyInfo);
 
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, computeSet);
-    vkCmdPushConstants(getCurrentCommandBuffer(), computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t),
-                       &indirectDrawCount);
-    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(indirectDrawCount, 64), 1, 1);
+
+    vkCmdPushConstants(getCurrentCommandBuffer(), computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants),
+                       &computePushConstants);
+
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(computePushConstants.drawIndirectCount, 64), 1, 1);
 
     VkMemoryBarrier2 computeBarrier{};
     computeBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
