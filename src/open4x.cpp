@@ -1,8 +1,12 @@
 #include "Vulkan/vulkan_descriptors.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
+#include <cstdint>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
 #include <glm/trigonometric.hpp>
+#include <iomanip>
+#include <sstream>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -80,6 +84,15 @@ void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, V
 
 void Open4X::run() {
 
+    const uint32_t queryCount = 4;
+    VkQueryPoolCreateInfo queryPoolInfo{};
+    queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    queryPoolInfo.queryCount = queryCount;
+
+    VkQueryPool queryPool;
+    vkCreateQueryPool(vulkanDevice->device(), &queryPoolInfo, nullptr, &queryPool);
+
     VulkanDescriptors descriptorManager(vulkanDevice);
 
     VulkanObjects objects(vulkanDevice, &descriptorManager);
@@ -128,8 +141,27 @@ void Open4X::run() {
         } else {
             titleFrametime = titleFrametime * 0.95 + frameTime * 0.05;
         }
-        title = "Frametime: " + std::to_string(titleFrametime * 1000) + " ms" + " Framerate: " + std::to_string(1.0 / titleFrametime);
-        glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.c_str());
+
+        std::vector<uint64_t> queryResults(queryCount);
+        vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
+                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
+
+        float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
+        // FIXME:
+        //        for some reason, queryResults[3] is always 0 whenever it's called after drawIndirect(),
+        //        maybe a driver bug on this computer?
+        //        float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
+
+        std::stringstream title;
+        title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
+              << " "
+              << "Framerate: " << 1.0 / titleFrametime
+              << " "
+              //   << "Drawtime: " << drawTime << "ms"
+              //  << " "
+              << "Culltime: " << cullTime << "ms";
+
+        glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
 
         glm::mat4 cameraModel =
             glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
@@ -137,6 +169,7 @@ void Open4X::run() {
         ubo.view = glm::inverse(cameraModel);
 
         vulkanRenderer->startFrame();
+        vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 0, queryCount);
 
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
@@ -145,9 +178,12 @@ void Open4X::run() {
         computePushConstants.drawIndirectCount = objects.indirectDrawCount();
         setComputePushConstantsCamera(computePushConstants, camera);
 
+        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
         vulkanRenderer->runComputePipeline(descriptorManager.descriptors["compute"]->getSets()[0], objects.drawIndirectCountBuffer(),
                                            computePushConstants);
+        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
+        vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 2, queryCount - 2);
         vulkanRenderer->beginRendering();
 
         vulkanRenderer->bindPipeline();
@@ -155,11 +191,11 @@ void Open4X::run() {
         vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(), 0,
                                           descriptorManager.descriptors["global"]->getSets()[vulkanRenderer->getCurrentFrame()]);
 
-        // TODO
-        // add support for switching to direct drawing
         objects.bind(vulkanRenderer);
 
+        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
         objects.drawIndirect(vulkanRenderer);
+        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
 
         vulkanRenderer->endRendering();
 
@@ -174,4 +210,5 @@ void Open4X::run() {
     for (size_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         delete uniformBuffers[i];
     }
+    vkDestroyQueryPool(vulkanDevice->device(), queryPool, nullptr);
 }

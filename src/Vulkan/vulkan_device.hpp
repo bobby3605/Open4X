@@ -64,6 +64,8 @@ class VulkanDevice {
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange subresourceRange,
                                VkCommandBuffer commandBuffer);
 
+    float timestampPeriod() const { return _timestampPeriod; }
+
   private:
     void actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
                                        VkCommandBuffer commandBuffer);
@@ -135,6 +137,8 @@ class VulkanDevice {
 
     const std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+    float _timestampPeriod = 0;
 
     class VulkanCommandPoolAllocator {
       public:
