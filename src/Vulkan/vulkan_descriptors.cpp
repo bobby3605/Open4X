@@ -20,28 +20,40 @@ VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
 }
 
 void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
-                                                     uint32_t descriptorCount) {
-    VkDescriptorSetLayoutBinding binding{};
-    binding.binding = bindingID;
-    binding.descriptorType = descriptorType;
-    binding.descriptorCount = descriptorCount;
-    binding.pImmutableSamplers = nullptr;
-    binding.stageFlags = stageFlags;
+                                                     std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID) {
+    if (setID == 0) {
+        VkDescriptorSetLayoutBinding binding{};
+        binding.binding = bindingID;
+        binding.descriptorType = descriptorType;
+        binding.descriptorCount = imageInfos.size();
+        binding.pImmutableSamplers = nullptr;
+        binding.stageFlags = stageFlags;
 
-    bindings.insert({bindingID, binding});
+        bindings.insert({bindingID, binding});
+    }
+
+    _imageInfos.insert({{setID, bindingID}, imageInfos.data()});
 }
 
-void VulkanDescriptors::VulkanDescriptor::setBindingBuffer(uint32_t bindingID, VkBuffer buffer, uint32_t setID) {
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
+                                                     VkBuffer buffer, uint32_t setID) {
+    if (setID == 0) {
+        VkDescriptorSetLayoutBinding binding{};
+        binding.binding = bindingID;
+        binding.descriptorType = descriptorType;
+        binding.descriptorCount = 1;
+        binding.pImmutableSamplers = nullptr;
+        binding.stageFlags = stageFlags;
+
+        bindings.insert({bindingID, binding});
+    }
+
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = buffer;
     bufferInfo.offset = 0;
     bufferInfo.range = VK_WHOLE_SIZE;
 
     bufferInfos.insert({{setID, bindingID}, bufferInfo});
-}
-
-void VulkanDescriptors::VulkanDescriptor::setImageInfo(uint32_t bindingID, VkDescriptorImageInfo* imageInfos, uint32_t setID) {
-    _imageInfos.insert({{setID, bindingID}, imageInfos});
 }
 
 void VulkanDescriptors::VulkanDescriptor::createLayout() {
@@ -59,6 +71,7 @@ void VulkanDescriptors::VulkanDescriptor::createLayout() {
 }
 
 void VulkanDescriptors::VulkanDescriptor::allocateSets(uint32_t count) {
+    createLayout();
     for (uint32_t i = 0; i < count; ++i) {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;

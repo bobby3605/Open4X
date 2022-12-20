@@ -159,67 +159,49 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    materialDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos.size());
-    materialDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos.size());
-    materialDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos.size());
-    materialDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos.size());
-    materialDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos.size());
-    materialDescriptor.createLayout();
+    materialDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos);
+    materialDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos);
+    materialDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos);
+    materialDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos);
+    materialDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos);
+
     materialDescriptor.allocateSets();
-    materialDescriptor.setImageInfo(0, samplerInfos.data());
-    materialDescriptor.setImageInfo(1, imageInfos.data());
-    materialDescriptor.setImageInfo(2, normalMapInfos.data());
-    materialDescriptor.setImageInfo(3, metallicRoughnessMapInfos.data());
-    materialDescriptor.setImageInfo(4, aoMapInfos.data());
     materialDescriptor.update();
 
-    for (uint32_t i = 0; i <= 3; ++i) {
-        objectDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    }
-    objectDescriptor.createLayout();
-    objectDescriptor.allocateSets();
-
-    objectDescriptor.setBindingBuffer(0, ssboBuffers->ssboBuffer());
-    objectDescriptor.setBindingBuffer(1, ssboBuffers->materialBuffer());
-
+    objectDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->ssboBuffer());
+    objectDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialBuffer());
     culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(InstanceIndicesData) * GLTF::baseInstanceCount,
                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    objectDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, culledInstanceIndicesBuffer->buffer);
+    objectDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialIndicesBuffer());
 
-    objectDescriptor.setBindingBuffer(2, culledInstanceIndicesBuffer->buffer);
-    objectDescriptor.setBindingBuffer(3, ssboBuffers->materialIndicesBuffer());
-
+    objectDescriptor.allocateSets();
     objectDescriptor.update();
-
-    for (uint32_t i = 0; i <= 5; ++i) {
-        computeDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT);
-    }
-
-    computeDescriptor.createLayout();
-    computeDescriptor.allocateSets();
 
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    computeDescriptor.setBindingBuffer(0, indirectDrawsBuffer->getBuffer());
-    computeDescriptor.setBindingBuffer(1, ssboBuffers->instanceIndicesBuffer());
+    computeDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
+    computeDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->instanceIndicesBuffer());
 
     culledIndirectDrawsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(indirectDraws[0]) * indirectDraws.size(),
                                                                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    computeDescriptor.setBindingBuffer(2, culledIndirectDrawsBuffer->buffer);
-    computeDescriptor.setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
+    computeDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledIndirectDrawsBuffer->buffer);
+    computeDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledInstanceIndicesBuffer->buffer);
 
     indirectDrawCountBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
                                                              VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    computeDescriptor.setBindingBuffer(4, indirectDrawCountBuffer->buffer);
-    computeDescriptor.setBindingBuffer(5, ssboBuffers->ssboBuffer());
+    computeDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawCountBuffer->buffer);
+    computeDescriptor.addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
 
+    computeDescriptor.allocateSets();
     computeDescriptor.update();
 
     auto endTime = std::chrono::high_resolution_clock::now();

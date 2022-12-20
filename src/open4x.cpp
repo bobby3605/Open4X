@@ -86,13 +86,12 @@ void Open4X::run() {
 
     std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
     VulkanDescriptors::VulkanDescriptor globalDescriptor(&descriptorManager, "global");
-    globalDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    globalDescriptor.createLayout();
-    globalDescriptor.allocateSets(2);
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor.setBindingBuffer(0, uniformBuffers[i]->getBufferInfo().buffer, i);
+        globalDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,
+                                    uniformBuffers[i]->getBufferInfo().buffer, i);
     }
+    globalDescriptor.allocateSets(2);
     globalDescriptor.update();
 
     vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
