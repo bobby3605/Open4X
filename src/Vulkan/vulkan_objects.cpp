@@ -15,7 +15,8 @@
 #include <vulkan/vulkan_core.h>
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
-    : device{device}, descriptorManager{descriptorManager} {
+    : device{device}, descriptorManager{descriptorManager}, materialDescriptor(descriptorManager, "material"),
+      objectDescriptor(descriptorManager, "object"), computeDescriptor(descriptorManager, "compute") {
     auto startTime = std::chrono::high_resolution_clock::now();
     // Load models
     uint32_t fileNum = 0;
@@ -136,8 +137,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
                                                  VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites(6);
-
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
     for (auto it = ssboBuffers->uniqueSamplersMap.begin(); it != ssboBuffers->uniqueSamplersMap.end(); ++it) {
@@ -159,99 +158,69 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (auto it = ssboBuffers->uniqueAoMapsMap.begin(); it != ssboBuffers->uniqueAoMapsMap.end(); ++it) {
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
-    // Material layout
-    std::vector<VkDescriptorSetLayoutBinding> materialBindings = descriptorManager->materialLayout(
-        samplerInfos.size(), imageInfos.size(), normalMapInfos.size(), metallicRoughnessMapInfos.size(), aoMapInfos.size());
-    materialSet =
-        descriptorManager->allocateSet(descriptorManager->createLayout(materialBindings, 1, descriptorManager->graphicsDescriptorLayouts));
 
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = materialSet;
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    descriptorWrites[0].descriptorCount = samplerInfos.size();
-    descriptorWrites[0].pImageInfo = samplerInfos.data();
+    materialDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos.size());
+    materialDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos.size());
+    materialDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos.size());
+    materialDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos.size());
+    materialDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos.size());
+    materialDescriptor.createLayout();
+    materialDescriptor.allocateSets();
+    materialDescriptor.setImageInfo(0, samplerInfos.data());
+    materialDescriptor.setImageInfo(1, imageInfos.data());
+    materialDescriptor.setImageInfo(2, normalMapInfos.data());
+    materialDescriptor.setImageInfo(3, metallicRoughnessMapInfos.data());
+    materialDescriptor.setImageInfo(4, aoMapInfos.data());
+    materialDescriptor.update();
 
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = materialSet;
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    descriptorWrites[1].descriptorCount = imageInfos.size();
-    descriptorWrites[1].pImageInfo = imageInfos.data();
-
-    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[2].dstSet = materialSet;
-    descriptorWrites[2].dstBinding = 2;
-    descriptorWrites[2].dstArrayElement = 0;
-    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    descriptorWrites[2].descriptorCount = normalMapInfos.size();
-    descriptorWrites[2].pImageInfo = normalMapInfos.data();
-
-    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[3].dstSet = materialSet;
-    descriptorWrites[3].dstBinding = 3;
-    descriptorWrites[3].dstArrayElement = 0;
-    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    descriptorWrites[3].descriptorCount = metallicRoughnessMapInfos.size();
-    descriptorWrites[3].pImageInfo = metallicRoughnessMapInfos.data();
-
-    descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[4].dstSet = materialSet;
-    descriptorWrites[4].dstBinding = 4;
-    descriptorWrites[4].dstArrayElement = 0;
-    descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    descriptorWrites[4].descriptorCount = aoMapInfos.size();
-    descriptorWrites[4].pImageInfo = aoMapInfos.data();
-
-    vkUpdateDescriptorSets(device->device(), 5, descriptorWrites.data(), 0, nullptr);
-
-    VulkanDescriptors::VulkanDescriptor objectDescriptor(descriptorManager, "object");
-
-    objectDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    // leave a blank descriptor space between 0 and 2 for some reason (maybe alignment?)
-    for (uint32_t i = 2; i <= 4; ++i) {
+    for (uint32_t i = 0; i <= 3; ++i) {
         objectDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
     }
     objectDescriptor.createLayout();
-    objectDescriptor.allocateSet();
+    objectDescriptor.allocateSets();
 
     objectDescriptor.setBindingBuffer(0, ssboBuffers->ssboBuffer());
-    objectDescriptor.setBindingBuffer(2, ssboBuffers->materialBuffer());
+    objectDescriptor.setBindingBuffer(1, ssboBuffers->materialBuffer());
 
     culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(InstanceIndicesData) * GLTF::baseInstanceCount,
                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    objectDescriptor.setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
-    objectDescriptor.setBindingBuffer(4, ssboBuffers->materialIndicesBuffer());
+    objectDescriptor.setBindingBuffer(2, culledInstanceIndicesBuffer->buffer);
+    objectDescriptor.setBindingBuffer(3, ssboBuffers->materialIndicesBuffer());
 
     objectDescriptor.update();
+
+    for (uint32_t i = 0; i <= 5; ++i) {
+        computeDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+
+    computeDescriptor.createLayout();
+    computeDescriptor.allocateSets();
 
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    descriptorManager->descriptors["compute"]->setBindingBuffer(0, indirectDrawsBuffer->getBuffer());
-    descriptorManager->descriptors["compute"]->setBindingBuffer(1, ssboBuffers->instanceIndicesBuffer());
+    computeDescriptor.setBindingBuffer(0, indirectDrawsBuffer->getBuffer());
+    computeDescriptor.setBindingBuffer(1, ssboBuffers->instanceIndicesBuffer());
 
     culledIndirectDrawsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(indirectDraws[0]) * indirectDraws.size(),
                                                                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    descriptorManager->descriptors["compute"]->setBindingBuffer(2, culledIndirectDrawsBuffer->buffer);
-    descriptorManager->descriptors["compute"]->setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
+    computeDescriptor.setBindingBuffer(2, culledIndirectDrawsBuffer->buffer);
+    computeDescriptor.setBindingBuffer(3, culledInstanceIndicesBuffer->buffer);
 
     indirectDrawCountBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
                                                              VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    descriptorManager->descriptors["compute"]->setBindingBuffer(4, indirectDrawCountBuffer->buffer);
-    descriptorManager->descriptors["compute"]->setBindingBuffer(5, ssboBuffers->ssboBuffer());
+    computeDescriptor.setBindingBuffer(4, indirectDrawCountBuffer->buffer);
+    computeDescriptor.setBindingBuffer(5, ssboBuffers->ssboBuffer());
 
-    descriptorManager->descriptors["compute"]->update();
+    computeDescriptor.update();
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
@@ -262,8 +231,8 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
 
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1, materialSet);
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2, objectSet);
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1, materialDescriptor.getSets()[0]);
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2, objectDescriptor.getSets()[0]);
 
     vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 

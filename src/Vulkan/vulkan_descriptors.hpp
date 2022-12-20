@@ -1,7 +1,8 @@
 #ifndef VULKAN_DESCRIPTORS_H_
 #define VULKAN_DESCRIPTORS_H_
 #include "vulkan_device.hpp"
-#include <unordered_map>
+#include <map>
+#include <utility>
 #include <vulkan/vulkan_core.h>
 
 class VulkanDescriptors {
@@ -11,55 +12,36 @@ class VulkanDescriptors {
         VulkanDescriptor(VulkanDescriptors* descriptorManager, std::string name);
         ~VulkanDescriptor();
         void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags, uint32_t descriptorCount = 1);
-        void setBindingBuffer(uint32_t bindingID, VkBuffer buffer);
+        void setBindingBuffer(uint32_t bindingID, VkBuffer buffer, uint32_t setID = 0);
+        void setImageInfo(uint32_t bindingID, VkDescriptorImageInfo* imageInfo, uint32_t setID = 0);
         void createLayout();
-        void allocateSet();
+        void allocateSets(uint32_t count = 1);
         void update();
         VkDescriptorSetLayout getLayout() const { return layout; }
-        VkDescriptorSet getSet() const { return set; }
+        VkDescriptorSet* getSets() { return sets.data(); }
 
       private:
         VulkanDescriptors* descriptorManager;
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
+        std::map<uint32_t, VkDescriptorSetLayoutBinding> bindings;
         VkDescriptorSetLayout layout;
-        VkDescriptorSet set;
-        std::vector<VkDescriptorBufferInfo> bufferInfos;
+        std::vector<VkDescriptorSet> sets;
+        std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo> bufferInfos;
+        std::map<std::pair<uint32_t, uint32_t>, VkDescriptorImageInfo*> _imageInfos;
     };
 
     VulkanDescriptors(VulkanDevice* deviceRef);
-    VkDescriptorSetLayout descriptorSetLayout;
     ~VulkanDescriptors();
-    std::vector<VkDescriptorSet> descriptorSets;
 
     VkDescriptorPool createPool();
-    VkDescriptorSetLayout createLayout(std::vector<VkDescriptorSetLayoutBinding> bindings, uint32_t setNum,
-                                       std::vector<VkDescriptorSetLayout>& descriptorLayouts);
-    VkDescriptorSet allocateSet(VkDescriptorSetLayout layout);
-    void createSets(VkDescriptorSetLayout layout, std::vector<VkDescriptorSet>& sets);
-
-    VkDescriptorSetLayout getGlobal() const { return globalL; }
-    VkDescriptorSetLayout getObject() const { return objectL; }
-
-    std::vector<VkDescriptorSetLayout> graphicsDescriptorLayouts;
-
-    std::vector<VkDescriptorSetLayoutBinding> materialLayout(uint32_t samplersSize, uint32_t imagesSize, uint32_t normalMapsSize,
-                                                             uint32_t metallicRoughnessMapsSize, uint32_t aoMapsSize);
-
     std::unordered_map<std::string, VulkanDescriptor*> descriptors;
 
   private:
     void createDescriptorSetLayout();
     void createDescriptorPool();
 
-    std::vector<VkDescriptorSetLayoutBinding> globalLayout();
-    std::vector<VkDescriptorSetLayoutBinding> passLayout();
-    std::vector<VkDescriptorSetLayoutBinding> objectLayout();
-
     VulkanDevice* device;
 
     VkDescriptorPool pool;
-    VkDescriptorSetLayout globalL;
-    VkDescriptorSetLayout objectL;
 
     std::vector<VkDescriptorType> descriptorTypes = {VK_DESCRIPTOR_TYPE_SAMPLER,
                                                      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

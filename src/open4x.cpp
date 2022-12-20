@@ -82,39 +82,20 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    VulkanDescriptors::VulkanDescriptor computeDescriptor(&descriptorManager, "compute");
-
-    for (uint32_t i = 0; i <= 5; ++i) {
-        computeDescriptor.addBinding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT);
-    }
-    computeDescriptor.createLayout();
-    computeDescriptor.allocateSet();
-
     VulkanObjects objects(vulkanDevice, &descriptorManager);
-    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
-
-    std::vector<VkDescriptorSet> globalSets;
-
-    descriptorManager.createSets(descriptorManager.getGlobal(), globalSets);
 
     std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    std::vector<VkDescriptorBufferInfo> bufferInfos(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-
+    VulkanDescriptors::VulkanDescriptor globalDescriptor(&descriptorManager, "global");
+    globalDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    globalDescriptor.createLayout();
+    globalDescriptor.allocateSets(2);
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        bufferInfos[i] = uniformBuffers[i]->getBufferInfo();
-
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = globalSets[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfos[i];
-
-        vkUpdateDescriptorSets(vulkanDevice->device(), 1, &descriptorWrite, 0, nullptr);
+        globalDescriptor.setBindingBuffer(0, uniformBuffers[i]->getBufferInfo().buffer, i);
     }
+    globalDescriptor.update();
+
+    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -165,7 +146,7 @@ void Open4X::run() {
         computePushConstants.drawIndirectCount = objects.indirectDrawCount();
         setComputePushConstantsCamera(computePushConstants, camera);
 
-        vulkanRenderer->runComputePipeline(descriptorManager.descriptors["compute"]->getSet(), objects.drawIndirectCountBuffer(),
+        vulkanRenderer->runComputePipeline(descriptorManager.descriptors["compute"]->getSets()[0], objects.drawIndirectCountBuffer(),
                                            computePushConstants);
 
         vulkanRenderer->beginRendering();
@@ -173,7 +154,7 @@ void Open4X::run() {
         vulkanRenderer->bindPipeline();
 
         vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(), 0,
-                                          globalSets[vulkanRenderer->getCurrentFrame()]);
+                                          descriptorManager.descriptors["global"]->getSets()[vulkanRenderer->getCurrentFrame()]);
 
         // TODO
         // add support for switching to direct drawing

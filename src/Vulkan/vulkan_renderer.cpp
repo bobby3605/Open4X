@@ -116,12 +116,15 @@ void VulkanRenderer::createPipeline() {
     pushConstantRange.size = sizeof(PushConstants);
     */
 
-    // FIXME:
-    // fix the descriptor here for the new allocation method
+    std::vector<VkDescriptorSetLayout> descriptorLayouts;
+    descriptorLayouts.push_back(descriptorManager->descriptors["global"]->getLayout());
+    descriptorLayouts.push_back(descriptorManager->descriptors["material"]->getLayout());
+    descriptorLayouts.push_back(descriptorManager->descriptors["object"]->getLayout());
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = descriptorManager->graphicsDescriptorLayouts.size();
-    pipelineLayoutInfo.pSetLayouts = descriptorManager->graphicsDescriptorLayouts.data();
+    pipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
+    pipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
     // pipelineLayoutInfo.pushConstantRangeCount = 1;
     //  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 

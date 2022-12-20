@@ -33,13 +33,13 @@ struct materialIndicesData {
 layout(std140, set = 2, binding = 0) readonly buffer Objects { objectData data[]; }
 objects;
 
-layout(std140, set = 2, binding = 2) readonly buffer Materials { materialData data[]; }
+layout(std140, set = 2, binding = 1) readonly buffer Materials { materialData data[]; }
 materials;
 
-layout(set = 2, binding = 3) readonly buffer CulledInstanceIndices { culledInstanceIndicesData data[]; }
+layout(set = 2, binding = 2) readonly buffer CulledInstanceIndices { culledInstanceIndicesData data[]; }
 culledInstanceIndices;
 
-layout(set = 2, binding = 4) readonly buffer MaterialIndices { materialIndicesData data[]; }
+layout(set = 2, binding = 3) readonly buffer MaterialIndices { materialIndicesData data[]; }
 materialIndices;
 
 layout(location = 0) in vec3 inPosition;

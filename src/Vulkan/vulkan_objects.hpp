@@ -19,6 +19,9 @@ class VulkanObjects {
     std::shared_ptr<VulkanObject> getObjectByName(std::string name);
     uint32_t indirectDrawCount() const { return indirectDraws.size(); }
     VkBuffer drawIndirectCountBuffer() { return indirectDrawCountBuffer->buffer; }
+    VulkanDescriptors::VulkanDescriptor materialDescriptor;
+    VulkanDescriptors::VulkanDescriptor objectDescriptor;
+    VulkanDescriptors::VulkanDescriptor computeDescriptor;
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;
@@ -45,8 +48,6 @@ class VulkanObjects {
     VulkanDevice* device;
 
     VulkanDescriptors* descriptorManager;
-    VkDescriptorSet objectSet;
-    VkDescriptorSet materialSet;
 };
 
 #endif // VULKAN_OBJECTS_H_
