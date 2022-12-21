@@ -1,11 +1,15 @@
 #ifndef VULKAN_RENDERER_H_
 #define VULKAN_RENDERER_H_
 
+#include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_pipeline.hpp"
 #include "vulkan_swapchain.hpp"
 #include "vulkan_window.hpp"
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -38,7 +42,8 @@ struct ComputePushConstants {
 
 class VulkanRenderer {
   public:
-    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager);
+    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager,
+                   const std::vector<VkDrawIndexedIndirectCommand>& drawCommands);
     ~VulkanRenderer();
     void recordCommandBuffer(uint32_t imageIndex);
     void startFrame();
@@ -47,34 +52,49 @@ class VulkanRenderer {
     void endRendering();
     VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[getCurrentFrame()]; }
     void bindPipeline();
-    void bindComputePipeline();
-    void runComputePipeline(VkDescriptorSet computeSet, VkBuffer indirectCountBuffer, ComputePushConstants& computePushConstants);
     VulkanDescriptors* descriptorManager;
     void bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set);
     void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);
     VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
-    VkPipelineLayout getPipelineLayout() const { return pipelineLayout; }
     VulkanWindow* getWindow() { return vulkanWindow; }
     size_t getCurrentFrame() const { return swapChain->currentFrame(); }
     VkPipelineLayout graphicsPipelineLayout() const { return pipelineLayout; }
+    void cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands, ComputePushConstants& frustumCullPushConstants);
 
   private:
-    void init();
+    void init(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands);
     void createCommandBuffers();
     void createPipeline();
-    void createComputePipeline();
+    void createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                               std::vector<VkPushConstantRange>& pushConstants);
+    void createCullingPipelines(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands);
     void recreateSwapChain();
+    void bindComputePipeline(std::string name);
+    void memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 dstAccessMask,
+                       VkPipelineStageFlags2 dstStageMask);
 
     VulkanDevice* device;
     VulkanPipeline* graphicsPipeline;
-    VulkanPipeline* computePipeline;
     VulkanWindow* vulkanWindow;
     VulkanSwapChain* swapChain;
 
     VkPipelineLayout pipelineLayout;
-    VkPipelineLayout computePipelineLayout;
+    std::unordered_map<std::string, std::shared_ptr<VulkanPipeline>> computePipelines;
 
     std::vector<VkCommandBuffer> commandBuffers;
+
+    // compute culling buffers
+    std::shared_ptr<VulkanBuffer> drawIndexBuffer;
+
+    std::shared_ptr<VulkanBuffer> visibleInstanceCountsBuffer;
+    std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
+    std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
+
+    // FIXME:
+    // bad hack
+    std::vector<ComputePushConstants> cullPush;
+
+    friend class VulkanObjects;
 };
 
 #endif // VULKAN_RENDERER_H_

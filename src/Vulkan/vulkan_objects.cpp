@@ -15,8 +15,7 @@
 #include <vulkan/vulkan_core.h>
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
-    : device{device}, descriptorManager{descriptorManager}, materialDescriptor(descriptorManager, "material"),
-      objectDescriptor(descriptorManager, "object"), computeDescriptor(descriptorManager, "compute") {
+    : device{device}, descriptorManager{descriptorManager} {
     auto startTime = std::chrono::high_resolution_clock::now();
     // Load models
     uint32_t fileNum = 0;
@@ -159,50 +158,46 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    materialDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos);
-    materialDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos);
-    materialDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos);
-    materialDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos);
-    materialDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos);
+    VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material");
 
-    materialDescriptor.allocateSets();
-    materialDescriptor.update();
+    materialDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos);
+    materialDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos);
+    materialDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos);
+    materialDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos);
+    materialDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos);
 
-    objectDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->ssboBuffer());
-    objectDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialBuffer());
+    materialDescriptor->allocateSets();
+    materialDescriptor->update();
+
+    VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object");
+
+    objectDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->ssboBuffer());
+    objectDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialBuffer());
     culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(InstanceIndicesData) * GLTF::baseInstanceCount,
                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    objectDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, culledInstanceIndicesBuffer->buffer);
-    objectDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialIndicesBuffer());
+    objectDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, culledInstanceIndicesBuffer->buffer);
+    objectDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialIndicesBuffer());
 
-    objectDescriptor.allocateSets();
-    objectDescriptor.update();
+    objectDescriptor->allocateSets();
+    objectDescriptor->update();
+
+    VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor = descriptorManager->createDescriptor("cull_frustum_pass");
 
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    computeDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
-    computeDescriptor.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->instanceIndicesBuffer());
+    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
+    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
+                                      ssboBuffers->instanceIndicesBuffer());
 
-    culledIndirectDrawsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
+    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
+                                      culledInstanceIndicesBuffer->buffer);
 
-    computeDescriptor.addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledIndirectDrawsBuffer->buffer);
-    computeDescriptor.addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledInstanceIndicesBuffer->buffer);
-
-    indirectDrawCountBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
-                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    computeDescriptor.addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawCountBuffer->buffer);
-    computeDescriptor.addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
-
-    computeDescriptor.allocateSets();
-    computeDescriptor.update();
+    VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor = descriptorManager->createDescriptor("cull_draw_pass");
+    cullDrawDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
@@ -213,8 +208,10 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
     VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
 
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1, materialDescriptor.getSets()[0]);
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2, objectDescriptor.getSets()[0]);
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1,
+                                descriptorManager->descriptors["material"]->getSets()[0]);
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2,
+                                descriptorManager->descriptors["object"]->getSets()[0]);
 
     vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
@@ -226,8 +223,8 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
         animatedObject->updateAnimations();
     }
 
-    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), culledIndirectDrawsBuffer->buffer, 0,
-                                  indirectDrawCountBuffer->buffer, 0, indirectDraws.size(), sizeof(indirectDraws[0]));
+    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer, 0,
+                                  renderer->culledDrawIndirectCount->buffer, 0, indirectDraws.size(), sizeof(indirectDraws[0]));
 }
 
 std::shared_ptr<VulkanObject> VulkanObjects::getObjectByName(std::string name) {

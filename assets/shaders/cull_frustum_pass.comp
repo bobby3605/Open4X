@@ -1,0 +1,116 @@
+#version 460
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+struct InstanceIndicesData {
+    uint objectIndex;
+};
+
+struct ObjectData {
+    mat4 modelMatrix;
+};
+
+layout(set = 0, binding = 0) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
+
+layout(set = 0, binding = 1) readonly buffer InstanceIndices { InstanceIndicesData instanceIndices[]; };
+
+layout(push_constant) uniform constants {
+    uint indirectDrawCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    vec3 X;
+    vec3 Y;
+    vec3 Z;
+    vec3 camPos;
+};
+
+// FIXME:
+// currently unused
+layout(set = 0, binding = 2) coherent buffer DrawIndex { uint drawIndex; };
+
+layout(std140, set = 0, binding = 3) readonly buffer Objects { ObjectData objects[]; };
+
+layout(set = 0, binding = 4) writeonly buffer CulledInstanceIndices { InstanceIndicesData culledInstanceIndices[]; };
+
+layout(set = 0, binding = 5) coherent buffer VisibleInstanceCounts { uint visibleInstanceCounts[]; };
+
+shared uint actualDrawIndex;
+
+// radar frustum culling implementation from
+// http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
+bool sphereInFrustum(vec3 p, float radius) {
+
+    float d;
+    float az, ax, ay;
+    bool result = true;
+
+    vec3 v = p - camPos;
+
+    az = dot(v, -Z);
+    if (az > farD + radius || az < nearD - radius)
+        return false;
+
+    if (az > farD - radius || az < nearD + radius)
+        result = true;
+
+    ay = dot(v, Y);
+    d = sphereFactorY * radius;
+    az *= tang;
+    if (ay > az + d || ay < -az - d)
+        return false;
+
+    if (ay > az - d || ay < -az + d)
+        result = true;
+
+    ax = dot(v, X);
+    az *= ratio;
+    d = sphereFactorX * radius;
+    if (ax > az + d || ax < -az - d)
+        return false;
+
+    if (ax > az - d || ax < -az + d)
+        result = true;
+
+    return (result);
+}
+
+void main() {
+    DrawCommand drawCommand = drawCommands[indirectDrawCount];
+    uint instanceIndex = gl_GlobalInvocationID.x;
+    if (instanceIndex >= drawCommand.instanceCount) {
+        return;
+    }
+
+    InstanceIndicesData instanceData = instanceIndices[drawCommand.firstInstance + instanceIndex];
+    mat4 modelMatrix = objects[instanceData.objectIndex].modelMatrix;
+    mat4 modelMatrixT = transpose(modelMatrix);
+    float xScale = length(modelMatrixT[0]);
+    float yScale = length(modelMatrixT[1]);
+    float zScale = length(modelMatrixT[2]);
+    vec3 center = vec3(modelMatrix[3]);
+    // might not work for radius because objects have different scaling
+    // some models might have a much larger or smaller scale than others in order to be reasonably sized
+    // this would make the radius too large or too small
+    // need to convert scale from model space to world space?
+    float radius = max(xScale, max(yScale, zScale)) * 0.5;
+    if (true || sphereInFrustum(center, radius)) {
+        // NOTE:
+        // maybe this should just be a pointer into instanceData?
+        // it doesn't matter now because instanceData is only a single uint anyway,
+        // but if instanceData ever becomes larger, it may be faster to store and index,
+        // rather than copy instanceData to culledInstanceIndices
+        culledInstanceIndices[drawCommand.firstInstance + atomicAdd(visibleInstanceCounts[indirectDrawCount], 1)] = instanceData;
+    }
+}

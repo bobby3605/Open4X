@@ -693,6 +693,9 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     vk12_features.drawIndirectCount = VK_TRUE;
     vk12_features.hostQueryReset = VK_TRUE;
+    // TODO
+    // use scalar block layout
+    //    vk12_features.scalarBlockLayout = VK_TRUE;
 
     vk11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     vk11_features.shaderDrawParameters = VK_TRUE;
@@ -742,7 +745,8 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
     return supportedFeaturesCheck.features.samplerAnisotropy && supportedFeaturesCheck.features.multiDrawIndirect &&
            vk11_featuresCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
            vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing && vk13_featuresCheck.dynamicRendering &&
-           vk13_featuresCheck.synchronization2 && vk12_featuresCheck.drawIndirectCount && vk12_featuresCheck.hostQueryReset;
+           vk13_featuresCheck.synchronization2 && vk12_featuresCheck.drawIndirectCount && vk12_featuresCheck.hostQueryReset &&
+           vk12_featuresCheck.scalarBlockLayout;
 }
 
 VulkanDevice::~VulkanDevice() {

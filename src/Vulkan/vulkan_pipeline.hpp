@@ -8,17 +8,22 @@
 class VulkanPipeline {
   public:
     VulkanPipeline(VulkanDevice* device, VkGraphicsPipelineCreateInfo pipelineInfo);
-    VulkanPipeline(VulkanDevice* device, VkComputePipelineCreateInfo pipelineInfo);
+    VulkanPipeline(VulkanDevice* device, std::string computeShaderPath, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                   std::vector<VkPushConstantRange>& pushConstants);
     ~VulkanPipeline();
     static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
-    VkPipeline getPipeline() { return pipeline; }
+    VkPipeline pipeline() { return _pipeline; }
+    VkPipelineLayout pipelineLayout() { return _pipelineLayout; }
 
   private:
     void createGraphicsPipeline();
     void createComputePipeline();
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
+    void createPipelineLayout(std::vector<VkDescriptorSetLayout>& descriptorLayouts, std::vector<VkPushConstantRange>& pushConstants);
+
     VulkanDevice* device;
-    VkPipeline pipeline;
+    VkPipeline _pipeline;
+    VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
 };
 #endif // VULKAN_PIPELINE_H_

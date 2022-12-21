@@ -9,7 +9,7 @@ class VulkanDescriptors {
   public:
     class VulkanDescriptor {
       public:
-        VulkanDescriptor(VulkanDescriptors* descriptorManager, std::string name);
+        VulkanDescriptor(VulkanDescriptors* descriptorManager);
         ~VulkanDescriptor();
         void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
                         std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID = 0);
@@ -34,6 +34,7 @@ class VulkanDescriptors {
     ~VulkanDescriptors();
 
     VkDescriptorPool createPool();
+    VulkanDescriptor* createDescriptor(std::string name);
     std::unordered_map<std::string, VulkanDescriptor*> descriptors;
 
   private:

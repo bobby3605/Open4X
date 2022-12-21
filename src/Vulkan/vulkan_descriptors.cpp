@@ -10,10 +10,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descriptorManager, std::string name)
-    : descriptorManager(descriptorManager) {
-    descriptorManager->descriptors.insert({name, this});
-}
+VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descriptorManager) : descriptorManager{descriptorManager} {}
 
 VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
     vkDestroyDescriptorSetLayout(descriptorManager->device->device(), layout, nullptr);
@@ -114,6 +111,12 @@ void VulkanDescriptors::VulkanDescriptor::update() {
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} { pool = createPool(); }
 
+VulkanDescriptors::VulkanDescriptor* VulkanDescriptors::createDescriptor(std::string name) {
+    VulkanDescriptor* tmp = new VulkanDescriptor(this);
+    descriptors.insert({name, tmp});
+    return tmp;
+}
+
 VkDescriptorPool VulkanDescriptors::createPool() {
     int count = 10 * VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
     std::vector<VkDescriptorPoolSize> poolSizes{};
@@ -133,4 +136,9 @@ VkDescriptorPool VulkanDescriptors::createPool() {
     return pool;
 }
 
-VulkanDescriptors::~VulkanDescriptors() { vkDestroyDescriptorPool(device->device(), pool, nullptr); }
+VulkanDescriptors::~VulkanDescriptors() {
+    for (auto& descriptor : descriptors)
+        delete descriptor.second;
+
+    vkDestroyDescriptorPool(device->device(), pool, nullptr);
+}

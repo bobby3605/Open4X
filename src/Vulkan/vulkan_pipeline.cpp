@@ -7,12 +7,13 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 static std::vector<char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error("failed to open file");
+        throw std::runtime_error("failed to open file: " + filename);
     }
 
     size_t fileSize = (size_t)file.tellg();
@@ -60,18 +61,37 @@ VulkanPipeline::VulkanPipeline(VulkanDevice* device, VkGraphicsPipelineCreateInf
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
 
-    checkResult(vkCreateGraphicsPipelines(device->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline),
+    checkResult(vkCreateGraphicsPipelines(device->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline),
                 "failed to create graphics pipeline");
 
     vkDestroyShaderModule(device->device(), vertModule, nullptr);
     vkDestroyShaderModule(device->device(), fragModule, nullptr);
 }
 
-VulkanPipeline::VulkanPipeline(VulkanDevice* device, VkComputePipelineCreateInfo pipelineInfo) : device{device} {
-    assert(pipelineInfo.layout != nullptr && "Compute pipeline layout == nullptr");
+void VulkanPipeline::createPipelineLayout(std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                                          std::vector<VkPushConstantRange>& pushConstants) {
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
+    pipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
+    pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
-    auto computeShaderCode = readFile("build/assets/shaders/cull.comp.spv");
-    VkShaderModule computeModule = createShaderModule(computeShaderCode);
+    checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &_pipelineLayout),
+                "failed to create compute pipeline layout");
+}
+
+VulkanPipeline::VulkanPipeline(VulkanDevice* device, std::string computeShaderPath, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                               std::vector<VkPushConstantRange>& pushConstants)
+    : device{device} {
+
+    createPipelineLayout(descriptorLayouts, pushConstants);
+
+    VkComputePipelineCreateInfo computePipelineInfo{};
+    computePipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineInfo.layout = _pipelineLayout;
+
+    VkShaderModule computeModule = createShaderModule(readFile(computeShaderPath));
 
     VkPipelineShaderStageCreateInfo computeStageInfo{};
     computeStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -79,18 +99,27 @@ VulkanPipeline::VulkanPipeline(VulkanDevice* device, VkComputePipelineCreateInfo
     computeStageInfo.module = computeModule;
     computeStageInfo.pName = "main";
 
+    VkComputePipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineInfo.layout = _pipelineLayout;
+
     pipelineInfo.pNext = VK_NULL_HANDLE;
     pipelineInfo.stage = computeStageInfo;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = 0;
 
-    checkResult(vkCreateComputePipelines(device->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline),
+    checkResult(vkCreateComputePipelines(device->device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline),
                 "failed to create compute pipeline");
 
     vkDestroyShaderModule(device->device(), computeModule, nullptr);
 }
 
-VulkanPipeline::~VulkanPipeline() { vkDestroyPipeline(device->device(), pipeline, nullptr); }
+VulkanPipeline::~VulkanPipeline() {
+    if (_pipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(device->device(), _pipelineLayout, nullptr);
+    }
+    vkDestroyPipeline(device->device(), _pipeline, nullptr);
+}
 
 VkShaderModule VulkanPipeline::createShaderModule(const std::vector<char>& code) {
     VkShaderModuleCreateInfo createInfo{};

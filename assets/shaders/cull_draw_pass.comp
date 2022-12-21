@@ -1,0 +1,33 @@
+#version 460
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+layout(set = 0, binding = 0) readonly buffer VisibleInstanceCounts { uint visibleInstanceCounts[]; };
+
+layout(set = 0, binding = 1) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
+
+layout(push_constant) uniform constants { uint indirectDrawCount; };
+
+layout(set = 0, binding = 2) coherent buffer CulledDrawIndirectCount { uint culledDrawIndirectCount; };
+
+layout(set = 0, binding = 3) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
+
+void main() {
+    uint drawIndex = gl_GlobalInvocationID.x;
+    if (drawIndex >= indirectDrawCount) {
+        return;
+    }
+    if (visibleInstanceCounts[drawIndex] > 0) {
+        DrawCommand drawCommand = drawCommands[drawIndex];
+        drawCommand.instanceCount = visibleInstanceCounts[drawIndex];
+        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
+    }
+}

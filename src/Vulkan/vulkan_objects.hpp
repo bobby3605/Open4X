@@ -17,11 +17,7 @@ class VulkanObjects {
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
     std::shared_ptr<VulkanObject> getObjectByName(std::string name);
-    uint32_t indirectDrawCount() const { return indirectDraws.size(); }
-    VkBuffer drawIndirectCountBuffer() { return indirectDrawCountBuffer->buffer; }
-    VulkanDescriptors::VulkanDescriptor materialDescriptor;
-    VulkanDescriptors::VulkanDescriptor objectDescriptor;
-    VulkanDescriptors::VulkanDescriptor computeDescriptor;
+    const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;
@@ -29,7 +25,6 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
-    std::shared_ptr<VulkanBuffer> indirectDrawCountBuffer;
     std::shared_ptr<SSBOBuffers> ssboBuffers;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;

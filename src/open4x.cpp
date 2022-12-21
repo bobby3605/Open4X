@@ -98,16 +98,16 @@ void Open4X::run() {
     VulkanObjects objects(vulkanDevice, &descriptorManager);
 
     std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    VulkanDescriptors::VulkanDescriptor globalDescriptor(&descriptorManager, "global");
+    VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global");
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,
-                                    uniformBuffers[i]->getBufferInfo().buffer, i);
+        globalDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,
+                                     uniformBuffers[i]->getBufferInfo().buffer, i);
     }
-    globalDescriptor.allocateSets(2);
-    globalDescriptor.update();
+    globalDescriptor->allocateSets(2);
+    globalDescriptor->update();
 
-    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager);
+    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws());
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -173,14 +173,10 @@ void Open4X::run() {
 
         uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
 
-        vulkanRenderer->bindComputePipeline();
-
-        computePushConstants.drawIndirectCount = objects.indirectDrawCount();
         setComputePushConstantsCamera(computePushConstants, camera);
 
         vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
-        vulkanRenderer->runComputePipeline(descriptorManager.descriptors["compute"]->getSets()[0], objects.drawIndirectCountBuffer(),
-                                           computePushConstants);
+        vulkanRenderer->cullDraws(objects.draws(), computePushConstants);
         vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
         vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 2, queryCount - 2);

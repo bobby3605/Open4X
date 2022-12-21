@@ -55,6 +55,7 @@ class UniformBuffer {
     void write(void* data);
     VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
     void* mapped();
+    VkBuffer buffer() { return bufferInfo.buffer; }
 
   private:
     VulkanBuffer* uniformBuffer;
