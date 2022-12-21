@@ -34,8 +34,8 @@ class VulkanObjects {
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
-    std::unordered_map<std::string, std::shared_ptr<GLTF>> gltf_models;
-    std::vector<std::future<std::shared_ptr<GLTF>>> futureGLTF_Models;
+    std::unordered_map<std::string, std::shared_ptr<VulkanModel>> models;
+    std::vector<std::future<std::shared_ptr<VulkanModel>>> futureModels;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<VkDrawIndexedIndirectCommand> indirectDraws;

@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory>
 
+VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
+
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
                        std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
                        std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)

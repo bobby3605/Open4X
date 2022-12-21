@@ -38,6 +38,14 @@ class VulkanMesh {
     std::vector<std::shared_ptr<Primitive>> primitives;
 };
 
+class VulkanModel {
+  public:
+    VulkanModel(std::string filePath, uint32_t fileNum);
+    std::shared_ptr<GLTF> model;
+    std::map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
+    std::map<int, int> materialIDMap;
+};
+
 class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,

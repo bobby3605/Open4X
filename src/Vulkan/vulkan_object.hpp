@@ -12,7 +12,7 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<GLTF> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
+    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
                  std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
     VulkanObject();
     std::string const name() { return _name; }
@@ -35,9 +35,6 @@ class VulkanObject {
 
     std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);
     void updateAnimations();
-
-    std::map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
-    std::map<int, int> materialIDMap;
 
     std::vector<std::shared_ptr<VulkanObject>> children;
 

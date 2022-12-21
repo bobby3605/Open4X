@@ -27,16 +27,16 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath.exists() && filePath.is_regular_file()) {
             if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
                 (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
-                futureGLTF_Models.push_back(
-                    std::async(std::launch::async, [filePath, fileNum]() { return std::make_shared<GLTF>(filePath.path(), fileNum); }));
+                futureModels.push_back(std::async(
+                    std::launch::async, [filePath, fileNum]() { return std::make_shared<VulkanModel>(filePath.path(), fileNum); }));
                 ++fileNum;
             }
         }
     }
 
-    for (int modelIndex = 0; modelIndex < futureGLTF_Models.size(); ++modelIndex) {
-        std::shared_ptr<GLTF> model = futureGLTF_Models[modelIndex].get();
-        gltf_models.insert({model->path() + model->fileName(), model});
+    for (int modelIndex = 0; modelIndex < futureModels.size(); ++modelIndex) {
+        std::shared_ptr<VulkanModel> model = futureModels[modelIndex].get();
+        models.insert({model->model->path() + model->model->fileName(), model});
     }
 
     indirectDraws.resize(GLTF::primitiveCount);
@@ -57,9 +57,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     // Load objects
     // This needs to be in a separate loop from loading models in order to dynamically size ssboBuffers
-    for (std::pair<std::string, std::shared_ptr<GLTF>> pathModelPair : gltf_models) {
+    for (std::pair<std::string, std::shared_ptr<VulkanModel>> pathModelPair : models) {
         std::string filePath = pathModelPair.first;
-        std::shared_ptr<GLTF> model = pathModelPair.second;
+        std::shared_ptr<VulkanModel> model = pathModelPair.second;
 
         futureObjects.push_back(std::async(std::launch::async, [model, filePath, this]() {
             return std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws);
@@ -123,7 +123,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
-        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : objects.back()->meshIDMap) {
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : models[objects.back()->name()]->meshIDMap) {
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
                 indirectDraws[primitive->indirectDrawIndex].vertexOffset = vertices.size();
                 indirectDraws[primitive->indirectDrawIndex].firstIndex = indices.size();
