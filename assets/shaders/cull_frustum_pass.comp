@@ -36,6 +36,7 @@ layout(set = 0, binding = 3) buffer VisibilityBuffer { uint visibilityBuffer[]; 
 layout(set = 0, binding = 4) buffer BlockCounts { uint blockCounts[]; };
 
 layout(set = 0, binding = 5) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 6) buffer PartialSums { uint partial_sums[]; };
 
 // radar frustum culling implementation from
 // http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
@@ -189,6 +190,26 @@ void inclusivePrefixSumVisibleInstances() {
 
     if (gl_GlobalInvocationID.x < totalInstanceCount) {
         prefixSum[gl_GlobalInvocationID.x] = sum;
+    }
+
+    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+        partial_sums[gl_WorkGroupID.x] = sum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_WorkGroupID.x > 0 && gl_GlobalInvocationID.x < totalInstanceCount) {
+        sum = 0;
+        if (gl_LocalInvocationID.x == 0) {
+            sum = partial_sums[gl_WorkGroupID.x - 1];
+        }
+
+        memoryBarrierShared();
+        // causes a device loss
+        // barrier();
+
+        prefixSum[gl_GlobalInvocationID.x] += sum;
     }
 }
 
