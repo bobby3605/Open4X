@@ -49,7 +49,11 @@ void main() {
     uint visibleInstanceCount = visibleInstances(drawIndex);
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
-        drawCommand.instanceCount = visibleInstanceCount;
+        // FIXME:
+        // visibleInstanceCount seems to be too large and causes a device loss
+        //        drawCommand.instanceCount = visibleInstanceCount;
+        drawCommand.instanceCount = 1;
+
         // FIXME:
         // use compact instead of atomicAdd
         culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;

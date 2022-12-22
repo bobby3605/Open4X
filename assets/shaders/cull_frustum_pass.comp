@@ -210,7 +210,6 @@ void compact() {
         }
 
         memoryBarrierShared();
-        barrier();
 
         uint numWarps = gl_WorkGroupSize.x / gl_SubgroupSize;
         uint numWarpsMask = FULL_MASK >> (gl_SubgroupSize - numWarps);
@@ -224,7 +223,6 @@ void compact() {
         }
 
         memoryBarrierShared();
-        barrier();
 
         if (pred == 1) {
             visibleInstances[t_u + warpTotals[w_i] + prefixSum[gl_WorkGroupID.x]] = instances[index];
