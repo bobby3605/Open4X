@@ -23,7 +23,7 @@ struct PushConstants {
 };
 
 struct ComputePushConstants {
-    uint32_t drawIndirectCount;
+    uint32_t totalInstanceCount;
     float nearD;
     float farD;
     float ratio;
@@ -84,15 +84,10 @@ class VulkanRenderer {
     std::vector<VkCommandBuffer> commandBuffers;
 
     // compute culling buffers
-    std::shared_ptr<VulkanBuffer> drawIndexBuffer;
-
-    std::shared_ptr<VulkanBuffer> visibleInstanceCountsBuffer;
     std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
     std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
 
-    // FIXME:
-    // bad hack
-    std::vector<ComputePushConstants> cullPush;
+    uint drawCount;
 
     friend class VulkanObjects;
 };

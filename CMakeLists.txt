@@ -12,7 +12,7 @@ foreach(shader IN LISTS SHADERS)
   get_filename_component(FILENAME ${shader} NAME)
   add_custom_command(
     COMMAND
-      glslc ${shader} -o assets/shaders/${FILENAME}.spv
+      glslc --target-env=vulkan1.2 ${shader} -o assets/shaders/${FILENAME}.spv
     OUTPUT
       assets/shaders/${FILENAME}.spv
     )

@@ -10,24 +10,48 @@ struct DrawCommand {
     uint firstInstance;
 };
 
-layout(set = 0, binding = 0) readonly buffer VisibleInstanceCounts { uint visibleInstanceCounts[]; };
-
-layout(set = 0, binding = 1) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
+layout(set = 0, binding = 0) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
 
 layout(push_constant) uniform constants { uint indirectDrawCount; };
 
-layout(set = 0, binding = 2) coherent buffer CulledDrawIndirectCount { uint culledDrawIndirectCount; };
+layout(set = 0, binding = 1) coherent buffer CulledDrawIndirectCount { uint culledDrawIndirectCount; };
 
-layout(set = 0, binding = 3) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
+layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
+
+/*
+ * FIXME:
+ * use compact here as well
+layout(set = 1, binding = 0) buffer VisibilityBuffer { uint visibilityBuffer[]; };
+layout(set = 1, binding = 1) buffer BlockCounts { uint blockCounts[]; };
+*/
+
+layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
+
+uint visibleInstances(uint di) {
+    if (di != 0) {
+        // prefixSum has an entry for each instance and is kept in order
+        // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
+        // prefixSum[drawCommands[di - 1].instanceCount - 1] is the sum of all visible instances of the previous draw, inclusive
+        // their difference is the number of visible instances of drawCommands[di]
+        DrawCommand currDraw = drawCommands[di];
+        DrawCommand prevDraw = drawCommands[di - 1];
+        return prefixSum[currDraw.instanceCount - 1] - prefixSum[prevDraw.instanceCount - 1];
+    } else {
+        return prefixSum[drawCommands[di].instanceCount - 1];
+    }
+}
 
 void main() {
     uint drawIndex = gl_GlobalInvocationID.x;
     if (drawIndex >= indirectDrawCount) {
         return;
     }
-    if (visibleInstanceCounts[drawIndex] > 0) {
+    uint visibleInstanceCount = visibleInstances(drawIndex);
+    if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
-        drawCommand.instanceCount = visibleInstanceCounts[drawIndex];
+        drawCommand.instanceCount = visibleInstanceCount;
+        // FIXME:
+        // use compact instead of atomicAdd
         culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
     }
 }

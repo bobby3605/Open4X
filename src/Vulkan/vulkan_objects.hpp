@@ -25,6 +25,9 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> visibilityBuffer;
+    std::shared_ptr<VulkanBuffer> blockCountsBuffer;
+    std::shared_ptr<VulkanBuffer> prefixSumBuffer;
     std::shared_ptr<SSBOBuffers> ssboBuffers;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;

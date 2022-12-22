@@ -188,16 +188,29 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
-    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
+    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
                                       ssboBuffers->instanceIndicesBuffer());
 
-    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
-    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
+    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
+    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
                                       culledInstanceIndicesBuffer->buffer);
 
+    visibilityBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * GLTF::baseInstanceCount,
+                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, visibilityBuffer->buffer);
+
+    uint32_t local_size_x = 64;
+    blockCountsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * local_size_x, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, blockCountsBuffer->buffer);
+
+    prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * GLTF::baseInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
+
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor = descriptorManager->createDescriptor("cull_draw_pass");
-    cullDrawDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
+    cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
+    cullDrawDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "

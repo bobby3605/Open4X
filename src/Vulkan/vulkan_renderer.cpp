@@ -100,16 +100,6 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
     name = "cull_frustum_pass";
     descriptor = descriptorManager->descriptors[name];
 
-    drawIndexBuffer =
-        std::make_shared<VulkanBuffer>(device, sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, drawIndexBuffer->buffer);
-
-    visibleInstanceCountsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(drawCommands[0]) * drawCommands.size(),
-                                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, visibleInstanceCountsBuffer->buffer);
-
     descriptor->allocateSets();
     descriptor->update();
 
@@ -120,18 +110,16 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
 
     name = "cull_draw_pass";
     descriptor = descriptorManager->descriptors[name];
-    descriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, visibleInstanceCountsBuffer->buffer);
-    // TODO
-    // culledDrawIndirectCount and drawIndexBuffer can be the same buffer
     culledDrawIndirectCount = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawIndirectCount->buffer);
+    descriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawIndirectCount->buffer);
+
     culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(drawCommands[0]) * drawCommands.size(),
                                                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawCommandsBuffer->buffer);
+    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawCommandsBuffer->buffer);
 
     descriptor->allocateSets();
     descriptor->update();
@@ -331,11 +319,6 @@ inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return
 
 void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands,
                                ComputePushConstants& frustumCullPushConstants) {
-    frustumCullPushConstants.drawIndirectCount = drawCommands.size();
-    if (cullPush.size() < (drawCommands.size() * VulkanSwapChain::MAX_FRAMES_IN_FLIGHT)) {
-        cullPush.resize(drawCommands.size() * VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    }
-
     std::string name;
     uint32_t local_size_x;
 
@@ -344,34 +327,25 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     bindComputePipeline(name);
 
-    // zero out scratch buffers
-    vkCmdFillBuffer(getCurrentCommandBuffer(), visibleInstanceCountsBuffer->buffer, 0, sizeof(uint32_t) * drawCommands.size(), 0);
-    vkCmdFillBuffer(getCurrentCommandBuffer(), drawIndexBuffer->buffer, 0, sizeof(uint32_t), 0);
-
     // barrier until the buffers have been cleared
+    /*
     memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
                   VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                  */
 
     // bind descriptors for cull_frustum_pass
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
                       descriptorManager->descriptors[name]->getSets()[0]);
 
-    // run frustum culling for each draw command, using instanceCount for the workgroup size
-    for (uint32_t drawIndex = 0; drawIndex < drawCommands.size(); ++drawIndex) {
-        // FIXME:
-        // really bad hack
-        cullPush[drawIndex * (swapChain->currentFrame() + 1)] = frustumCullPushConstants;
-        // using drawIndirectCount to pass drawIndex
-        cullPush[drawIndex * (swapChain->currentFrame() + 1)].drawIndirectCount = drawIndex;
-        // probably broken for a frame if drawCommands.size() ever changes
-        vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                           sizeof(frustumCullPushConstants), &cullPush[drawIndex * (swapChain->currentFrame() + 1)]);
-        vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(drawCommands[drawIndex].instanceCount, local_size_x), 1, 1);
-    }
+    vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                       sizeof(frustumCullPushConstants), &frustumCullPushConstants);
+
+    // frustum culling
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
 
     // wait until the frustum culling is done
-    memoryBarrier(VK_ACCESS_2_MEMORY_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_NONE,
-                  VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     name = "cull_draw_pass";
     local_size_x = 64;
@@ -384,21 +358,23 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     // barrier until the buffer has been cleared
     memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
-                  VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+                  VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     // bind descriptors for cull draw pass
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
                       descriptorManager->descriptors[name]->getSets()[0]);
 
     // push the draw indirect count
+    drawCount = drawCommands.size();
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                       sizeof(uint32_t), &frustumCullPushConstants.drawIndirectCount);
+                       sizeof(uint32_t), &drawCount);
 
     // cull draws
     vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(drawCommands.size(), local_size_x), 1, 1);
 
     // wait until culling is completed
-    memoryBarrier(VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+    memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                  VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
 }
 
 void VulkanRenderer::beginRendering() {
