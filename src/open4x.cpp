@@ -122,6 +122,7 @@ void Open4X::run() {
     ubo.proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
     ComputePushConstants computePushConstants{};
+    computePushConstants.totalInstanceCount = GLTF::baseInstanceCount;
     fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
 
     auto startTime = std::chrono::high_resolution_clock::now();
