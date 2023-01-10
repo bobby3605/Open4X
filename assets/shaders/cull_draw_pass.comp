@@ -18,6 +18,8 @@ layout(set = 0, binding = 1) coherent buffer CulledDrawIndirectCount { uint cull
 
 layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
 
+layout(binding = 3) buffer GlobalCounter { uint globalCounter; };
+
 /*
  * FIXME:
  * use compact here as well
@@ -28,6 +30,7 @@ layout(set = 1, binding = 1) buffer BlockCounts { uint blockCounts[]; };
 layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
 
 uint visibleInstances(uint di) {
+    uint count;
     if (di != 0) {
         // prefixSum has an entry for each instance and is kept in order
         // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
@@ -35,10 +38,14 @@ uint visibleInstances(uint di) {
         // their difference is the number of visible instances of drawCommands[di]
         DrawCommand currDraw = drawCommands[di];
         DrawCommand prevDraw = drawCommands[di - 1];
-        return prefixSum[currDraw.instanceCount - 1] - prefixSum[prevDraw.instanceCount - 1];
+        // FIXME:
+        // this is wrong, needs to be offset by sum of previous instance counts
+        count = prefixSum[globalCounter + currDraw.instanceCount - 1] - prefixSum[globalCounter + prevDraw.instanceCount - 1];
     } else {
-        return prefixSum[drawCommands[di].instanceCount - 1];
+        count = prefixSum[drawCommands[di].instanceCount - 1];
     }
+    atomicAdd(globalCounter, count);
+    return count;
 }
 
 void main() {
@@ -51,7 +58,7 @@ void main() {
         DrawCommand drawCommand = drawCommands[drawIndex];
         // FIXME:
         // visibleInstanceCount seems to be too large and causes a device loss
-        //        drawCommand.instanceCount = visibleInstanceCount;
+        drawCommand.instanceCount = visibleInstanceCount;
         drawCommand.instanceCount = 1;
 
         // FIXME:

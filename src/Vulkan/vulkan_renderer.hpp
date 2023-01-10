@@ -86,6 +86,7 @@ class VulkanRenderer {
     // compute culling buffers
     std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
     std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
+    std::shared_ptr<VulkanBuffer> globalCounterBuffer;
 
     uint drawCount;
 

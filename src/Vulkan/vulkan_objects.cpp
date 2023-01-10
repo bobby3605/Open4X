@@ -195,25 +195,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
                                       culledInstanceIndicesBuffer->buffer);
 
-    visibilityBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * GLTF::baseInstanceCount,
-                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, visibilityBuffer->buffer);
-
-    // FIXME:
-    // should be set dynamically
-    // might have more than workgroups
-    uint32_t gl_WorkGroupSize = 64 * 10;
-    blockCountsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * gl_WorkGroupSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, blockCountsBuffer->buffer);
-
     prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * GLTF::baseInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
-
-    partialSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * gl_WorkGroupSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(6, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, partialSumBuffer->buffer);
+    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
 
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor = descriptorManager->createDescriptor("cull_draw_pass");
     cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());

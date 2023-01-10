@@ -3,7 +3,7 @@
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
 struct InstanceData {
     uint objectIndex;
@@ -32,11 +32,8 @@ layout(push_constant) uniform constants {
 layout(std140, set = 0, binding = 1) readonly buffer Objects { ObjectData objects[]; };
 layout(set = 0, binding = 2) buffer VisibleInstances { InstanceData visibleInstances[]; };
 
-layout(set = 0, binding = 3) buffer VisibilityBuffer { uint visibilityBuffer[]; };
-layout(set = 0, binding = 4) buffer BlockCounts { uint blockCounts[]; };
-
-layout(set = 0, binding = 5) buffer PrefixSum { uint prefixSum[]; };
-layout(set = 0, binding = 6) buffer PartialSums { uint partial_sums[]; };
+layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 4) buffer GlobalCounter { uint globalCounter; };
 
 // radar frustum culling implementation from
 // http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
@@ -76,8 +73,8 @@ bool sphereInFrustum(vec3 p, float radius) {
     return (result);
 }
 
-uint isVisible(uint index) {
-    InstanceData instance = instances[gl_GlobalInvocationID.x];
+bool isVisible(uint index) {
+    InstanceData instance = instances[index];
     mat4 modelMatrix = objects[instance.objectIndex].modelMatrix;
     mat4 modelMatrixT = transpose(modelMatrix);
     float xScale = length(modelMatrixT[0]);
@@ -89,173 +86,43 @@ uint isVisible(uint index) {
     // this would make the radius too large or too small
     // need to convert scale from model space to world space?
     float radius = max(xScale, max(yScale, zScale)) * 0.5;
-    return sphereInFrustum(center, radius) ? 1 : 0;
+    return sphereInFrustum(center, radius);
 }
 
-// computeBlockCounts and compact from
-// https://web.archive.org/web/20220625140544/http://www.davidespataro.it/cuda-stream-compaction-efficient-implementation/
-// https://github.com/knotman90/cuStreamComp/blob/master/src/cuCompactor.cuh
-// threadID = gl_LocalInvocationID
-// blockID = gl_WorkGroupID
-// blockDim = gl_WorkGroupSize = local_size
-void computeBlockCounts() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index < totalInstanceCount) {
-        visibilityBuffer[index] = isVisible(index);
-        uint BC = subgroupAdd(visibilityBuffer[index]);
-        if (gl_LocalInvocationID.x == 0) {
-            blockCounts[gl_WorkGroupID.x] = BC;
-        }
-    }
-}
-
-// shared array size must be a constant integer expression
-// this allows the shader to work on any GPU with up to a subgroup size of 64 (AMD)
-// should be able to set this dynamically with specialization constants
-#define maxSubgroupSize 64
-
-shared uint scanData[maxSubgroupSize];
-// inclusivePrefixSum from
-// https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
-void inclusivePrefixSumBlockCounts() {
-    uint sum = 0;
-    // TODO:
-    // possibly run this in a separate vkCmdDispatch call so that it doesn't waste as many threads
-    if (gl_GlobalInvocationID.x < gl_WorkGroupSize.x) {
-        sum = blockCounts[gl_GlobalInvocationID.x];
-    }
-
-    sum = subgroupInclusiveAdd(sum);
-
-    if (gl_SubgroupInvocationID == 0) {
-        scanData[gl_SubgroupID] = sum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-
-    if (gl_SubgroupID == gl_SubgroupSize - 1) {
-        uint warpSum = gl_SubgroupInvocationID < gl_NumSubgroups ? scanData[gl_SubgroupInvocationID] : 0;
-        warpSum = subgroupInclusiveAdd(warpSum);
-        scanData[gl_SubgroupInvocationID] = warpSum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-
-    uint blockSum = 0;
-    if (gl_SubgroupID > 0) {
-        blockSum = scanData[gl_SubgroupID - 1];
-    }
-
-    sum += blockSum;
-
-    if (gl_GlobalInvocationID.x < gl_WorkGroupSize.x) {
-        prefixSum[gl_GlobalInvocationID.x] = sum;
-    }
-}
-
-// FIXME:
-// only run prefix sum once
-void inclusivePrefixSumVisibleInstances() {
-    uint sum = 0;
-    if (gl_GlobalInvocationID.x < totalInstanceCount) {
-        sum = visibilityBuffer[gl_GlobalInvocationID.x];
-    }
-
-    sum = subgroupInclusiveAdd(sum);
-
-    if (gl_SubgroupInvocationID == 0) {
-        scanData[gl_SubgroupID] = sum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-
-    if (gl_SubgroupID == gl_SubgroupSize - 1) {
-        uint warpSum = gl_SubgroupInvocationID < gl_NumSubgroups ? scanData[gl_SubgroupInvocationID] : 0;
-        warpSum = subgroupInclusiveAdd(warpSum);
-        scanData[gl_SubgroupInvocationID] = warpSum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-
-    uint blockSum = 0;
-    if (gl_SubgroupID > 0) {
-        blockSum = scanData[gl_SubgroupID - 1];
-    }
-
-    sum += blockSum;
-
-    if (gl_GlobalInvocationID.x < totalInstanceCount) {
-        prefixSum[gl_GlobalInvocationID.x] = sum;
-    }
-
-    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
-        partial_sums[gl_WorkGroupID.x] = sum;
-    }
-
-    memoryBarrierShared();
-    barrier();
-
-    if (gl_WorkGroupID.x > 0 && gl_GlobalInvocationID.x < totalInstanceCount) {
-        sum = 0;
-        if (gl_LocalInvocationID.x == 0) {
-            sum = partial_sums[gl_WorkGroupID.x - 1];
-        }
-
-        memoryBarrierShared();
-        // causes a device loss
-        // barrier();
-
-        prefixSum[gl_GlobalInvocationID.x] += sum;
-    }
-}
-
-#define FULL_MASK 0xffffffff
-shared uint warpTotals[maxSubgroupSize];
-void compact() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index < totalInstanceCount) {
-        uint pred = visibilityBuffer[index];
-        uint w_i = gl_LocalInvocationID.x / gl_SubgroupSize;
-        uint w_l = index % gl_SubgroupSize;
-
-        uint t_m = FULL_MASK >> (gl_SubgroupSize - w_l);
-        uvec4 b = subgroupBallot(pred != 0) & t_m;
-        uint t_u = subgroupBallotExclusiveBitCount(b);
-
-        if (w_l == gl_SubgroupSize - 1) {
-            warpTotals[w_i] = t_u + pred;
-        }
-
-        memoryBarrierShared();
-
-        uint numWarps = gl_WorkGroupSize.x / gl_SubgroupSize;
-        uint numWarpsMask = FULL_MASK >> (gl_SubgroupSize - numWarps);
-        if (w_i == 0 && w_l < numWarps) {
-            uint w_i_u = 0;
-            for (uint j = 0; j <= log2(gl_SubgroupSize); ++j) {
-                uvec4 b_j = subgroupBallot((warpTotals[w_l] & (1 << j)) != 0);
-                w_i_u += (subgroupBallotExclusiveBitCount(b_j & t_m)) << j;
-            }
-            warpTotals[w_l] = w_i_u;
-        }
-
-        memoryBarrierShared();
-
-        if (pred == 1) {
-            visibleInstances[t_u + warpTotals[w_i] + prefixSum[gl_WorkGroupID.x]] = instances[index];
-        }
-    }
-}
-
+// https://gpuopen.com/learn/fast-compaction-with-mbcnt/
+shared uint sharedCounter;
+shared uint sharedSubgroupOutputSlot;
+shared uint sharedLocalgroupOutputSlot;
 void main() {
-    computeBlockCounts();
-    inclusivePrefixSumBlockCounts();
-    compact();
-    memoryBarrierShared();
+    if (gl_SubgroupInvocationID.x == 0) {
+        sharedCounter = 0;
+    }
+
     barrier();
-    inclusivePrefixSumVisibleInstances();
+
+    uint index = gl_GlobalInvocationID.x;
+    InstanceData instance = instances[index];
+    bool laneActive = isVisible(index) ? true : true;
+    uint subgroupBitCount = subgroupBallotBitCount(subgroupBallot(laneActive));
+    uint laneOutputSlot = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
+
+    if (gl_SubgroupInvocationID.x == 0) {
+        sharedSubgroupOutputSlot = atomicAdd(sharedCounter, subgroupBitCount);
+    }
+
+    barrier();
+
+    if (gl_LocalInvocationID.x == 0) {
+        sharedLocalgroupOutputSlot = atomicAdd(globalCounter, sharedCounter);
+    }
+
+    barrier();
+
+    // prefixSum[index] = sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot;
+    prefixSum[index] = index;
+
+    if (laneActive) {
+        //        visibleInstances[sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot] = instance;
+        visibleInstances[index] = instance;
+    }
 }
