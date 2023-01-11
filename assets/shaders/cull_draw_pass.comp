@@ -1,6 +1,6 @@
 #version 460
 
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
 struct DrawCommand {
     uint indexCount;
@@ -35,12 +35,15 @@ uint visibleInstances(uint di) {
         // prefixSum[drawCommands[di - 1].instanceCount - 1] is the sum of all visible instances of the previous draw, inclusive
         // their difference is the number of visible instances of drawCommands[di]
         DrawCommand currDraw = drawCommands[di];
+        // FIXME:
+        // prevDraw is not [di - 1], because draws can be in any order
         DrawCommand prevDraw = drawCommands[di - 1];
-        return prefixSum[currDraw.firstIndex + currDraw.instanceCount - 1] - prefixSum[prevDraw.firstIndex + prevDraw.instanceCount - 1];
+        return prefixSum[currDraw.firstInstance + currDraw.instanceCount - 1] -
+               prefixSum[prevDraw.firstInstance + prevDraw.instanceCount - 1];
     } else {
         // NOTE:
-        // This probably doesn't need to be offset by firstIndex
-        return prefixSum[drawCommands[di].firstIndex + drawCommands[di].instanceCount - 1];
+        // This probably doesn't need to be offset by firstInstance
+        return prefixSum[drawCommands[di].firstInstance + drawCommands[di].instanceCount - 1];
     }
 }
 
@@ -53,12 +56,18 @@ void main() {
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
         // FIXME:
-        // visibleInstanceCount seems to be too large and causes a device loss
-        drawCommand.instanceCount = visibleInstanceCount;
-        drawCommand.instanceCount = 1;
+        // remove this check once prevDraw is fixed
+        if (visibleInstanceCount > 100) {
+            drawCommand.instanceCount = 0;
+            drawCommand.firstIndex = visibleInstanceCount;
+        } else {
+            drawCommand.instanceCount = visibleInstanceCount;
+        }
 
         // FIXME:
         // use compact instead of atomicAdd
-        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
+        //        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
+        culledDrawCommands[drawIndex] = drawCommand;
+        atomicAdd(culledDrawIndirectCount, 1);
     }
 }
