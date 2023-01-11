@@ -18,8 +18,6 @@ layout(set = 0, binding = 1) coherent buffer CulledDrawIndirectCount { uint cull
 
 layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
 
-layout(binding = 3) buffer GlobalCounter { uint globalCounter; };
-
 /*
  * FIXME:
  * use compact here as well
@@ -38,14 +36,12 @@ uint visibleInstances(uint di) {
         // their difference is the number of visible instances of drawCommands[di]
         DrawCommand currDraw = drawCommands[di];
         DrawCommand prevDraw = drawCommands[di - 1];
-        // FIXME:
-        // this is wrong, needs to be offset by sum of previous instance counts
-        count = prefixSum[globalCounter + currDraw.instanceCount - 1] - prefixSum[globalCounter + prevDraw.instanceCount - 1];
+        return prefixSum[currDraw.firstIndex + currDraw.instanceCount - 1] - prefixSum[prevDraw.firstIndex + prevDraw.instanceCount - 1];
     } else {
-        count = prefixSum[drawCommands[di].instanceCount - 1];
+        // NOTE:
+        // This probably doesn't need to be offset by firstIndex
+        return prefixSum[drawCommands[di].firstIndex + drawCommands[di].instanceCount - 1];
     }
-    atomicAdd(globalCounter, count);
-    return count;
 }
 
 void main() {

@@ -126,7 +126,6 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
                                                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawCommandsBuffer->buffer);
-    descriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, globalCounterBuffer->buffer);
 
     descriptor->allocateSets();
     descriptor->update();
@@ -362,8 +361,6 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     // zero out scratch buffers
     vkCmdFillBuffer(getCurrentCommandBuffer(), culledDrawIndirectCount->buffer, 0, sizeof(uint32_t), 0);
-
-    vkCmdFillBuffer(getCurrentCommandBuffer(), globalCounterBuffer->buffer, 0, sizeof(uint32_t), 0);
 
     // barrier until the buffer has been cleared
     memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
