@@ -183,6 +183,12 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor = descriptorManager->createDescriptor("cull_frustum_pass");
 
+    // NOTE:
+    // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and the
+    // previous draw
+    std::sort(indirectDraws.begin(), indirectDraws.end(),
+              [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
+
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer =
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),

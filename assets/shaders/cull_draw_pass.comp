@@ -18,13 +18,6 @@ layout(set = 0, binding = 1) coherent buffer CulledDrawIndirectCount { uint cull
 
 layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
 
-/*
- * FIXME:
- * use compact here as well
-layout(set = 1, binding = 0) buffer VisibilityBuffer { uint visibilityBuffer[]; };
-layout(set = 1, binding = 1) buffer BlockCounts { uint blockCounts[]; };
-*/
-
 layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
 
 uint visibleInstances(uint di) {
@@ -34,9 +27,9 @@ uint visibleInstances(uint di) {
         // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
         // prefixSum[drawCommands[di - 1].instanceCount - 1] is the sum of all visible instances of the previous draw, inclusive
         // their difference is the number of visible instances of drawCommands[di]
+        // NOTE:
+        // draws must be sorted in ascending order by firstInstance
         DrawCommand currDraw = drawCommands[di];
-        // FIXME:
-        // prevDraw is not [di - 1], because draws can be in any order
         DrawCommand prevDraw = drawCommands[di - 1];
         return prefixSum[currDraw.firstInstance + currDraw.instanceCount - 1] -
                prefixSum[prevDraw.firstInstance + prevDraw.instanceCount - 1];
@@ -55,14 +48,10 @@ void main() {
     uint visibleInstanceCount = visibleInstances(drawIndex);
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
+        // drawCommand.instanceCount = visibleInstanceCount;
         // FIXME:
-        // remove this check once prevDraw is fixed
-        if (visibleInstanceCount > 100) {
-            drawCommand.instanceCount = 0;
-            drawCommand.firstIndex = visibleInstanceCount;
-        } else {
-            drawCommand.instanceCount = visibleInstanceCount;
-        }
+        // set instanceCount to visibleInstanceCount once stream compaction is fixed
+        drawCommand.instanceCount = 0;
 
         // FIXME:
         // use compact instead of atomicAdd

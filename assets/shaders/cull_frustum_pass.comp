@@ -91,7 +91,6 @@ bool isVisible(uint index) {
 
 // https://gpuopen.com/learn/fast-compaction-with-mbcnt/
 shared uint sharedCounter;
-shared uint sharedSubgroupOutputSlot;
 shared uint sharedLocalgroupOutputSlot;
 void main() {
     if (gl_SubgroupInvocationID.x == 0) {
@@ -106,9 +105,14 @@ void main() {
     uint subgroupBitCount = subgroupBallotBitCount(subgroupBallot(laneActive));
     uint laneOutputSlot = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
 
+    uint subgroupID0OutputSlot;
     if (gl_SubgroupInvocationID.x == 0) {
-        sharedSubgroupOutputSlot = atomicAdd(sharedCounter, subgroupBitCount);
+        subgroupID0OutputSlot = atomicAdd(sharedCounter, subgroupBitCount);
     }
+
+    barrier();
+
+    uint sharedSubgroupOutputSlot = subgroupBroadcast(subgroupID0OutputSlot, 0);
 
     barrier();
 
@@ -118,11 +122,9 @@ void main() {
 
     barrier();
 
-    // prefixSum[index] = sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot;
-    prefixSum[index] = index;
+    prefixSum[index] = sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot;
 
     if (laneActive) {
-        //        visibleInstances[sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot] = instance;
-        visibleInstances[index] = instance;
+        visibleInstances[sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot] = instance;
     }
 }
