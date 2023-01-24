@@ -96,10 +96,8 @@ bool isVisible(uint index) {
 shared uint subgroupTotals[gl_WorkGroupSize.x / SUBGROUP_SIZE];
 void main() {
     uint index = gl_GlobalInvocationID.x;
-    // NOTE:
-    // can't check for out of bounds access because it would break forward progress on later barriers
     InstanceData instance = instances[index];
-    bool laneActive = isVisible(index);
+    bool laneActive = index < totalInstanceCount && isVisible(index);
     uint inclusiveCount = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
 
     // put the total from each subgroup in local group into shared memory
