@@ -33,7 +33,7 @@ layout(std140, set = 0, binding = 1) readonly buffer Objects { ObjectData object
 layout(set = 0, binding = 2) buffer VisibleInstances { InstanceData visibleInstances[]; };
 
 layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
-layout(set = 0, binding = 4) buffer GlobalCounter { uint globalCounter; };
+layout(set = 0, binding = 4) buffer LocalGroupTotals { uint localgroupTotals[]; };
 
 // radar frustum culling implementation from
 // http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
@@ -89,42 +89,63 @@ bool isVisible(uint index) {
     return sphereInFrustum(center, radius);
 }
 
-// https://gpuopen.com/learn/fast-compaction-with-mbcnt/
-shared uint sharedCounter;
-shared uint sharedLocalgroupOutputSlot;
+#define SUBGROUP_SIZE 16
+// NOTE:
+// gl_WorkGroupSize is a compile-time constant, but gl_SubgroupSize isn't
+// should be equal to gl_NumSubgroups
+shared uint subgroupTotals[gl_WorkGroupSize.x / SUBGROUP_SIZE];
 void main() {
-    if (gl_SubgroupInvocationID.x == 0) {
-        sharedCounter = 0;
-    }
-
-    barrier();
-
     uint index = gl_GlobalInvocationID.x;
+    // NOTE:
+    // can't check for out of bounds access because it would break forward progress on later barriers
     InstanceData instance = instances[index];
-    bool laneActive = isVisible(index) ? true : true;
-    uint subgroupBitCount = subgroupBallotBitCount(subgroupBallot(laneActive));
-    uint laneOutputSlot = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
+    bool laneActive = isVisible(index);
+    uint inclusiveCount = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
 
-    uint subgroupID0OutputSlot;
-    if (gl_SubgroupInvocationID.x == 0) {
-        subgroupID0OutputSlot = atomicAdd(sharedCounter, subgroupBitCount);
+    // put the total from each subgroup in local group into shared memory
+    // NOTE:
+    // have to use SUBGROUP_SIZE here for intel because gl_SubgroupSize can vary on intel,
+    // and 32 seems to always be passed, even if the actual size is 16
+    // should probably file a bug report
+    if (gl_SubgroupInvocationID == (SUBGROUP_SIZE - 1)) {
+        subgroupTotals[gl_SubgroupID] = inclusiveCount;
     }
 
     barrier();
 
-    uint sharedSubgroupOutputSlot = subgroupBroadcast(subgroupID0OutputSlot, 0);
-
-    barrier();
-
-    if (gl_LocalInvocationID.x == 0) {
-        sharedLocalgroupOutputSlot = atomicAdd(globalCounter, sharedCounter);
+    if (gl_SubgroupID == 0) {
+        if (gl_SubgroupInvocationID < gl_NumSubgroups) {
+            subgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(subgroupTotals[gl_SubgroupInvocationID]);
+        }
     }
 
     barrier();
 
-    prefixSum[index] = sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot;
+    if (gl_LocalInvocationID.x == (gl_WorkGroupSize.x - 1)) {
+        // NOTE;
+        // the last local invocation is always in the last subgroup
+        // the last subgroupID will be the total of the prefix sum of the subgroups in the workgroup
+        localgroupTotals[gl_WorkGroupID.x] = subgroupTotals[gl_SubgroupID];
+    }
+
+    barrier();
+    memoryBarrier();
+
+    if (gl_SubgroupID == 0) {
+        if (gl_SubgroupInvocationID < gl_NumWorkGroups.x) {
+            localgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(localgroupTotals[gl_SubgroupInvocationID]);
+        }
+    }
+
+    barrier();
+    memoryBarrier();
+
+    prefixSum[index] = (gl_WorkGroupID.x == 0 ? 0 : localgroupTotals[gl_WorkGroupID.x - 1]) +
+                       (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
 
     if (laneActive) {
-        visibleInstances[sharedLocalgroupOutputSlot + laneOutputSlot + sharedSubgroupOutputSlot] = instance;
+        // NOTE:
+        // - 1 to convert from inclusive to exclusive prefix sum
+        visibleInstances[prefixSum[index] - 1] = instance;
     }
 }

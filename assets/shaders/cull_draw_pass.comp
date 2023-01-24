@@ -48,15 +48,10 @@ void main() {
     uint visibleInstanceCount = visibleInstances(drawIndex);
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
-        // drawCommand.instanceCount = visibleInstanceCount;
-        // FIXME:
-        // set instanceCount to visibleInstanceCount once stream compaction is fixed
-        drawCommand.instanceCount = 0;
+        drawCommand.instanceCount = visibleInstanceCount;
 
         // FIXME:
         // use compact instead of atomicAdd
-        //        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
-        culledDrawCommands[drawIndex] = drawCommand;
-        atomicAdd(culledDrawIndirectCount, 1);
+        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
     }
 }
