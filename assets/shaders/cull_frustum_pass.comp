@@ -129,7 +129,6 @@ void main() {
     }
 
     barrier();
-    memoryBarrier();
 
     if (gl_SubgroupID == 0) {
         if (gl_SubgroupInvocationID < gl_NumWorkGroups.x) {
@@ -138,7 +137,6 @@ void main() {
     }
 
     barrier();
-    memoryBarrier();
 
     prefixSum[index] = (gl_WorkGroupID.x == 0 ? 0 : localgroupTotals[gl_WorkGroupID.x - 1]) +
                        (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
