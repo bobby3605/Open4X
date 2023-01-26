@@ -21,7 +21,6 @@ layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawC
 layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
 
 uint visibleInstances(uint di) {
-    uint count;
     if (di != 0) {
         // prefixSum has an entry for each instance and is kept in order
         // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
@@ -49,6 +48,10 @@ void main() {
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
         drawCommand.instanceCount = visibleInstanceCount;
+        int invisibleInstanceCountInclusive;
+        invisibleInstanceCountInclusive = int(drawCommand.firstInstance - prefixSum[drawCommand.firstInstance] + 1);
+        int offset = int(0) - int(invisibleInstanceCountInclusive);
+        drawCommand.firstInstance = prefixSum[drawCommand.firstInstance] - int(int(1) + offset);
 
         // FIXME:
         // use compact instead of atomicAdd
