@@ -94,6 +94,7 @@ bool isVisible(uint index) {
 // gl_WorkGroupSize is a compile-time constant, but gl_SubgroupSize isn't
 // should be equal to gl_NumSubgroups
 shared uint subgroupTotals[gl_WorkGroupSize.x / SUBGROUP_SIZE];
+shared uint workgroupTotals[SUBGROUP_SIZE];
 void main() {
     uint index = gl_GlobalInvocationID.x;
     InstanceData instance = instances[index];
@@ -133,18 +134,14 @@ void main() {
     while (localgroupTotals[9] < gl_NumWorkGroups.x) {
     }
 
-    if (gl_SubgroupID == 0 && gl_WorkGroupID.x == 0) {
+    if (gl_SubgroupID == 0) {
         if (gl_SubgroupInvocationID < gl_NumWorkGroups.x) {
-            localgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(localgroupTotals[gl_SubgroupInvocationID]);
-            atomicAdd(localgroupTotals[10], 1);
+            workgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(localgroupTotals[gl_SubgroupInvocationID]);
         }
     }
 
     barrier();
-    while (localgroupTotals[10] < gl_NumWorkGroups.x) {
-    }
-
-    prefixSum[index] = (gl_WorkGroupID.x == 0 ? 0 : localgroupTotals[gl_WorkGroupID.x - 1]) +
+    prefixSum[index] = (gl_WorkGroupID.x == 0 ? 0 : workgroupTotals[gl_WorkGroupID.x - 1]) +
                        (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
 
     if (laneActive) {
