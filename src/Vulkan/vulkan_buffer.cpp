@@ -89,11 +89,9 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t 
     // indexed by gl_BaseInstance, which can be up to instanceCount in size
     // this isn't necessary right now, but once there are millions or more instances,
     // this will start to use non-insignificant amounts of memory
-    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(MaterialIndicesData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
     instanceIndicesMapped = reinterpret_cast<InstanceIndicesData*>(_instanceIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
-    materialIndicesMapped = reinterpret_cast<MaterialIndicesData*>(_materialIndicesBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -107,5 +105,4 @@ SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
     delete _instanceIndicesBuffer;
-    delete _materialIndicesBuffer;
 }

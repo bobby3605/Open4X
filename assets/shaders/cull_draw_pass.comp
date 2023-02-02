@@ -48,10 +48,11 @@ void main() {
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
         drawCommand.instanceCount = visibleInstanceCount;
-        int invisibleInstanceCountInclusive;
-        invisibleInstanceCountInclusive = int(drawCommand.firstInstance - prefixSum[drawCommand.firstInstance] + 1);
-        int offset = int(0) - int(invisibleInstanceCountInclusive);
-        drawCommand.firstInstance = prefixSum[drawCommand.firstInstance] - int(int(1) + offset);
+        // NOTE:
+        // convert inclusive to exclusive prefix sum
+        if (drawCommand.firstInstance != 0) {
+            drawCommand.firstInstance = prefixSum[drawCommand.firstInstance - 1];
+        }
 
         // FIXME:
         // use compact instead of atomicAdd

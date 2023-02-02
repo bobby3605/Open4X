@@ -95,9 +95,6 @@ struct MaterialData {
 
 struct InstanceIndicesData {
     uint32_t objectIndex;
-};
-
-struct MaterialIndicesData {
     uint32_t materialIndex;
 };
 
@@ -108,7 +105,6 @@ class SSBOBuffers {
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
     VkBuffer const instanceIndicesBuffer() { return _instanceIndicesBuffer->buffer(); }
-    VkBuffer const materialIndicesBuffer() { return _materialIndicesBuffer->buffer(); }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
     // void* because VulkanImage depends on this header
@@ -129,7 +125,6 @@ class SSBOBuffers {
     std::atomic<uint32_t> aoMapsCount = 1;
     std::map<void*, int> uniqueAoMapsMap;
     InstanceIndicesData* instanceIndicesMapped;
-    MaterialIndicesData* materialIndicesMapped;
     std::atomic<uint32_t> uniqueObjectID = 0;
     // starts at 1 since the default material is made in the constructor
     std::atomic<uint32_t> uniqueMaterialID = 1;
@@ -140,7 +135,6 @@ class SSBOBuffers {
     StorageBuffer* _ssboBuffer;
     StorageBuffer* _materialBuffer;
     StorageBuffer* _instanceIndicesBuffer;
-    StorageBuffer* _materialIndicesBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

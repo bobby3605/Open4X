@@ -37,6 +37,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             ++indirectDraws[primitive->indirectDrawIndex].instanceCount;
             int currIndex = primitive->gl_BaseInstance + indirectDraws[primitive->indirectDrawIndex].instanceCount - 1;
             ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = objectID;
+            ssboBuffers->instanceIndicesMapped[currIndex].materialIndex = primitive->materialIndex;
         }
     }
     for (int childNodeID : model->nodes[nodeID].children) {
@@ -264,7 +265,6 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
         ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
-    ssboBuffers->materialIndicesMapped[gl_BaseInstance].materialIndex = materialIndex;
 
     // Load vertices
     GLTF::Mesh::Primitive::Attributes* attributes = primitive->attributes.get();
