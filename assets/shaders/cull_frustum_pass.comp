@@ -126,13 +126,13 @@ void main() {
         // the last local invocation is always in the last subgroup
         // the last subgroupID will be the total of the prefix sum of the subgroups in the workgroup
         localgroupTotals[gl_WorkGroupID.x] = subgroupTotals[gl_SubgroupID];
-        atomicAdd(localgroupTotals[9], 1);
+        atomicAdd(localgroupTotals[gl_NumWorkGroups.x], 1);
     }
 
     barrier();
     // FIXME:
     // use real barriers or a second dispatch instead of this
-    while (localgroupTotals[9] < gl_NumWorkGroups.x) {
+    while (localgroupTotals[gl_NumWorkGroups.x] < gl_NumWorkGroups.x) {
     }
 
     if (gl_SubgroupID == 0) {
