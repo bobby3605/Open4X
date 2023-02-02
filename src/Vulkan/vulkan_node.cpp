@@ -213,9 +213,9 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
                 aoMap = std::shared_ptr<VulkanImage>(std::static_pointer_cast<VulkanImage>(ssboBuffers->defaultAoMap));
             }
 
-            ssboBuffers->materialMapped[ssboBuffers->uniqueMaterialID] = materialData;
-            materialIDMap->insert({primitive->material.value(), ssboBuffers->uniqueMaterialID});
             materialIndex = ssboBuffers->uniqueMaterialID++;
+            ssboBuffers->materialMapped[materialIndex] = materialData;
+            materialIDMap->insert({primitive->material.value(), materialIndex});
 
         } else {
             materialIndex = materialIDMap->find(primitive->material.value())->second;
