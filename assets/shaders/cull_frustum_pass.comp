@@ -97,63 +97,54 @@ bool isVisible(uint index) {
 // should be equal to gl_NumSubgroups
 shared uint subgroupTotals[gl_WorkGroupSize.x / SUBGROUP_SIZE];
 shared uint workgroupOffset;
+shared uint i;
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    InstanceData instance = instances[index];
-    bool laneActive = index < totalInstanceCount && isVisible(index);
-    uint inclusiveCount = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
-
-    // put the total from each subgroup in local group into shared memory
-    // NOTE:
-    // have to use SUBGROUP_SIZE here for intel because gl_SubgroupSize can vary on intel,
-    // and 32 seems to always be passed, even if the actual size is 16
-    // should probably file a bug report
-    if (gl_SubgroupInvocationID == (SUBGROUP_SIZE - 1)) {
-        subgroupTotals[gl_SubgroupID] = inclusiveCount;
-    }
-
-    barrier();
-
-    if (gl_SubgroupID == 0) {
-        if (gl_SubgroupInvocationID < gl_NumSubgroups) {
-            subgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(subgroupTotals[gl_SubgroupInvocationID]);
-        }
-    }
-
-    barrier();
-
-    if (gl_LocalInvocationID.x == (gl_WorkGroupSize.x - 1)) {
-        // NOTE;
-        // the last local invocation is always in the last subgroup
-        // the last subgroupID will be the total of the prefix sum of the subgroups in the workgroup
-        localgroupTotals[gl_WorkGroupID.x] = subgroupTotals[gl_SubgroupID];
-        atomicAdd(localgroupTotals[gl_NumWorkGroups.x], 1);
-    }
-
-    barrier();
-    // FIXME:
-    // use real barriers or a second dispatch instead of this
-    while (localgroupTotals[gl_NumWorkGroups.x] < gl_NumWorkGroups.x) {
-    }
-
-    if (gl_WorkGroupID.x == 0) {
+    if (gl_LocalInvocationID.x == 0) {
+        i = 0;
         workgroupOffset = 0;
-    } else {
-        if (gl_SubgroupID == 0) {
-            if (gl_SubgroupInvocationID < gl_WorkGroupID.x) {
-                workgroupOffset = subgroupAdd(localgroupTotals[gl_SubgroupInvocationID]);
-            }
-        }
     }
-
     memoryBarrierShared();
     barrier();
 
-    prefixSum[index] = workgroupOffset + (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
+    // TODO:
+    // This can surely be improved,
+    // but it is sufficient for now
+    while (i < totalInstanceCount) {
+        uint index = gl_LocalInvocationID.x + i;
+        InstanceData instance = instances[index];
+        bool laneActive = index < totalInstanceCount && isVisible(index);
+        uint inclusiveCount = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
 
-    if (laneActive) {
-        // NOTE:
-        // - 1 to convert from inclusive to exclusive prefix sum
-        visibleInstances[prefixSum[index] - 1] = instance;
+        if (gl_SubgroupInvocationID == (SUBGROUP_SIZE - 1)) {
+            subgroupTotals[gl_SubgroupID] = inclusiveCount;
+        }
+
+        memoryBarrierShared();
+        barrier();
+
+        if (gl_SubgroupID == 0) {
+            if (gl_SubgroupInvocationID < gl_NumSubgroups) {
+                subgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(subgroupTotals[gl_SubgroupInvocationID]);
+            }
+        }
+
+        memoryBarrierShared();
+        barrier();
+
+        prefixSum[index] = workgroupOffset + (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
+
+        if (laneActive) {
+            // NOTE:
+            // - 1 to convert from inclusive to exclusive prefix sum
+            visibleInstances[prefixSum[index] - 1] = instance;
+        }
+
+        if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+            i += gl_WorkGroupSize.x;
+            workgroupOffset = prefixSum[index];
+        }
+
+        memoryBarrierShared();
+        barrier();
     }
 }
