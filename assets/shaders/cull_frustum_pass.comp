@@ -3,7 +3,9 @@
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 0;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 struct InstanceData {
     uint objectIndex;
@@ -90,7 +92,6 @@ bool isVisible(uint index) {
     return sphereInFrustum(center, radius);
 }
 
-#define SUBGROUP_SIZE 16
 // NOTE:
 // gl_WorkGroupSize is a compile-time constant, but gl_SubgroupSize isn't
 // should be equal to gl_NumSubgroups

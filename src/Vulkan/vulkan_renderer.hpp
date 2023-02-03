@@ -66,7 +66,7 @@ class VulkanRenderer {
     void createCommandBuffers();
     void createPipeline();
     void createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                               std::vector<VkPushConstantRange>& pushConstants);
+                               std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo = VK_NULL_HANDLE);
     void createCullingPipelines(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands);
     void recreateSwapChain();
     void bindComputePipeline(std::string name);

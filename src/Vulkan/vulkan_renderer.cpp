@@ -86,6 +86,26 @@ void VulkanRenderer::recreateSwapChain() {
 // TODO
 // decouple objects from renderer
 void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands) {
+
+    struct SpecData {
+        uint32_t local_size_x;
+        uint32_t subgroup_size;
+    } specData;
+
+    std::vector<VkSpecializationMapEntry> specEntries(2);
+    specEntries[0].constantID = 0;
+    specEntries[0].offset = offsetof(SpecData, local_size_x);
+    specEntries[0].size = sizeof(SpecData::local_size_x);
+    specEntries[1].constantID = 1;
+    specEntries[1].offset = offsetof(SpecData, subgroup_size);
+    specEntries[1].size = sizeof(SpecData::subgroup_size);
+
+    VkSpecializationInfo specInfo;
+    specInfo.mapEntryCount = specEntries.size();
+    specInfo.pMapEntries = specEntries.data();
+    specInfo.dataSize = sizeof(specData);
+    specInfo.pData = &specData;
+
     std::vector<VkPushConstantRange> pushConstants(1);
     std::vector<VkDescriptorSetLayout> descriptorLayouts(1);
 
@@ -114,7 +134,9 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
     descriptorLayouts[0] = descriptor->getLayout();
 
     pushConstants[0].size = sizeof(ComputePushConstants);
-    createComputePipeline(name, descriptorLayouts, pushConstants);
+    specData.local_size_x = 128;
+    specData.subgroup_size = 64;
+    createComputePipeline(name, descriptorLayouts, pushConstants, &specInfo);
 
     name = "cull_draw_pass";
     descriptor = descriptorManager->descriptors[name];
@@ -139,10 +161,10 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
 }
 
 void VulkanRenderer::createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                                           std::vector<VkPushConstantRange>& pushConstants) {
+                                           std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo) {
 
-    computePipelines[name] =
-        std::make_shared<VulkanPipeline>(device, "build/assets/shaders/" + name + ".comp.spv", descriptorLayouts, pushConstants);
+    computePipelines[name] = std::make_shared<VulkanPipeline>(device, "build/assets/shaders/" + name + ".comp.spv", descriptorLayouts,
+                                                              pushConstants, specializationInfo);
 }
 
 void VulkanRenderer::createPipeline() {
@@ -331,7 +353,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     uint32_t local_size_x;
 
     name = "cull_frustum_pass";
-    local_size_x = 32;
+    local_size_x = 128;
 
     bindComputePipeline(name);
 

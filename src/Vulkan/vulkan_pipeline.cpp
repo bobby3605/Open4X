@@ -82,7 +82,7 @@ void VulkanPipeline::createPipelineLayout(std::vector<VkDescriptorSetLayout>& de
 }
 
 VulkanPipeline::VulkanPipeline(VulkanDevice* device, std::string computeShaderPath, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                               std::vector<VkPushConstantRange>& pushConstants)
+                               std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo)
     : device{device} {
 
     createPipelineLayout(descriptorLayouts, pushConstants);
@@ -98,6 +98,7 @@ VulkanPipeline::VulkanPipeline(VulkanDevice* device, std::string computeShaderPa
     computeStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     computeStageInfo.module = computeModule;
     computeStageInfo.pName = "main";
+    computeStageInfo.pSpecializationInfo = specializationInfo;
 
     VkComputePipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

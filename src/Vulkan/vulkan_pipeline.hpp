@@ -9,7 +9,7 @@ class VulkanPipeline {
   public:
     VulkanPipeline(VulkanDevice* device, VkGraphicsPipelineCreateInfo pipelineInfo);
     VulkanPipeline(VulkanDevice* device, std::string computeShaderPath, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                   std::vector<VkPushConstantRange>& pushConstants);
+                   std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo);
     ~VulkanPipeline();
     static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
     VkPipeline pipeline() { return _pipeline; }
