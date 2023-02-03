@@ -372,7 +372,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
 
     // frustum culling
-    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
+    vkCmdDispatch(getCurrentCommandBuffer(), 1, 1, 1);
 
     // wait until the frustum culling is done
     memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,

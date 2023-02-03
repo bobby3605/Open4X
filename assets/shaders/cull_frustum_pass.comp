@@ -122,10 +122,10 @@ void main() {
         memoryBarrierShared();
         barrier();
 
-        if (gl_SubgroupID == 0) {
-            if (gl_SubgroupInvocationID < gl_NumSubgroups) {
-                subgroupTotals[gl_SubgroupInvocationID] = subgroupInclusiveAdd(subgroupTotals[gl_SubgroupInvocationID]);
-            }
+        // FIXME:
+        // currently fails if gl_NumSubgroups > gl_SubgroupSize
+        if (gl_LocalInvocationID.x < gl_NumSubgroups) {
+            subgroupTotals[gl_LocalInvocationID.x] = subgroupInclusiveAdd(subgroupTotals[gl_LocalInvocationID.x]);
         }
 
         memoryBarrierShared();
