@@ -16,6 +16,7 @@
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
     : device{device}, descriptorManager{descriptorManager} {
+    _totalInstanceCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     // Load models
     uint32_t fileNum = 0;
@@ -40,7 +41,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     indirectDraws.resize(GLTF::primitiveCount);
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount * 1000, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -122,15 +123,47 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
-        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : models[objects.back()->name()]->meshIDMap) {
+    }
+
+    futureObjects.clear();
+
+    // FIXME:
+    // Broken because currently a baseInstanceMap is used to generate base instances
+    for (int i = 0; i < 0; ++i) {
+        std::string filePath = baseDir + "Box.glb";
+        std::shared_ptr<VulkanModel> model = models[filePath];
+
+        futureObjects.push_back(std::async(std::launch::async, [model, filePath, this]() {
+            return std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws);
+        }));
+    }
+
+    float randLimit = 100.0f;
+    srand(time(NULL));
+    for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
+        objects.push_back(futureObjects[objectIndex].get());
+        std::shared_ptr<GLTF> model = objects.back()->model;
+        if (model->animations.size() > 0) {
+            animatedObjects.push_back(objects.back());
+        }
+        float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+        float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+        float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+        objects.back()->setPostion({x, y, z});
+    }
+
+    for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : model.second->meshIDMap) {
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
                 indirectDraws[primitive->indirectDrawIndex].vertexOffset = vertices.size();
                 indirectDraws[primitive->indirectDrawIndex].firstIndex = indices.size();
                 vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
                 indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
+                _totalInstanceCount += indirectDraws[primitive->indirectDrawIndex].instanceCount;
             }
         }
     }
+
     vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),

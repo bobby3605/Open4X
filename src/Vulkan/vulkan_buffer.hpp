@@ -129,6 +129,7 @@ class SSBOBuffers {
     // starts at 1 since the default material is made in the constructor
     std::atomic<uint32_t> uniqueMaterialID = 1;
     std::atomic<uint32_t> currDrawIndex = 0;
+    std::atomic<uint32_t> totalInstanceCount = 0;
     VulkanDevice* device;
 
   private:

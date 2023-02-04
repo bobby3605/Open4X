@@ -18,6 +18,7 @@ class VulkanObjects {
     void drawIndirect(VulkanRenderer* renderer);
     std::shared_ptr<VulkanObject> getObjectByName(std::string name);
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
+    int totalInstanceCount() { return _totalInstanceCount; }
 
   private:
     std::shared_ptr<StagedBuffer> vertexBuffer;
@@ -40,6 +41,7 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> normalMapInfos;
     std::vector<VkDescriptorImageInfo> metallicRoughnessMapInfos;
     std::vector<VkDescriptorImageInfo> aoMapInfos;
+    int _totalInstanceCount;
 
     VulkanDevice* device;
 
