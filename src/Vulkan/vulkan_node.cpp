@@ -46,7 +46,12 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     // Clean up the logic for setting the location and updating the animation
     // There's probably a better way to do this (less matrix multiplication)
     _locationMatrix = locationMatrix;
-    glm::mat4 updateMatrix = _locationMatrix * animationMatrix * _baseMatrix;
+    glm::mat4 updateMatrix;
+    if (animationPair.has_value()) {
+        updateMatrix = _locationMatrix * animationMatrix * _baseMatrix;
+    } else {
+        updateMatrix = _locationMatrix * _baseMatrix;
+    }
     if (_modelMatrix.has_value()) {
         _modelMatrix.value() = updateMatrix;
     }
