@@ -109,6 +109,7 @@ void main() {
     // TODO:
     // This can surely be improved,
     // but it is sufficient for now
+    // Currently culls ~950,000 instances in ~1ms with a local size of 1024 on my 6800xt
     while (i < totalInstanceCount) {
         uint index = gl_LocalInvocationID.x + i;
         InstanceData instance = instances[index];

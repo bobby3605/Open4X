@@ -30,8 +30,11 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
-            ++primitive->indirectDraw.instanceCount;
+            // TODO
+            // get rid of this mutex
+            primitive->objectIDMutex.lock();
             primitive->objectIDs.push_back(objectID);
+            primitive->objectIDMutex.unlock();
         }
     }
     for (int childNodeID : model->nodes[nodeID].children) {
@@ -398,10 +401,4 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
             indices[count_index] = indicesAccessor.at(count_index);
         }
     }
-
-    indirectDraw.indexCount = indices.size();
-    indirectDraw.instanceCount = 0;
-    indirectDraw.firstIndex = 0;
-    indirectDraw.vertexOffset = 0;
-    indirectDraw.firstInstance = 0;
 }

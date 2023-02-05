@@ -146,7 +146,7 @@ void Open4X::run() {
 
         std::vector<uint64_t> queryResults(queryCount);
         vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
+                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
         float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
         // FIXME:
@@ -181,7 +181,6 @@ void Open4X::run() {
         vulkanRenderer->cullDraws(objects.draws(), computePushConstants);
         vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
-        vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 2, queryCount - 2);
         vulkanRenderer->beginRendering();
 
         vulkanRenderer->bindPipeline();

@@ -39,7 +39,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 100'000, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, 10'000, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -126,27 +126,40 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    for (int i = 0; i < 1000; ++i) {
-        std::string filePath = baseDir + "Box.glb";
-        std::shared_ptr<VulkanModel> model = models[filePath];
-
-        futureObjects.push_back(std::async(
-            std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
-    }
-
-    float randLimit = 100.0f;
+    int extraObjectCount = 1'000;
     srand(time(NULL));
-    for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
-        objects.push_back(futureObjects[objectIndex].get());
-        std::shared_ptr<GLTF> model = objects.back()->model;
-        if (model->animations.size() > 0) {
-            animatedObjects.push_back(objects.back());
+    objects.reserve(extraObjectCount);
+    int batchSize = 3;
+    // Batching is needed because there is a maximum number of threads on a system,
+    // and using a large amount of threads significantly slows this down,
+    // most likely due to the serialization from the primitive mutex
+    // TODO:
+    // speed this up
+    for (int j = 0; j < extraObjectCount; j += batchSize) {
+        // ensure that clear doesn't change the capacity
+        futureObjects.reserve(batchSize);
+        for (int i = 0; i < batchSize; ++i) {
+            std::string filePath = baseDir + "Box.glb";
+            std::shared_ptr<VulkanModel> model = models[filePath];
+
+            futureObjects.push_back(std::async(
+                std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
         }
-        float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-        float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-        float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-        objects.back()->setPostion({x, y, z});
-        objects.back()->uploadModelMatrices(ssboBuffers);
+
+        float randLimit = 100.0f;
+        for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
+            objects.push_back(futureObjects[objectIndex].get());
+            std::shared_ptr<GLTF> model = objects.back()->model;
+            if (model->animations.size() > 0) {
+                animatedObjects.push_back(objects.back());
+            }
+            float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+            float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+            float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+            objects.back()->setPostion({x, y, z});
+            objects.back()->uploadModelMatrices(ssboBuffers);
+        }
+        futureObjects.clear();
     }
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
@@ -156,8 +169,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 indirectDraws.resize(indirectDraws.size() + 1);
 
                 // copy indirect draw data from primitive
-                indirectDraws.back().indexCount = primitive->indirectDraw.indexCount;
-                indirectDraws.back().instanceCount = primitive->indirectDraw.instanceCount;
+                indirectDraws.back().indexCount = primitive->indices.size();
+                indirectDraws.back().instanceCount = primitive->objectIDs.size();
 
                 // set indices and vertices
                 indirectDraws.back().firstIndex = indices.size();
@@ -172,7 +185,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].objectIndex = primitive->objectIDs[i];
                     ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].materialIndex = primitive->materialIndex;
                 }
-                _totalInstanceCount += primitive->indirectDraw.instanceCount;
+                _totalInstanceCount += primitive->objectIDs.size();
             }
         }
     }

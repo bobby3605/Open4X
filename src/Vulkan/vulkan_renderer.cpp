@@ -134,7 +134,7 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
     descriptorLayouts[0] = descriptor->getLayout();
 
     pushConstants[0].size = sizeof(ComputePushConstants);
-    specData.local_size_x = 256;
+    specData.local_size_x = 1024;
     specData.subgroup_size = 64;
     createComputePipeline(name, descriptorLayouts, pushConstants, &specInfo);
 
@@ -353,7 +353,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     uint32_t local_size_x;
 
     name = "cull_frustum_pass";
-    local_size_x = 256;
+    local_size_x = 1024;
 
     bindComputePipeline(name);
 

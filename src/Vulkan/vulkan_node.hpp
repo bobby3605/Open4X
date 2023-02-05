@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
@@ -29,8 +30,8 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
-        VkDrawIndexedIndirectCommand indirectDraw;
         std::vector<uint32_t> objectIDs;
+        std::mutex objectIDMutex;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };
