@@ -15,6 +15,8 @@
 class VulkanMesh {
   public:
     VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    std::vector<uint32_t> objectIDs;
+    std::mutex objectIDMutex;
     class Primitive {
       public:
         Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
@@ -30,8 +32,6 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
-        std::vector<uint32_t> objectIDs;
-        std::mutex objectIDMutex;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 };

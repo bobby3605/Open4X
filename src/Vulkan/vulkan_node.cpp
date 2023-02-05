@@ -29,13 +29,11 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
-        for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
-            // TODO
-            // get rid of this mutex
-            primitive->objectIDMutex.lock();
-            primitive->objectIDs.push_back(objectID);
-            primitive->objectIDMutex.unlock();
-        }
+        // TODO
+        // get rid of this mutex
+        mesh->objectIDMutex.lock();
+        mesh->objectIDs.push_back(objectID);
+        mesh->objectIDMutex.unlock();
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));

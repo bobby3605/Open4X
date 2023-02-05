@@ -168,14 +168,15 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     }
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
-        for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : model.second->meshIDMap) {
-            for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
+            std::shared_ptr<VulkanMesh> mesh = meshPair.second;
+            for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
                 // increase size of indirect draws
                 indirectDraws.resize(indirectDraws.size() + 1);
 
                 // copy indirect draw data from primitive
                 indirectDraws.back().indexCount = primitive->indices.size();
-                indirectDraws.back().instanceCount = primitive->objectIDs.size();
+                indirectDraws.back().instanceCount = mesh->objectIDs.size();
 
                 // set indices and vertices
                 indirectDraws.back().firstIndex = indices.size();
@@ -186,11 +187,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
                 // set first instance
                 indirectDraws.back().firstInstance = _totalInstanceCount;
-                for (uint32_t i = 0; i < primitive->objectIDs.size(); ++i) {
-                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].objectIndex = primitive->objectIDs[i];
+                for (uint32_t i = 0; i < mesh->objectIDs.size(); ++i) {
+                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].objectIndex = mesh->objectIDs[i];
                     ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].materialIndex = primitive->materialIndex;
                 }
-                _totalInstanceCount += primitive->objectIDs.size();
+                _totalInstanceCount += mesh->objectIDs.size();
             }
         }
     }
