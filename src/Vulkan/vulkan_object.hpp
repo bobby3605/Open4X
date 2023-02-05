@@ -12,8 +12,7 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
-                 std::vector<VkDrawIndexedIndirectCommand>& indirectDraws);
+    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name);
     VulkanObject();
     std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);
@@ -34,7 +33,8 @@ class VulkanObject {
     std::vector<std::shared_ptr<VulkanNode>> rootNodes;
 
     std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);
-    void updateAnimations();
+    void updateAnimations(std::shared_ptr<SSBOBuffers> ssboBuffers);
+    void uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
     std::vector<std::shared_ptr<VulkanObject>> children;
 

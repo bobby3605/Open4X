@@ -166,8 +166,7 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     // and memory is used perfectly efficiently (no gaps between instance indices)
     for (int meshID = 0; meshID < meshes.size(); ++meshID) {
         for (int primitiveID = 0; primitiveID < meshes[meshID].primitives.size(); ++primitiveID) {
-            primitiveBaseInstanceMap.insert(
-                {{fileNum, meshID, primitiveID}, baseInstanceCount.fetch_add(meshes[meshID].instanceCount, std::memory_order_relaxed)});
+            baseInstanceCount.fetch_add(meshes[meshID].instanceCount, std::memory_order_relaxed);
         }
     }
 }

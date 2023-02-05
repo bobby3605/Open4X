@@ -39,8 +39,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    indirectDraws.resize(GLTF::primitiveCount);
-
     ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount * 1000, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
@@ -61,9 +59,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::string filePath = pathModelPair.first;
         std::shared_ptr<VulkanModel> model = pathModelPair.second;
 
-        futureObjects.push_back(std::async(std::launch::async, [model, filePath, this]() {
-            return std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws);
-        }));
+        futureObjects.push_back(std::async(
+            std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
     }
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
@@ -123,19 +120,18 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
+
+        objects.back()->uploadModelMatrices(ssboBuffers);
     }
 
     futureObjects.clear();
 
-    // FIXME:
-    // Broken because currently a baseInstanceMap is used to generate base instances
     for (int i = 0; i < 0; ++i) {
         std::string filePath = baseDir + "Box.glb";
         std::shared_ptr<VulkanModel> model = models[filePath];
 
-        futureObjects.push_back(std::async(std::launch::async, [model, filePath, this]() {
-            return std::make_shared<VulkanObject>(model, ssboBuffers, filePath, indirectDraws);
-        }));
+        futureObjects.push_back(std::async(
+            std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
     }
 
     float randLimit = 100.0f;
@@ -150,16 +146,33 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
         float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
         objects.back()->setPostion({x, y, z});
+        objects.back()->uploadModelMatrices(ssboBuffers);
     }
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
         for (std::pair<int, std::shared_ptr<VulkanMesh>> mesh : model.second->meshIDMap) {
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh.second->primitives) {
-                indirectDraws[primitive->indirectDrawIndex].vertexOffset = vertices.size();
-                indirectDraws[primitive->indirectDrawIndex].firstIndex = indices.size();
-                vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
+                // increase size of indirect draws
+                indirectDraws.resize(indirectDraws.size() + 1);
+
+                // copy indirect draw data from primitive
+                indirectDraws.back().indexCount = primitive->indirectDraw.indexCount;
+                indirectDraws.back().instanceCount = primitive->indirectDraw.instanceCount;
+
+                // set indices and vertices
+                indirectDraws.back().firstIndex = indices.size();
                 indices.insert(std::end(indices), std::begin(primitive->indices), std::end(primitive->indices));
-                _totalInstanceCount += indirectDraws[primitive->indirectDrawIndex].instanceCount;
+
+                indirectDraws.back().vertexOffset = vertices.size();
+                vertices.insert(std::end(vertices), std::begin(primitive->vertices), std::end(primitive->vertices));
+
+                // set first instance
+                indirectDraws.back().firstInstance = _totalInstanceCount;
+                for (uint32_t i = 0; i < primitive->objectIDs.size(); ++i) {
+                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].objectIndex = primitive->objectIDs[i];
+                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i].materialIndex = primitive->materialIndex;
+                }
+                _totalInstanceCount += primitive->indirectDraw.instanceCount;
             }
         }
     }
@@ -262,7 +275,7 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
     for (std::shared_ptr<VulkanObject> animatedObject : animatedObjects) {
-        animatedObject->updateAnimations();
+        animatedObject->updateAnimations(ssboBuffers);
     }
 
     vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer, 0,

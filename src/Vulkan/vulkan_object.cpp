@@ -14,15 +14,14 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name,
-                           std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
+VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name)
     : model{vulkanModel->model}, _name{name} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {
         for (int rootNodeID : scene.nodes) {
             GLTF::Node node = model->nodes[rootNodeID];
-            rootNodes.push_back(std::make_shared<VulkanNode>(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap,
-                                                             ssboBuffers, indirectDraws));
+            rootNodes.push_back(
+                std::make_shared<VulkanNode>(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));
         }
         // Load animation data
         for (GLTF::Animation animation : model->animations) {
@@ -48,9 +47,16 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
     }
 }
 
-void VulkanObject::updateAnimations() {
+void VulkanObject::updateAnimations(std::shared_ptr<SSBOBuffers> ssboBuffers) {
     for (std::shared_ptr<VulkanNode> node : animatedNodes) {
         node->updateAnimation();
+        node->uploadModelMatrix(ssboBuffers);
+    }
+}
+
+void VulkanObject::uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    for (std::shared_ptr<VulkanNode> node : rootNodes) {
+        node->uploadModelMatrix(ssboBuffers);
     }
 }
 

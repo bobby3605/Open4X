@@ -209,8 +209,6 @@ class GLTF {
     };
     std::vector<Texture> textures;
 
-    // file number, meshid, primitiveid -> gl_BaseInstance
-    inline static std::map<std::tuple<int, int, int>, uint32_t> primitiveBaseInstanceMap;
     uint32_t const fileNum() { return _fileNum; }
 
     static uint32_t readuint32(std::ifstream& file) {

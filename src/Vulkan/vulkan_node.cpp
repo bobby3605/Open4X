@@ -12,8 +12,7 @@
 VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
-                       std::vector<VkDrawIndexedIndirectCommand>& indirectDraws)
+                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers)
     : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -22,26 +21,21 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         // Check for unique mesh
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
-            meshIDMap->insert({meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap,
-                                                                            ssboBuffers, indirectDraws)});
+            meshIDMap->insert(
+                {meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
         // Set _modelMatrix
-        _modelMatrix = &ssboBuffers->ssboMapped[objectID].modelMatrix;
+        _modelMatrix = glm::mat4(1.0f);
         setLocationMatrix(glm::mat4(1.0f));
         //  Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
         for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
-
-            // -1 because gl_InstanceIndex starts at gl_BaseInstance + 0, but indirectDraw.instanceCount starts at 1
-            // if indirectDraw.instanceCount == 0, then no instances are drawn
-            ++indirectDraws[primitive->indirectDrawIndex].instanceCount;
-            int currIndex = primitive->gl_BaseInstance + indirectDraws[primitive->indirectDrawIndex].instanceCount - 1;
-            ssboBuffers->instanceIndicesMapped[currIndex].objectIndex = objectID;
-            ssboBuffers->instanceIndicesMapped[currIndex].materialIndex = primitive->materialIndex;
+            ++primitive->indirectDraw.instanceCount;
+            primitive->objectIDs.push_back(objectID);
         }
     }
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, indirectDraws));
+        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
         children.back()->setLocationMatrix(_baseMatrix);
     }
 }
@@ -53,14 +47,23 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     _locationMatrix = locationMatrix;
     glm::mat4 updateMatrix = _locationMatrix * animationMatrix * _baseMatrix;
     if (_modelMatrix.has_value()) {
-        *_modelMatrix.value() = updateMatrix;
+        _modelMatrix.value() = updateMatrix;
     }
     for (std::shared_ptr<VulkanNode> child : children) {
         child->setLocationMatrix(updateMatrix);
     }
 }
 
-glm::mat4 const VulkanNode::modelMatrix() { return *_modelMatrix.value(); }
+void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    if (_modelMatrix.has_value()) {
+        ssboBuffers->ssboMapped[objectID].modelMatrix = _modelMatrix.value();
+    }
+    for (std::shared_ptr<VulkanNode> child : children) {
+        child->uploadModelMatrix(ssboBuffers);
+    }
+}
+
+glm::mat4 const VulkanNode::modelMatrix() { return _modelMatrix.value(); }
 
 void VulkanNode::updateAnimation() {
     if (animationPair.has_value()) {
@@ -121,7 +124,7 @@ void VulkanNode::updateAnimation() {
 
             animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
             if (_modelMatrix.has_value()) {
-                *_modelMatrix.value() = _locationMatrix * animationMatrix * _baseMatrix;
+                _modelMatrix.value() = _locationMatrix * animationMatrix * _baseMatrix;
             }
 
         } else {
@@ -133,21 +136,17 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers,
-                       std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
+VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
-        primitives.push_back(
-            std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers, indirectDraws));
+        primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
     }
 }
 
 VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
-                                 std::shared_ptr<SSBOBuffers> ssboBuffers, std::vector<VkDrawIndexedIndirectCommand>& indirectDraws) {
+                                 std::shared_ptr<SSBOBuffers> ssboBuffers) {
 
-    indirectDrawIndex = ssboBuffers->currDrawIndex.fetch_add(1, std::memory_order_relaxed);
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];
-    gl_BaseInstance = model->primitiveBaseInstanceMap.find({model->fileNum(), meshID, primitiveID})->second;
 
     // Load unique materials
     //
@@ -400,9 +399,9 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         }
     }
 
-    indirectDraws[indirectDrawIndex].indexCount = indices.size();
-    indirectDraws[indirectDrawIndex].instanceCount = 0;
-    indirectDraws[indirectDrawIndex].firstIndex = 0;
-    indirectDraws[indirectDrawIndex].vertexOffset = 0;
-    indirectDraws[indirectDrawIndex].firstInstance = gl_BaseInstance;
+    indirectDraw.indexCount = indices.size();
+    indirectDraw.instanceCount = 0;
+    indirectDraw.firstIndex = 0;
+    indirectDraw.vertexOffset = 0;
+    indirectDraw.firstInstance = 0;
 }

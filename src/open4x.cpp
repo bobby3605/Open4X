@@ -137,6 +137,7 @@ void Open4X::run() {
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         startTime = currentTime;
         camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
+        camera->uploadModelMatrices(objects.ssboBuffers);
         if (titleFrametime == 0.0f) {
             titleFrametime = frameTime;
         } else {
