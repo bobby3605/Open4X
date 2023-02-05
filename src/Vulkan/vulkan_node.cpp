@@ -26,8 +26,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         }
         // Set _modelMatrix
         _modelMatrix = glm::mat4(1.0f);
-        setLocationMatrix(glm::mat4(1.0f));
-        //  Update instance count for each primitive
+        _locationMatrix = glm::mat4(1.0f);
+        //   Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
         // TODO
         // get rid of this mutex
@@ -57,6 +57,20 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     }
     for (std::shared_ptr<VulkanNode> child : children) {
         child->setLocationMatrix(updateMatrix);
+    }
+}
+
+void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
+    _locationMatrix[3][0] = newPosition.x;
+    _locationMatrix[3][1] = newPosition.y;
+    _locationMatrix[3][2] = newPosition.z;
+    if (_modelMatrix.has_value()) {
+        _modelMatrix.value()[3][0] = newPosition.x + _baseMatrix[3][0];
+        _modelMatrix.value()[3][1] = newPosition.y + _baseMatrix[3][1];
+        _modelMatrix.value()[3][2] = newPosition.z + _baseMatrix[3][2];
+    }
+    for (std::shared_ptr<VulkanNode> child : children) {
+        child->setLocationMatrix(newPosition);
     }
 }
 

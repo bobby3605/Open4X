@@ -86,7 +86,7 @@ void VulkanObject::setPostion(glm::vec3 newPosition) {
     _modelMatrix[3][1] = newPosition.y;
     _modelMatrix[3][2] = newPosition.z;
     for (std::shared_ptr<VulkanNode> rootNode : rootNodes) {
-        rootNode->setLocationMatrix(_modelMatrix);
+        rootNode->setLocationMatrix(newPosition);
     }
     for (std::shared_ptr<VulkanObject> child : children) {
         child->setPostion(newPosition);
