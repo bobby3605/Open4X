@@ -14,7 +14,7 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string name)
+VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name)
     : model{vulkanModel->model}, _name{name} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {

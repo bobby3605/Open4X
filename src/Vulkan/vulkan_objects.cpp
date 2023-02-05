@@ -39,7 +39,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 10'000, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, 20'000'000, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -126,40 +126,45 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    int extraObjectCount = 1'000;
+    const int extraObjectCount = 10'000'000;
+    const int numThreads = 10;
+    const int batchSize = extraObjectCount / numThreads;
     srand(time(NULL));
     objects.reserve(extraObjectCount);
-    int batchSize = 3;
-    // Batching is needed because there is a maximum number of threads on a system,
-    // and using a large amount of threads significantly slows this down,
-    // most likely due to the serialization from the primitive mutex
-    // TODO:
-    // speed this up
-    for (int j = 0; j < extraObjectCount; j += batchSize) {
-        // ensure that clear doesn't change the capacity
-        futureObjects.reserve(batchSize);
-        for (int i = 0; i < batchSize; ++i) {
-            std::string filePath = baseDir + "Box.glb";
-            std::shared_ptr<VulkanModel> model = models[filePath];
 
-            futureObjects.push_back(std::async(
-                std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
-        }
+    std::vector<std::future<std::vector<std::shared_ptr<VulkanObject>>>> futures;
+    std::string filePath = baseDir + "Box.glb";
+    std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
-        float randLimit = 100.0f;
-        for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
-            objects.push_back(futureObjects[objectIndex].get());
-            std::shared_ptr<GLTF> model = objects.back()->model;
-            if (model->animations.size() > 0) {
-                animatedObjects.push_back(objects.back());
+    for (int batch = 0; batch < extraObjectCount; batch += batchSize) {
+        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath]() {
+            std::vector<std::shared_ptr<VulkanObject>> batchObjects;
+            batchObjects.reserve(batchSize);
+            for (int objectIndex = 0; objectIndex < batchSize; ++objectIndex) {
+
+                float randLimit = 100.0f;
+                batchObjects.push_back(std::make_shared<VulkanObject>(vulkanModel, ssboBuffers, filePath));
+                std::shared_ptr<GLTF> model = objects.back()->model;
+                /*
+                 * FIXME:
+                 * add support for animated objects
+                if (model->animations.size() > 0) {
+                    animatedObjects.push_back(objects.back());
+                }
+                */
+                float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+                float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+                float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+                batchObjects.back()->setPostion({x, y, z});
+                batchObjects.back()->uploadModelMatrices(ssboBuffers);
             }
-            float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-            float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-            float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-            objects.back()->setPostion({x, y, z});
-            objects.back()->uploadModelMatrices(ssboBuffers);
-        }
-        futureObjects.clear();
+            return batchObjects;
+        }));
+    }
+
+    for (int i = 0; i < futures.size(); ++i) {
+        std::vector<std::shared_ptr<VulkanObject>> batchObjects = futures[i].get();
+        objects.insert(std::end(objects), std::begin(batchObjects), std::end(batchObjects));
     }
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
