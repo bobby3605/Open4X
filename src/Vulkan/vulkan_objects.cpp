@@ -12,6 +12,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iterator>
 #include <memory>
+#include <random>
 #include <vulkan/vulkan_core.h>
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
@@ -129,6 +130,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     const int extraObjectCount = 10'000'000;
     const int numThreads = 10;
     const int batchSize = extraObjectCount / numThreads;
+    const float randLimit = 100.0f;
+    std::mt19937 mt(time(NULL));
+    std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));
     objects.reserve(extraObjectCount);
 
@@ -137,12 +141,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
     for (int batch = 0; batch < extraObjectCount; batch += batchSize) {
-        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath]() {
+        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit]() {
             std::vector<std::shared_ptr<VulkanObject>> batchObjects;
             batchObjects.reserve(batchSize);
             for (int objectIndex = 0; objectIndex < batchSize; ++objectIndex) {
 
-                float randLimit = 100.0f;
                 batchObjects.push_back(std::make_shared<VulkanObject>(vulkanModel, ssboBuffers, filePath));
                 std::shared_ptr<GLTF> model = objects.back()->model;
                 /*
@@ -152,9 +155,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                     animatedObjects.push_back(objects.back());
                 }
                 */
-                float x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-                float y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
-                float z = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / randLimit));
+                float x = distribution(mt);
+                float y = distribution(mt);
+                float z = distribution(mt);
                 batchObjects.back()->setPostion({x, y, z});
                 batchObjects.back()->uploadModelMatrices(ssboBuffers);
             }
