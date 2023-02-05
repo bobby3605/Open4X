@@ -136,38 +136,37 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     srand(time(NULL));
     objects.reserve(extraObjectCount);
 
-    std::vector<std::future<std::vector<std::shared_ptr<VulkanObject>>>> futures;
+    std::vector<std::future<std::pair<std::vector<std::shared_ptr<VulkanObject>>, std::vector<std::shared_ptr<VulkanObject>>>>> futures;
     std::string filePath = baseDir + "Box.glb";
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
     for (int batch = 0; batch < extraObjectCount; batch += batchSize) {
         futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit]() {
             std::vector<std::shared_ptr<VulkanObject>> batchObjects;
+            std::vector<std::shared_ptr<VulkanObject>> batchAnimatedObjects;
             batchObjects.reserve(batchSize);
             for (int objectIndex = 0; objectIndex < batchSize; ++objectIndex) {
 
                 batchObjects.push_back(std::make_shared<VulkanObject>(vulkanModel, ssboBuffers, filePath));
                 std::shared_ptr<GLTF> model = objects.back()->model;
-                /*
-                 * FIXME:
-                 * add support for animated objects
                 if (model->animations.size() > 0) {
-                    animatedObjects.push_back(objects.back());
+                    batchAnimatedObjects.push_back(objects.back());
                 }
-                */
                 float x = distribution(mt);
                 float y = distribution(mt);
                 float z = distribution(mt);
                 batchObjects.back()->setPostion({x, y, z});
                 batchObjects.back()->uploadModelMatrices(ssboBuffers);
             }
-            return batchObjects;
+            return std::pair{batchObjects, batchAnimatedObjects};
         }));
     }
 
     for (int i = 0; i < futures.size(); ++i) {
-        std::vector<std::shared_ptr<VulkanObject>> batchObjects = futures[i].get();
-        objects.insert(std::end(objects), std::begin(batchObjects), std::end(batchObjects));
+        std::pair<std::vector<std::shared_ptr<VulkanObject>>, std::vector<std::shared_ptr<VulkanObject>>> batchObjectsPair =
+            futures[i].get();
+        objects.insert(std::end(objects), std::begin(batchObjectsPair.first), std::end(batchObjectsPair.first));
+        animatedObjects.insert(std::end(objects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
