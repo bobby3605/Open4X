@@ -39,7 +39,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount * 1000, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::baseInstanceCount * 100, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -126,7 +126,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    for (int i = 0; i < 0; ++i) {
+    for (int i = 0; i < 1000; ++i) {
         std::string filePath = baseDir + "Box.glb";
         std::shared_ptr<VulkanModel> model = models[filePath];
 
@@ -246,7 +246,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
                                       culledInstanceIndicesBuffer->buffer);
 
-    prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * GLTF::baseInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
 
