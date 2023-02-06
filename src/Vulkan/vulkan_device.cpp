@@ -687,6 +687,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     vk13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     vk13_features.dynamicRendering = VK_TRUE;
     vk13_features.synchronization2 = VK_TRUE;
+    vk13_features.subgroupSizeControl = VK_TRUE;
 
     vk12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vk12_features.runtimeDescriptorArray = VK_TRUE;
@@ -714,6 +715,13 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     createSurface();
     pickPhysicalDevice();
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    VkPhysicalDeviceVulkan13Properties vk13_properties{};
+    vk13_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
+    VkPhysicalDeviceProperties2 properties2{};
+    properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties2.pNext = &vk13_properties;
+    vkGetPhysicalDeviceProperties2(physicalDevice, &properties2);
+    _maxSubgroupSize = vk13_properties.maxSubgroupSize;
     createLogicalDevice();
     commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     commandPoolAllocator = new VulkanCommandPoolAllocator(this);
@@ -721,6 +729,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
     _timestampPeriod = physicalDeviceProperties.limits.timestampPeriod;
+    _maxComputeWorkGroupInvocations = physicalDeviceProperties.limits.maxComputeWorkGroupInvocations;
 }
 
 bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
@@ -746,7 +755,7 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
            vk11_featuresCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
            vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing && vk13_featuresCheck.dynamicRendering &&
            vk13_featuresCheck.synchronization2 && vk12_featuresCheck.drawIndirectCount && vk12_featuresCheck.hostQueryReset &&
-           vk12_featuresCheck.scalarBlockLayout;
+           vk12_featuresCheck.scalarBlockLayout && vk13_featuresCheck.subgroupSizeControl;
 }
 
 VulkanDevice::~VulkanDevice() {

@@ -42,6 +42,8 @@ class VulkanDevice {
     VkPhysicalDevice getPhysicalDevice() { return physicalDevice; }
     const VkSampleCountFlagBits getMsaaSamples() const { return msaaSamples; }
     const VkBool32 getSampleShading() const { return sampleShading; }
+    const uint32_t maxSubgroupSize() const { return _maxSubgroupSize; }
+    const uint32_t maxComputeWorkGroupInvocations() const { return _maxComputeWorkGroupInvocations; }
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
@@ -116,6 +118,8 @@ class VulkanDevice {
     VkPhysicalDeviceVulkan11Features vk11_features;
     VkPhysicalDeviceVulkan12Features vk12_features;
     VkPhysicalDeviceVulkan13Features vk13_features;
+    uint32_t _maxSubgroupSize;
+    uint32_t _maxComputeWorkGroupInvocations;
 
     void createInstance();
     void setupDebugMessenger();

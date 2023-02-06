@@ -99,6 +99,14 @@ VulkanPipeline::VulkanPipeline(VulkanDevice* device, std::string computeShaderPa
     computeStageInfo.module = computeModule;
     computeStageInfo.pName = "main";
     computeStageInfo.pSpecializationInfo = specializationInfo;
+    // NOTE:
+    // force subgroup size to maximum
+    // only needed on intel
+    VkPipelineShaderStageRequiredSubgroupSizeCreateInfo subgroupSizeInfo{};
+    subgroupSizeInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO;
+    subgroupSizeInfo.requiredSubgroupSize = device->maxSubgroupSize();
+
+    computeStageInfo.pNext = &subgroupSizeInfo;
 
     VkComputePipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

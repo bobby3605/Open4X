@@ -117,8 +117,8 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
     std::string name;
     VulkanDescriptors::VulkanDescriptor* descriptor;
 
-    specData.local_size_x = LOCAL_SIZE_X;
-    specData.subgroup_size = 64;
+    specData.local_size_x = device->maxComputeWorkGroupInvocations();
+    specData.subgroup_size = device->maxSubgroupSize();
 
     name = "cull_frustum_pass";
     descriptor = descriptorManager->descriptors[name];
@@ -346,10 +346,8 @@ void VulkanRenderer::memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStage
 void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands,
                                ComputePushConstants& frustumCullPushConstants) {
     std::string name;
-    uint32_t local_size_x;
 
     name = "cull_frustum_pass";
-    local_size_x = LOCAL_SIZE_X;
 
     bindComputePipeline(name);
 
@@ -361,7 +359,8 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
 
     // frustum culling
-    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
+    vkCmdDispatch(getCurrentCommandBuffer(),
+                  getGroupCount(frustumCullPushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()), 1, 1);
 
     // wait until the frustum culling is done
     memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
@@ -380,7 +379,8 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
 
     // reduce_prefix_sum
-    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
+    vkCmdDispatch(getCurrentCommandBuffer(),
+                  getGroupCount(frustumCullPushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()), 1, 1);
 
     // wait until finished
     memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
@@ -408,7 +408,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                        sizeof(uint32_t), &drawCount);
 
     // cull draws
-    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(drawCommands.size(), local_size_x), 1, 1);
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(drawCommands.size(), device->maxComputeWorkGroupInvocations()), 1, 1);
 
     // wait until culling is completed
     memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
