@@ -95,7 +95,7 @@ bool isVisible(uint index) {
 shared uint sdata[SUBGROUP_SIZE];
 void main() {
     uint index = gl_GlobalInvocationID.x;
-    bool laneActive = index < totalInstanceCount  && isVisible(index);
+    bool laneActive = index < totalInstanceCount && isVisible(index);
     activeLanes[index] = laneActive;
     uint sum = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
 
@@ -129,5 +129,4 @@ void main() {
     if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
         partialSums[gl_WorkGroupID.x] = sum;
     }
-
 }

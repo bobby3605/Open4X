@@ -43,7 +43,7 @@ void main() {
     memoryBarrierShared();
     barrier();
 
-    if (gl_WorkGroupID.x > 0 && gl_GlobalInvocationID.x < totalInstanceCount) {
+    if (gl_WorkGroupID.x > 0) {
 
         // FIXME:
         // get rid of this for loop
@@ -73,7 +73,9 @@ void main() {
             barrier();
         }
 
-        prefixSum[gl_GlobalInvocationID.x] += sum;
+        if (gl_GlobalInvocationID.x < totalInstanceCount) {
+            prefixSum[gl_GlobalInvocationID.x] += sum;
+        }
     }
 
     if (activeLanes[gl_GlobalInvocationID.x]) {
