@@ -40,7 +40,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 20'000'000, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, 10'001'000, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -130,7 +130,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     const int extraObjectCount = 10'000'000;
     const int numThreads = 10;
     const int batchSize = extraObjectCount / numThreads;
-    const float randLimit = 100.0f;
+    const float randLimit = 1000.0f;
     std::mt19937 mt(time(NULL));
     std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));
@@ -264,12 +264,28 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                                       ssboBuffers->instanceIndicesBuffer());
 
     cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
-    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
-                                      culledInstanceIndicesBuffer->buffer);
 
     prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
+    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
+
+    partialSumsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, LOCAL_SIZE_X),
+                                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, partialSumsBuffer->buffer);
+
+    activeLanesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(VkBool32) * _totalInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, activeLanesBuffer->buffer);
+
+    VulkanDescriptors::VulkanDescriptor* reduceDescriptor = descriptorManager->createDescriptor("reduce_prefix_sum");
+
+    reduceDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->instanceIndicesBuffer());
+    reduceDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
+    reduceDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, partialSumsBuffer->buffer);
+    reduceDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, activeLanesBuffer->buffer);
+    reduceDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledInstanceIndicesBuffer->buffer);
 
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor = descriptorManager->createDescriptor("cull_draw_pass");
     cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());

@@ -4,7 +4,7 @@
 #extension GL_KHR_shader_subgroup_ballot : require
 
 layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
-layout(constant_id = 1) const uint SUBGROUP_SIZE = 0;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 struct InstanceData {
@@ -15,8 +15,6 @@ struct InstanceData {
 struct ObjectData {
     mat4 modelMatrix;
 };
-
-layout(set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
 
 layout(push_constant) uniform constants {
     uint totalInstanceCount;
@@ -32,11 +30,11 @@ layout(push_constant) uniform constants {
     vec3 camPos;
 };
 
+layout(set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
 layout(std140, set = 0, binding = 1) readonly buffer Objects { ObjectData objects[]; };
-layout(set = 0, binding = 2) buffer VisibleInstances { InstanceData visibleInstances[]; };
-
-layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
-layout(set = 0, binding = 4) buffer LocalGroupTotals { uint localgroupTotals[]; };
+layout(set = 0, binding = 2) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 3) buffer PartialSums { uint partialSums[]; };
+layout(set = 0, binding = 4) writeonly buffer ActiveLanes { bool activeLanes[]; };
 
 // radar frustum culling implementation from
 // http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
@@ -92,60 +90,44 @@ bool isVisible(uint index) {
     return sphereInFrustum(center, radius);
 }
 
-// NOTE:
-// gl_WorkGroupSize is a compile-time constant, but gl_SubgroupSize isn't
-// should be equal to gl_NumSubgroups
-shared uint subgroupTotals[gl_WorkGroupSize.x / SUBGROUP_SIZE];
-shared uint workgroupOffset;
-shared uint i;
+// Prefix sum implementation from
+// https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
+shared uint sdata[SUBGROUP_SIZE];
 void main() {
-    if (gl_LocalInvocationID.x == 0) {
-        i = 0;
-        workgroupOffset = 0;
+    uint index = gl_GlobalInvocationID.x;
+    bool laneActive = index < totalInstanceCount  && isVisible(index);
+    activeLanes[index] = laneActive;
+    uint sum = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
+
+    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) {
+        sdata[gl_SubgroupID] = sum;
     }
+
     memoryBarrierShared();
     barrier();
 
-    // TODO:
-    // This can surely be improved,
-    // but it is sufficient for now
-    // Currently culls ~950,000 instances in ~1ms with a local size of 1024 on my 6800xt
-    while (i < totalInstanceCount) {
-        uint index = gl_LocalInvocationID.x + i;
-        InstanceData instance = instances[index];
-        bool laneActive = index < totalInstanceCount && isVisible(index);
-        uint inclusiveCount = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
-
-        if (gl_SubgroupInvocationID == (SUBGROUP_SIZE - 1)) {
-            subgroupTotals[gl_SubgroupID] = inclusiveCount;
-        }
-
-        memoryBarrierShared();
-        barrier();
-
-        // FIXME:
-        // currently fails if gl_NumSubgroups > gl_SubgroupSize
-        if (gl_LocalInvocationID.x < gl_NumSubgroups) {
-            subgroupTotals[gl_LocalInvocationID.x] = subgroupInclusiveAdd(subgroupTotals[gl_LocalInvocationID.x]);
-        }
-
-        memoryBarrierShared();
-        barrier();
-
-        prefixSum[index] = workgroupOffset + (gl_SubgroupID == 0 ? 0 : subgroupTotals[gl_SubgroupID - 1]) + inclusiveCount;
-
-        if (laneActive) {
-            // NOTE:
-            // - 1 to convert from inclusive to exclusive prefix sum
-            visibleInstances[prefixSum[index] - 1] = instance;
-        }
-
-        if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
-            i += gl_WorkGroupSize.x;
-            workgroupOffset = prefixSum[index];
-        }
-
-        memoryBarrierShared();
-        barrier();
+    if (gl_SubgroupID == 0) {
+        uint warpSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+        warpSum = subgroupInclusiveAdd(warpSum);
+        sdata[gl_SubgroupInvocationID] = warpSum;
     }
+
+    memoryBarrierShared();
+    barrier();
+
+    uint blockSum = 0;
+    if (gl_SubgroupID > 0) {
+        blockSum = sdata[gl_SubgroupID - 1];
+    }
+
+    sum += blockSum;
+
+    if (gl_GlobalInvocationID.x < totalInstanceCount) {
+        prefixSum[gl_GlobalInvocationID.x] = sum;
+    }
+
+    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+        partialSums[gl_WorkGroupID.x] = sum;
+    }
+
 }

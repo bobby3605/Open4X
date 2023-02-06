@@ -117,25 +117,24 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
     std::string name;
     VulkanDescriptors::VulkanDescriptor* descriptor;
 
+    specData.local_size_x = LOCAL_SIZE_X;
+    specData.subgroup_size = 64;
+
     name = "cull_frustum_pass";
     descriptor = descriptorManager->descriptors[name];
-
-    // FIXME:
-    // should be gl_NumWorkgroups, not 16
-    globalCounterBuffer =
-        std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * 16, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    descriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, globalCounterBuffer->buffer);
-
     descriptor->allocateSets();
     descriptor->update();
 
     descriptorLayouts[0] = descriptor->getLayout();
 
     pushConstants[0].size = sizeof(ComputePushConstants);
-    specData.local_size_x = 1024;
-    specData.subgroup_size = 64;
+    createComputePipeline(name, descriptorLayouts, pushConstants, &specInfo);
+
+    name = "reduce_prefix_sum";
+    descriptor = descriptorManager->descriptors[name];
+    descriptor->allocateSets();
+    descriptor->update();
+    descriptorLayouts[0] = descriptor->getLayout();
     createComputePipeline(name, descriptorLayouts, pushConstants, &specInfo);
 
     name = "cull_draw_pass";
@@ -344,25 +343,15 @@ void VulkanRenderer::memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStage
     vkCmdPipelineBarrier2(getCurrentCommandBuffer(), &dependencyInfo);
 }
 
-// https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
-inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
-
 void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands,
                                ComputePushConstants& frustumCullPushConstants) {
     std::string name;
     uint32_t local_size_x;
 
     name = "cull_frustum_pass";
-    local_size_x = 1024;
+    local_size_x = LOCAL_SIZE_X;
 
     bindComputePipeline(name);
-
-    // zero out scratch buffers
-    vkCmdFillBuffer(getCurrentCommandBuffer(), globalCounterBuffer->buffer, 0, globalCounterBuffer->size(), 0);
-
-    // barrier until the buffers have been cleared
-    memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
-                  VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     // bind descriptors for cull_frustum_pass
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
@@ -372,9 +361,28 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
 
     // frustum culling
-    vkCmdDispatch(getCurrentCommandBuffer(), 1, 1, 1);
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
 
     // wait until the frustum culling is done
+    memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+    // reduce prefix sum step
+    name = "reduce_prefix_sum";
+
+    bindComputePipeline(name);
+
+    // bind descriptors for reduce_prefix_sum
+    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
+                      descriptorManager->descriptors[name]->getSets()[0]);
+
+    vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                       sizeof(frustumCullPushConstants), &frustumCullPushConstants);
+
+    // reduce_prefix_sum
+    vkCmdDispatch(getCurrentCommandBuffer(), getGroupCount(frustumCullPushConstants.totalInstanceCount, local_size_x), 1, 1);
+
+    // wait until finished
     memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 

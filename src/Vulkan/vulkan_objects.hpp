@@ -27,7 +27,9 @@ class VulkanObjects {
     std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> partialSumsBuffer;
     std::shared_ptr<VulkanBuffer> prefixSumBuffer;
+    std::shared_ptr<VulkanBuffer> activeLanesBuffer;
     std::vector<std::shared_ptr<VulkanObject>> objects;
     std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;
     std::vector<std::shared_ptr<VulkanObject>> animatedObjects;

@@ -14,4 +14,9 @@
     }
 #endif
 
+// https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
+inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
+
+#define LOCAL_SIZE_X 1024
+
 #endif // COMMON_H_

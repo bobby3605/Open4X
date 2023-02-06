@@ -1,0 +1,82 @@
+#version 460
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct InstanceData {
+    uint objectIndex;
+    uint materialIndex;
+};
+
+layout(push_constant) uniform constants {
+    uint totalInstanceCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    vec3 X;
+    vec3 Y;
+    vec3 Z;
+    vec3 camPos;
+};
+
+layout(set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
+layout(set = 0, binding = 1) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 2) readonly buffer PartialSums { uint partialSums[]; };
+layout(set = 0, binding = 3) readonly buffer ActiveLanes { bool activeLanes[]; };
+layout(set = 0, binding = 4) writeonly buffer VisibleInstances { InstanceData visibleInstances[]; };
+
+// Prefix sum implementation from
+// https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
+shared uint sum;
+shared uint subgroupTotals[LOCAL_SIZE_X / SUBGROUP_SIZE];
+void main() {
+    if (gl_LocalInvocationID.x == 0) {
+        sum = 0;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_WorkGroupID.x > 0 && gl_GlobalInvocationID.x < totalInstanceCount) {
+
+        // FIXME:
+        // get rid of this for loop
+        // the code from cachemiss is bugged as well,
+        // it can't calculate partialSums from more than one workgroup
+        for (uint i = 0; i < gl_WorkGroupID.x; i += LOCAL_SIZE_X) {
+            uint tmp = gl_LocalInvocationID.x + i < gl_WorkGroupID.x ? partialSums[gl_LocalInvocationID.x + i] : 0;
+            tmp = subgroupAdd(tmp);
+            if (gl_SubgroupInvocationID == 0) {
+                subgroupTotals[gl_SubgroupID] = tmp;
+            }
+
+            memoryBarrierShared();
+            barrier();
+
+            if (gl_SubgroupID == 0) {
+                // NOTE:
+                // gl_NumSubgroups (LOCAL_SIZE_X / SUBGROUP_SIZE) must be < gl_SubgroupSize
+                uint tmp2 = gl_SubgroupInvocationID < gl_NumSubgroups ? subgroupTotals[gl_SubgroupInvocationID] : 0;
+                tmp2 = subgroupAdd(tmp2);
+                if (gl_SubgroupInvocationID == 0) {
+                    sum += tmp2;
+                }
+            }
+
+            memoryBarrierShared();
+            barrier();
+        }
+
+        prefixSum[gl_GlobalInvocationID.x] += sum;
+    }
+
+    if (activeLanes[gl_GlobalInvocationID.x]) {
+        visibleInstances[prefixSum[gl_GlobalInvocationID.x] - 1] = instances[gl_GlobalInvocationID.x];
+    }
+}
