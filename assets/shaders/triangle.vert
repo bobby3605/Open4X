@@ -15,12 +15,12 @@ struct materialData {
     uint samplerIndex;
     uint imageIndex;
     uint normalIndex;
-    uint normalScale;
+    float normalScale;
     uint metallicRoughnessIndex;
-    uint metallicFactor;
-    uint roughnessFactor;
+    float metallicFactor;
+    float roughnessFactor;
     uint aoIndex;
-    uint occlusionStrength;
+    float occlusionStrength;
 };
 
 struct culledInstanceIndicesData {
@@ -52,10 +52,10 @@ layout(location = 6) out uint aoIndex;
 layout(location = 7) out vec3 WorldPos;
 layout(location = 8) out vec3 Normal;
 layout(location = 9) out vec3 camPos;
-layout(location = 10) out uint normalScale;
-layout(location = 11) out uint metallicFactor;
-layout(location = 12) out uint roughnessFactor;
-layout(location = 13) out uint occulsionStrength;
+layout(location = 10) out float normalScale;
+layout(location = 11) out float metallicFactor;
+layout(location = 12) out float roughnessFactor;
+layout(location = 13) out float occulsionStrength;
 
 void main() {
     culledInstanceIndicesData culledInstanceIndexData = culledInstanceIndices.data[gl_InstanceIndex];

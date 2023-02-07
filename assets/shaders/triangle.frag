@@ -17,10 +17,10 @@ layout(location = 6) in flat uint aoIndex;
 layout(location = 7) in vec3 WorldPos;
 layout(location = 8) in vec3 Normal;
 layout(location = 9) in vec3 camPos;
-layout(location = 10) in flat uint normalScale;
-layout(location = 11) in flat uint metallicFactor;
-layout(location = 12) in flat uint roughnessFactor;
-layout(location = 13) in flat uint occulsionStrength;
+layout(location = 10) in flat float normalScale;
+layout(location = 11) in flat float metallicFactor;
+layout(location = 12) in flat float roughnessFactor;
+layout(location = 13) in flat float occulsionStrength;
 
 layout(set = 1, binding = 0) uniform sampler samplers[];
 layout(set = 1, binding = 1) uniform texture2D images[];

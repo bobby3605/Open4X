@@ -85,12 +85,12 @@ struct MaterialData {
     uint32_t samplerIndex;
     uint32_t imageIndex;
     uint32_t normalMapIndex;
-    uint normalScale;
+    float normalScale;
     uint32_t metallicRoughnessMapIndex;
-    uint metallicFactor;
-    uint roughnessFactor;
+    float metallicFactor;
+    float roughnessFactor;
     uint32_t aoMapIndex;
-    uint occlusionStrength;
+    float occlusionStrength;
 };
 
 struct InstanceIndicesData {
