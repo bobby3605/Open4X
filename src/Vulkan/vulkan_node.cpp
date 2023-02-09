@@ -39,7 +39,6 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
     }
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
-        children.back()->setLocationMatrix(_baseMatrix);
     }
 }
 
