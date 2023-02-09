@@ -18,6 +18,7 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
     : model{vulkanModel->model}, _name{name} {
     // Load nodes and meshes
     for (GLTF::Scene scene : model->scenes) {
+        rootNodes.reserve(rootNodes.size() + scene.nodes.size());
         for (int rootNodeID : scene.nodes) {
             GLTF::Node node = model->nodes[rootNodeID];
             rootNodes.push_back(new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));

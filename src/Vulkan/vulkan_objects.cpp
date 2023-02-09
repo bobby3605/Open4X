@@ -60,8 +60,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::string filePath = pathModelPair.first;
         std::shared_ptr<VulkanModel> model = pathModelPair.second;
 
-        futureObjects.push_back(std::async(
-            std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
+        futureObjects.push_back(
+            std::async(std::launch::async, [model, filePath, this]() { return new VulkanObject(model, ssboBuffers, filePath); }));
     }
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
@@ -125,7 +125,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    const int extraObjectCount = 100'009;
+    const int extraObjectCount = 300'009;
     const int threadCount = 10;
     const int batchSize = extraObjectCount / threadCount;
     const int extra = extraObjectCount % threadCount;
@@ -135,22 +135,22 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     srand(time(NULL));
     objects.reserve(extraObjectCount);
 
-    std::vector<std::future<std::pair<std::vector<std::shared_ptr<VulkanObject>>, std::vector<std::shared_ptr<VulkanObject>>>>> futures;
+    std::vector<std::future<std::pair<std::vector<VulkanObject*>, std::vector<VulkanObject*>>>> futures;
     std::string filePath = baseDir + "Box.glb";
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
     for (int batch = 0; batch < threadCount; ++batch) {
         futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit, batch]() {
-            std::vector<std::shared_ptr<VulkanObject>> batchObjects;
-            std::vector<std::shared_ptr<VulkanObject>> batchAnimatedObjects;
+            std::vector<VulkanObject*> batchObjects;
+            std::vector<VulkanObject*> batchAnimatedObjects;
             // NOTE:
             // adding remainder to last batch
             batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
             for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
-                batchObjects.push_back(std::make_shared<VulkanObject>(vulkanModel, ssboBuffers, filePath));
+                batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath));
                 std::shared_ptr<GLTF> model = objects.back()->model;
                 if (model->animations.size() > 0) {
-                    batchAnimatedObjects.push_back(objects.back());
+                    batchAnimatedObjects.push_back(batchObjects.back());
                 }
                 float x = distribution(mt);
                 float y = distribution(mt);
@@ -162,8 +162,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     }
 
     for (int i = 0; i < futures.size(); ++i) {
-        std::pair<std::vector<std::shared_ptr<VulkanObject>>, std::vector<std::shared_ptr<VulkanObject>>> batchObjectsPair =
-            futures[i].get();
+        std::pair<std::vector<VulkanObject*>, std::vector<VulkanObject*>> batchObjectsPair = futures[i].get();
         objects.insert(std::end(objects), std::begin(batchObjectsPair.first), std::end(batchObjectsPair.first));
         animatedObjects.insert(std::end(objects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
@@ -199,7 +198,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
     }
 
-    for (std::shared_ptr<VulkanObject> object : objects) {
+    for (VulkanObject* object : objects) {
         object->uploadModelMatrices(ssboBuffers);
     }
 
@@ -322,7 +321,7 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
-    for (std::shared_ptr<VulkanObject> animatedObject : animatedObjects) {
+    for (VulkanObject* animatedObject : animatedObjects) {
         animatedObject->updateAnimations(ssboBuffers);
     }
 
@@ -330,11 +329,17 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
                                   renderer->culledDrawIndirectCount->buffer, 0, indirectDraws.size(), sizeof(indirectDraws[0]));
 }
 
-std::shared_ptr<VulkanObject> VulkanObjects::getObjectByName(std::string name) {
-    for (std::shared_ptr<VulkanObject> object : objects) {
+VulkanObject* VulkanObjects::getObjectByName(std::string name) {
+    for (VulkanObject* object : objects) {
         if (object->name().compare(name) == 0) {
             return object;
         }
     }
     throw std::runtime_error("failed to find object by name: " + name);
+}
+
+VulkanObjects::~VulkanObjects() {
+    for (auto object : objects) {
+        delete object;
+    }
 }

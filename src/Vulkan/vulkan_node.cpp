@@ -37,6 +37,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         mesh->objectIDs.push_back(objectID);
         mesh->objectIDMutex.unlock();
     }
+    children.reserve(model->nodes[nodeID].children.size());
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
     }

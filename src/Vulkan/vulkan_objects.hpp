@@ -14,9 +14,10 @@
 class VulkanObjects {
   public:
     VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
+    ~VulkanObjects();
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);
-    std::shared_ptr<VulkanObject> getObjectByName(std::string name);
+    VulkanObject* getObjectByName(std::string name);
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
     int totalInstanceCount() { return _totalInstanceCount; }
     std::shared_ptr<SSBOBuffers> ssboBuffers;
@@ -30,9 +31,9 @@ class VulkanObjects {
     std::shared_ptr<VulkanBuffer> partialSumsBuffer;
     std::shared_ptr<VulkanBuffer> prefixSumBuffer;
     std::shared_ptr<VulkanBuffer> activeLanesBuffer;
-    std::vector<std::shared_ptr<VulkanObject>> objects;
-    std::vector<std::future<std::shared_ptr<VulkanObject>>> futureObjects;
-    std::vector<std::shared_ptr<VulkanObject>> animatedObjects;
+    std::vector<VulkanObject*> objects;
+    std::vector<std::future<VulkanObject*>> futureObjects;
+    std::vector<VulkanObject*> animatedObjects;
     std::unordered_map<std::string, std::shared_ptr<VulkanModel>> models;
     std::vector<std::future<std::shared_ptr<VulkanModel>>> futureModels;
     std::vector<Vertex> vertices;
