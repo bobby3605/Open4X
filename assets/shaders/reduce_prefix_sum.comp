@@ -1,6 +1,7 @@
 #version 460
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
 layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
@@ -23,7 +24,7 @@ layout(push_constant) uniform constants {
 layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };
 layout(set = 0, binding = 1) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 2) readonly buffer PartialSums { uint partialSums[]; };
-layout(set = 0, binding = 3) readonly buffer ActiveLanes { bool activeLanes[]; };
+layout(set = 0, binding = 3) readonly buffer ActiveLanes { uint activeLanes[]; };
 layout(set = 0, binding = 4) writeonly buffer VisibleInstances { uint visibleInstances[]; };
 
 // Prefix sum implementation from
@@ -73,7 +74,9 @@ void main() {
         }
     }
 
-    if (activeLanes[gl_GlobalInvocationID.x]) {
+    uint laneData = activeLanes[gl_GlobalInvocationID.x / 32];
+    uint mask = 1 << (gl_SubgroupInvocationID % 32);
+    if ((laneData & mask) != 0) {
         visibleInstances[prefixSum[gl_GlobalInvocationID.x] - 1] = instances[gl_GlobalInvocationID.x];
     }
 }

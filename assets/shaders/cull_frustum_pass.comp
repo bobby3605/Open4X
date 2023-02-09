@@ -29,7 +29,7 @@ layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };
 layout(std140, set = 0, binding = 1) readonly buffer Objects { ObjectData objects[]; };
 layout(set = 0, binding = 2) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 3) buffer PartialSums { uint partialSums[]; };
-layout(set = 0, binding = 4) writeonly buffer ActiveLanes { bool activeLanes[]; };
+layout(set = 0, binding = 4) writeonly buffer ActiveLanes { uint activeLanes[]; };
 
 // radar frustum culling implementation from
 // http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
@@ -90,8 +90,13 @@ shared uint sdata[SUBGROUP_SIZE];
 void main() {
     uint index = gl_GlobalInvocationID.x;
     bool laneActive = index < totalInstanceCount && isVisible(index);
-    activeLanes[index] = laneActive;
-    uint sum = subgroupBallotInclusiveBitCount(subgroupBallot(laneActive));
+    uvec4 ballot = subgroupBallot(laneActive);
+    uint sum = subgroupBallotInclusiveBitCount(ballot);
+    // NOTE:
+    // subgroup size needs to be >= 32
+    if (((gl_SubgroupInvocationID + 1) % 32) == 0) {
+        activeLanes[index / 32] = ballot[gl_SubgroupInvocationID / 32];
+    }
 
     if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) {
         sdata[gl_SubgroupID] = sum;
