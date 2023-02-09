@@ -40,7 +40,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         models.insert({model->model->path() + model->model->fileName(), model});
     }
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 10'001'000, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::primitiveCount);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -61,7 +61,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::shared_ptr<VulkanModel> model = pathModelPair.second;
 
         futureObjects.push_back(std::async(
-            std::launch::async, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
+            std::launch::deferred, [model, filePath, this]() { return std::make_shared<VulkanObject>(model, ssboBuffers, filePath); }));
     }
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
@@ -121,16 +121,15 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
-
-        objects.back()->uploadModelMatrices(ssboBuffers);
     }
 
     futureObjects.clear();
 
-    const int extraObjectCount = 10'000'000;
-    const int numThreads = 10;
-    const int batchSize = extraObjectCount / numThreads;
-    const float randLimit = 1000.0f;
+    const int extraObjectCount = 100'000;
+    const int threadCount = 10;
+    const int batchSize = extraObjectCount / threadCount;
+    const int extra = extraObjectCount % threadCount;
+    const float randLimit = 100.0f;
     std::mt19937 mt(time(NULL));
     std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));
@@ -140,13 +139,14 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::string filePath = baseDir + "Box.glb";
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
-    for (int batch = 0; batch < extraObjectCount; batch += batchSize) {
-        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit]() {
+    for (int batch = 0; batch < threadCount; ++batch) {
+        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit, batch]() {
             std::vector<std::shared_ptr<VulkanObject>> batchObjects;
             std::vector<std::shared_ptr<VulkanObject>> batchAnimatedObjects;
-            batchObjects.reserve(batchSize);
-            for (int objectIndex = 0; objectIndex < batchSize; ++objectIndex) {
-
+            // NOTE:
+            // adding remainder to last batch
+            batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
+            for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
                 batchObjects.push_back(std::make_shared<VulkanObject>(vulkanModel, ssboBuffers, filePath));
                 std::shared_ptr<GLTF> model = objects.back()->model;
                 if (model->animations.size() > 0) {
@@ -156,7 +156,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 float y = distribution(mt);
                 float z = distribution(mt);
                 batchObjects.back()->setPostion({x, y, z});
-                batchObjects.back()->uploadModelMatrices(ssboBuffers);
             }
             return std::pair{batchObjects, batchAnimatedObjects};
         }));
@@ -168,6 +167,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         objects.insert(std::end(objects), std::begin(batchObjectsPair.first), std::end(batchObjectsPair.first));
         animatedObjects.insert(std::end(objects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
+
+    ssboBuffers->createInstanceBuffers();
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
         for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
@@ -196,6 +197,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 _totalInstanceCount += mesh->objectIDs.size();
             }
         }
+    }
+
+    for (std::shared_ptr<VulkanObject> object : objects) {
+        object->uploadModelMatrices(ssboBuffers);
     }
 
     vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),

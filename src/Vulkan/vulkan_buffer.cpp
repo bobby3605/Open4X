@@ -77,17 +77,10 @@ StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
 
 StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
-SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t drawsCount) : device{device} {
-    _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
-    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
-    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
-    _culledMaterialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t drawsCount) : device{device} {
     // NOTE:
     // could be optimized further by only using referenced materials
     _materialBuffer = new StorageBuffer(device, drawsCount * sizeof(MaterialData));
-    ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
-    instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped);
-    materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
@@ -96,6 +89,19 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t 
     materialData.normalMapIndex = 0;
     materialData.imageIndex = 0;
     materialMapped[0] = materialData;
+}
+
+void SSBOBuffers::createInstanceBuffers() {
+    // NOTE:
+    // must only be called once after uniqueObjectID has been set
+    _ssboBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(SSBOData));
+    ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
+    _instanceIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
+    _materialIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
+    _culledMaterialIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
+
+    instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped);
+    materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped);
 }
 
 SSBOBuffers::~SSBOBuffers() {

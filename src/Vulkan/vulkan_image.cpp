@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 VkSamplerAddressMode switchWrap(uint32_t wrap) {
     switch (wrap) {

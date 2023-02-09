@@ -95,7 +95,8 @@ struct MaterialData {
 
 class SSBOBuffers {
   public:
-    SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t drawsCount);
+    SSBOBuffers(VulkanDevice* device, uint32_t drawsCount);
+    void createInstanceBuffers();
     ~SSBOBuffers();
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
@@ -127,7 +128,6 @@ class SSBOBuffers {
     // starts at 1 since the default material is made in the constructor
     std::atomic<uint32_t> uniqueMaterialID = 1;
     std::atomic<uint32_t> currDrawIndex = 0;
-    std::atomic<uint32_t> totalInstanceCount = 0;
     VulkanDevice* device;
 
   private:
