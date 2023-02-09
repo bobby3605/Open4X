@@ -38,7 +38,13 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         mesh->objectIDMutex.unlock();
     }
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(std::make_shared<VulkanNode>(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
+        children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
+    }
+}
+
+VulkanNode::~VulkanNode() {
+    for (auto child : children) {
+        delete child;
     }
 }
 
@@ -56,7 +62,7 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     if (_modelMatrix.has_value()) {
         _modelMatrix.value() = updateMatrix;
     }
-    for (std::shared_ptr<VulkanNode> child : children) {
+    for (VulkanNode* child : children) {
         child->setLocationMatrix(updateMatrix);
     }
 }
@@ -70,7 +76,7 @@ void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
         _modelMatrix.value()[3][1] = newPosition.y + _baseMatrix[3][1];
         _modelMatrix.value()[3][2] = newPosition.z + _baseMatrix[3][2];
     }
-    for (std::shared_ptr<VulkanNode> child : children) {
+    for (VulkanNode* child : children) {
         child->setLocationMatrix(newPosition);
     }
 }
@@ -79,7 +85,7 @@ void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
     if (_modelMatrix.has_value()) {
         ssboBuffers->ssboMapped[objectID].modelMatrix = _modelMatrix.value();
     }
-    for (std::shared_ptr<VulkanNode> child : children) {
+    for (VulkanNode* child : children) {
         child->uploadModelMatrix(ssboBuffers);
     }
 }

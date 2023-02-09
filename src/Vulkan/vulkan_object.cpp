@@ -20,14 +20,13 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
     for (GLTF::Scene scene : model->scenes) {
         for (int rootNodeID : scene.nodes) {
             GLTF::Node node = model->nodes[rootNodeID];
-            rootNodes.push_back(
-                std::make_shared<VulkanNode>(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));
+            rootNodes.push_back(new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));
         }
         // Load animation data
         for (GLTF::Animation animation : model->animations) {
             for (std::shared_ptr<GLTF::Animation::Channel> channel : animation.channels) {
                 std::shared_ptr<GLTF::Animation::Sampler> sampler = animation.samplers[channel->sampler];
-                std::optional<std::shared_ptr<VulkanNode>> node = findNode(channel->target->node);
+                std::optional<VulkanNode*> node = findNode(channel->target->node);
                 if (node.has_value()) {
                     animatedNodes.push_back(node.value());
                     node.value()->animationPair = {channel, sampler};
@@ -47,28 +46,34 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
     }
 }
 
+VulkanObject::~VulkanObject() {
+    for (auto node : rootNodes) {
+        delete node;
+    }
+}
+
 void VulkanObject::updateAnimations(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    for (std::shared_ptr<VulkanNode> node : animatedNodes) {
+    for (VulkanNode* node : animatedNodes) {
         node->updateAnimation();
         node->uploadModelMatrix(ssboBuffers);
     }
 }
 
 void VulkanObject::uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    for (std::shared_ptr<VulkanNode> node : rootNodes) {
+    for (VulkanNode* node : rootNodes) {
         node->uploadModelMatrix(ssboBuffers);
     }
 }
 
-std::optional<std::shared_ptr<VulkanNode>> VulkanObject::findNode(int nodeID) {
+std::optional<VulkanNode*> VulkanObject::findNode(int nodeID) {
     // TODO
     // Improve this
     for (int i = 0; i < model->nodes.size(); ++i) {
-        for (std::shared_ptr<VulkanNode> node : rootNodes) {
+        for (VulkanNode* node : rootNodes) {
             if (node->nodeID == nodeID) {
                 return node;
             }
-            for (std::shared_ptr<VulkanNode> child : node->children) {
+            for (VulkanNode* child : node->children) {
                 if (child->nodeID == nodeID) {
                     return node;
                 }
@@ -85,7 +90,7 @@ void VulkanObject::setPostion(glm::vec3 newPosition) {
     _modelMatrix[3][0] = newPosition.x;
     _modelMatrix[3][1] = newPosition.y;
     _modelMatrix[3][2] = newPosition.z;
-    for (std::shared_ptr<VulkanNode> rootNode : rootNodes) {
+    for (VulkanNode* rootNode : rootNodes) {
         rootNode->setLocationMatrix(newPosition);
     }
     for (std::shared_ptr<VulkanObject> child : children) {
@@ -131,7 +136,7 @@ void VulkanObject::z(float newZ) {
 
 void VulkanObject::updateModelMatrix() {
     _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
-    for (std::shared_ptr<VulkanNode> rootNode : rootNodes) {
+    for (VulkanNode* rootNode : rootNodes) {
         rootNode->setLocationMatrix(_modelMatrix);
     }
 }

@@ -14,6 +14,7 @@ class VulkanObject {
   public:
     VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name);
     VulkanObject();
+    ~VulkanObject();
     std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);
     glm::vec3 const position() const { return _position; }
@@ -30,9 +31,9 @@ class VulkanObject {
 
     void draw(VulkanRenderer* renderer);
     std::shared_ptr<GLTF> model;
-    std::vector<std::shared_ptr<VulkanNode>> rootNodes;
+    std::vector<VulkanNode*> rootNodes;
 
-    std::optional<std::shared_ptr<VulkanNode>> findNode(int nodeID);
+    std::optional<VulkanNode*> findNode(int nodeID);
     void updateAnimations(std::shared_ptr<SSBOBuffers> ssboBuffers);
     void uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
@@ -45,7 +46,7 @@ class VulkanObject {
   private:
     std::string _name;
 
-    std::vector<std::shared_ptr<VulkanNode>> animatedNodes;
+    std::vector<VulkanNode*> animatedNodes;
 
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};

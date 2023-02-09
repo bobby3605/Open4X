@@ -48,6 +48,7 @@ class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
                std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    ~VulkanNode();
     void setLocationMatrix(glm::mat4 locationMatrix);
     void setLocationMatrix(glm::vec3 newPosition);
     void uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
@@ -57,7 +58,7 @@ class VulkanNode {
     uint32_t objectID;
     std::optional<std::pair<std::shared_ptr<GLTF::Animation::Channel>, std::shared_ptr<GLTF::Animation::Sampler>>> animationPair;
     glm::mat4 const modelMatrix();
-    std::vector<std::shared_ptr<VulkanNode>> children;
+    std::vector<VulkanNode*> children;
     void updateChildrenMatrices();
     void updateAnimation();
 
