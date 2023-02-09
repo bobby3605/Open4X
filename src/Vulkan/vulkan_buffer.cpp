@@ -80,7 +80,7 @@ StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t drawsCount) : device{device} {
     // NOTE:
     // could be optimized further by only using referenced materials
-    _materialBuffer = new StorageBuffer(device, drawsCount * sizeof(MaterialData));
+    _materialBuffer = new StorageBuffer(device, (drawsCount + 1) * sizeof(MaterialData));
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
