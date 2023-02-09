@@ -7,11 +7,6 @@ layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
 layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-struct InstanceData {
-    uint objectIndex;
-    uint materialIndex;
-};
-
 struct ObjectData {
     mat4 modelMatrix;
 };
@@ -30,7 +25,7 @@ layout(push_constant) uniform constants {
     vec3 camPos;
 };
 
-layout(set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
+layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };
 layout(std140, set = 0, binding = 1) readonly buffer Objects { ObjectData objects[]; };
 layout(set = 0, binding = 2) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 3) buffer PartialSums { uint partialSums[]; };
@@ -75,8 +70,7 @@ bool sphereInFrustum(vec3 p, float radius) {
 }
 
 bool isVisible(uint index) {
-    InstanceData instance = instances[index];
-    mat4 modelMatrix = objects[instance.objectIndex].modelMatrix;
+    mat4 modelMatrix = objects[instances[index]].modelMatrix;
     mat4 modelMatrixT = transpose(modelMatrix);
     float xScale = length(modelMatrixT[0]);
     float yScale = length(modelMatrixT[1]);

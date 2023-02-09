@@ -21,6 +21,10 @@ layout(set = 0, binding = 2) buffer CulledDrawCommands { DrawCommand culledDrawC
 
 layout(set = 0, binding = 3) buffer PrefixSum { uint prefixSum[]; };
 
+layout(set = 0, binding = 4) buffer MaterialIndices { uint materialIndices[]; };
+
+layout(set = 0, binding = 5) buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
+
 uint visibleInstances(uint di) {
     if (di != 0) {
         // prefixSum has an entry for each instance and is kept in order
@@ -50,9 +54,13 @@ void main() {
         DrawCommand drawCommand = drawCommands[drawIndex];
         drawCommand.instanceCount = visibleInstanceCount;
         // NOTE:
-        // convert inclusive to exclusive prefix sum
+        // convert to buffer index with - 1
         if (drawCommand.firstInstance != 0) {
-            drawCommand.firstInstance = prefixSum[drawCommand.firstInstance - 1];
+            uint newIndex = prefixSum[drawCommand.firstInstance - 1];
+            culledMaterialIndices[newIndex] = materialIndices[drawCommand.firstInstance];
+            drawCommand.firstInstance = newIndex;
+        } else {
+            culledMaterialIndices[0] = materialIndices[0];
         }
 
         // FIXME:

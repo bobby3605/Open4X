@@ -6,11 +6,6 @@ layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
 layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-struct InstanceData {
-    uint objectIndex;
-    uint materialIndex;
-};
-
 layout(push_constant) uniform constants {
     uint totalInstanceCount;
     float nearD;
@@ -25,11 +20,11 @@ layout(push_constant) uniform constants {
     vec3 camPos;
 };
 
-layout(set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
+layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };
 layout(set = 0, binding = 1) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 2) readonly buffer PartialSums { uint partialSums[]; };
 layout(set = 0, binding = 3) readonly buffer ActiveLanes { bool activeLanes[]; };
-layout(set = 0, binding = 4) writeonly buffer VisibleInstances { InstanceData visibleInstances[]; };
+layout(set = 0, binding = 4) writeonly buffer VisibleInstances { uint visibleInstances[]; };
 
 // Prefix sum implementation from
 // https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU

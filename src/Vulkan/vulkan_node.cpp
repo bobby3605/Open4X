@@ -19,6 +19,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         meshID = model->nodes[nodeID].mesh.value();
         objectID = ssboBuffers->uniqueObjectID.fetch_add(1, std::memory_order_relaxed);
         // Check for unique mesh
+        // FIXME:
+        // this should have a mutex around it
         if (meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(

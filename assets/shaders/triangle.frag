@@ -7,20 +7,24 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
 
-layout(location = 0) in vec4 fragColor;
-layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in flat uint samplerIndex;
-layout(location = 3) in flat uint imageIndex;
-layout(location = 4) in flat uint normalIndex;
-layout(location = 5) in flat uint metallicRoughnessIndex;
-layout(location = 6) in flat uint aoIndex;
-layout(location = 7) in vec3 WorldPos;
-layout(location = 8) in vec3 Normal;
-layout(location = 9) in flat vec3 camPos;
-layout(location = 10) in flat float normalScale;
-layout(location = 11) in flat float metallicFactor;
-layout(location = 12) in flat float roughnessFactor;
-layout(location = 13) in flat float occulsionStrength;
+struct MaterialData {
+    vec4 baseColorFactor;
+    uint samplerIndex;
+    uint imageIndex;
+    uint normalIndex;
+    float normalScale;
+    uint metallicRoughnessIndex;
+    float metallicFactor;
+    float roughnessFactor;
+    uint aoIndex;
+    float occlusionStrength;
+};
+
+layout(location = 0) in flat MaterialData material;
+layout(location = 10) in vec2 fragTexCoord;
+layout(location = 11) in vec3 WorldPos;
+layout(location = 12) in vec3 Normal;
+layout(location = 13) in flat vec3 camPos;
 
 layout(set = 1, binding = 0) uniform sampler samplers[];
 layout(set = 1, binding = 1) uniform texture2D images[];
@@ -35,12 +39,13 @@ const float PI = 3.14159265359;
 // https://github.com/JoeyDeVries/LearnOpenGL/blob/master/src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
 vec3 getNormalFromMap() {
     // fix for default normal map
-    if (normalIndex == 0) {
+    if (material.normalIndex == 0) {
         return Normal;
     } else {
         vec3 tangentNormal =
-            (normalScale *
-             texture(sampler2D(normals[nonuniformEXT(normalIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb) *
+            (material.normalScale *
+             texture(sampler2D(normals[nonuniformEXT(material.normalIndex)], samplers[nonuniformEXT(material.samplerIndex)]), fragTexCoord)
+                 .rgb) *
                 2.0 -
             1.0;
 
@@ -103,18 +108,21 @@ void main() {
     lightColors[1] = vec3(1.0, 1.0, 1.0);
     // PBR
     // https://learnopengl.com/PBR/Lighting
-    vec3 albedo = pow(vec3(fragColor) *
-                          texture(sampler2D(images[nonuniformEXT(imageIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).rgb,
-                      vec3(2.2));
-    float metallic =
-        metallicFactor *
-        texture(sampler2D(metallicRoughnesses[nonuniformEXT(metallicRoughnessIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord)
-            .b;
-    float roughness =
-        roughnessFactor *
-        texture(sampler2D(metallicRoughnesses[nonuniformEXT(metallicRoughnessIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord)
-            .g;
-    float ao = occulsionStrength * texture(sampler2D(aos[nonuniformEXT(aoIndex)], samplers[nonuniformEXT(samplerIndex)]), fragTexCoord).r;
+    vec3 albedo =
+        pow(vec3(material.baseColorFactor) *
+                texture(sampler2D(images[nonuniformEXT(material.imageIndex)], samplers[nonuniformEXT(material.samplerIndex)]), fragTexCoord)
+                    .rgb,
+            vec3(2.2));
+
+    vec4 metallicRoughnessTexture = texture(
+        sampler2D(metallicRoughnesses[nonuniformEXT(material.metallicRoughnessIndex)], samplers[nonuniformEXT(material.samplerIndex)]),
+        fragTexCoord);
+
+    float metallic = material.metallicFactor * metallicRoughnessTexture.b;
+    float roughness = material.roughnessFactor * metallicRoughnessTexture.g;
+
+    float ao = material.occlusionStrength *
+               texture(sampler2D(aos[nonuniformEXT(material.aoIndex)], samplers[nonuniformEXT(material.samplerIndex)]), fragTexCoord).r;
 
     vec3 N = getNormalFromMap();
     vec3 V = normalize(camPos - WorldPos);

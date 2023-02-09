@@ -79,18 +79,15 @@ StorageBuffer::~StorageBuffer() { delete storageBuffer; }
 
 SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t instanceCount, uint32_t drawsCount) : device{device} {
     _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
-    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(InstanceIndicesData));
+    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _culledMaterialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
     // NOTE:
     // could be optimized further by only using referenced materials
-    _materialBuffer = new StorageBuffer(device, (drawsCount + uniqueMaterialID) * sizeof(MaterialData));
-    // FIXME:
-    // instead of instanceCount, create a culledMaterialIndicesBuffer for the compute shader
-    // this is instanceCount instead of (drawsCount + uniqueMaterialID) because material indices are now
-    // indexed by gl_BaseInstance, which can be up to instanceCount in size
-    // this isn't necessary right now, but once there are millions or more instances,
-    // this will start to use non-insignificant amounts of memory
+    _materialBuffer = new StorageBuffer(device, drawsCount * sizeof(MaterialData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
-    instanceIndicesMapped = reinterpret_cast<InstanceIndicesData*>(_instanceIndicesBuffer->mapped);
+    instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped);
+    materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped);
     materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
     // create default material at index 0
     MaterialData materialData{};
@@ -105,4 +102,6 @@ SSBOBuffers::~SSBOBuffers() {
     delete _ssboBuffer;
     delete _materialBuffer;
     delete _instanceIndicesBuffer;
+    delete _materialIndicesBuffer;
+    delete _culledMaterialIndicesBuffer;
 }
