@@ -28,7 +28,6 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         }
         // Set _modelMatrix
         _modelMatrix = glm::mat4(1.0f);
-        _locationMatrix = glm::mat4(1.0f);
         //   Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
         // TODO

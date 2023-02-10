@@ -64,8 +64,8 @@ class VulkanNode {
 
   protected:
     std::optional<glm::mat4> _modelMatrix;
-    glm::mat4 _baseMatrix{1.0f};
-    glm::mat4 animationMatrix{1.0f};
+    glm::mat4 _baseMatrix;
+    glm::mat4 animationMatrix;
     glm::mat4 _locationMatrix{1.0f};
 
     friend class VulkanObject;

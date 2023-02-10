@@ -17,10 +17,9 @@
 VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name)
     : model{vulkanModel->model}, _name{name} {
     // Load nodes and meshes
-    for (GLTF::Scene scene : model->scenes) {
-        rootNodes.reserve(rootNodes.size() + scene.nodes.size());
-        for (int rootNodeID : scene.nodes) {
-            GLTF::Node node = model->nodes[rootNodeID];
+    for (int sceneIndex = 0; sceneIndex < model->scenes.size(); ++sceneIndex) {
+        rootNodes.reserve(rootNodes.size() + model->scenes[sceneIndex].nodes.size());
+        for (int rootNodeID : model->scenes[sceneIndex].nodes) {
             rootNodes.push_back(new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));
         }
         // Load animation data
