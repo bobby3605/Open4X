@@ -125,11 +125,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    const int extraObjectCount = 300'009;
+    const int extraObjectCount = 10'000'009;
     const int threadCount = 10;
     const int batchSize = extraObjectCount / threadCount;
     const int extra = extraObjectCount % threadCount;
-    const float randLimit = 100.0f;
+    const float randLimit = 1000.0f;
     std::mt19937 mt(time(NULL));
     std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));
