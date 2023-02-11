@@ -12,7 +12,8 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name);
+    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
+                 bool duplicate = false);
     VulkanObject();
     ~VulkanObject();
     std::string const name() { return _name; }

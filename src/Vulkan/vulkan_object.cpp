@@ -14,13 +14,15 @@
 #include <iostream>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name)
+VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
+                           bool duplicate)
     : model{vulkanModel->model}, _name{name} {
     // Load nodes and meshes
     for (int sceneIndex = 0; sceneIndex < model->scenes.size(); ++sceneIndex) {
         rootNodes.reserve(rootNodes.size() + model->scenes[sceneIndex].nodes.size());
         for (int rootNodeID : model->scenes[sceneIndex].nodes) {
-            rootNodes.push_back(new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers));
+            rootNodes.push_back(
+                new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers, duplicate));
         }
         // Load animation data
         for (GLTF::Animation animation : model->animations) {

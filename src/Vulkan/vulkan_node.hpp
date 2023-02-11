@@ -47,7 +47,7 @@ class VulkanModel {
 class VulkanNode {
   public:
     VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-               std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+               std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate = false);
     ~VulkanNode();
     void setLocationMatrix(glm::mat4 locationMatrix);
     void setLocationMatrix(glm::vec3 newPosition);

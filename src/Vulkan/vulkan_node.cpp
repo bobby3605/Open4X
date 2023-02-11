@@ -13,7 +13,7 @@
 VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers)
+                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
     : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -22,7 +22,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         // Check for unique mesh
         // FIXME:
         // this should have a mutex around it
-        if (meshIDMap->count(meshID.value()) == 0) {
+        if (!duplicate && meshIDMap->count(meshID.value()) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(
                 {meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
@@ -38,7 +38,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
     }
     children.reserve(model->nodes[nodeID].children.size());
     for (int childNodeID : model->nodes[nodeID].children) {
-        children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers));
+        children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, duplicate));
     }
 }
 

@@ -147,7 +147,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             // adding remainder to last batch
             batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
             for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
-                batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath));
+                batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath, true));
                 std::shared_ptr<GLTF> model = objects.back()->model;
                 if (model->animations.size() > 0) {
                     batchAnimatedObjects.push_back(batchObjects.back());
