@@ -91,14 +91,14 @@ SSBOBuffers::SSBOBuffers(VulkanDevice* device, uint32_t drawsCount) : device{dev
     materialMapped[0] = materialData;
 }
 
-void SSBOBuffers::createInstanceBuffers() {
+void SSBOBuffers::createInstanceBuffers(uint32_t instanceCount) {
     // NOTE:
     // must only be called once after uniqueObjectID has been set
-    _ssboBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(SSBOData));
+    _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
     ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
-    _instanceIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
-    _materialIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
-    _culledMaterialIndicesBuffer = new StorageBuffer(device, uniqueObjectID * sizeof(uint32_t));
+    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _culledMaterialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
 
     instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped);
     materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped);

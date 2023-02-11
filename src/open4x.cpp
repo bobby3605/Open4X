@@ -119,7 +119,7 @@ void Open4X::run() {
     float farClip = 1000.0f;
     float aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
 
-    ubo.proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
+    glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
     ComputePushConstants computePushConstants{};
     computePushConstants.totalInstanceCount = objects.totalInstanceCount();
@@ -168,7 +168,8 @@ void Open4X::run() {
         glm::mat4 cameraModel =
             glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
 
-        ubo.view = glm::inverse(cameraModel);
+        ubo.projView = proj * glm::inverse(cameraModel);
+        ubo.camPos = camera->position();
 
         vulkanRenderer->startFrame();
         vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 0, queryCount);
@@ -198,7 +199,7 @@ void Open4X::run() {
 
         if (vulkanRenderer->endFrame()) {
             aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
-            ubo.proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
+            proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
             fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
     }

@@ -167,7 +167,17 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         animatedObjects.insert(std::end(objects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
 
-    ssboBuffers->createInstanceBuffers();
+    // TODO:
+    // better solution for calculating ssbo size than iterating over models and meshes twice
+    uint32_t instanceCount = 0;
+    for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
+            std::shared_ptr<VulkanMesh> mesh = meshPair.second;
+            instanceCount += mesh->objectIDs.size() * mesh->primitives.size();
+        }
+    }
+
+    ssboBuffers->createInstanceBuffers(instanceCount);
 
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
         for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
@@ -256,8 +266,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor = descriptorManager->createDescriptor("cull_frustum_pass");
 
     // NOTE:
-    // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and the
-    // previous draw
+    // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and
+    // the previous draw
     std::sort(indirectDraws.begin(), indirectDraws.end(),
               [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 

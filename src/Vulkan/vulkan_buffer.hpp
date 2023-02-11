@@ -45,8 +45,8 @@ class StagedBuffer {
 };
 
 struct UniformBufferObject {
-    glm::mat4 view;
-    glm::mat4 proj;
+    glm::mat4 projView;
+    glm::vec3 camPos;
 };
 
 class UniformBuffer {
@@ -96,7 +96,7 @@ struct MaterialData {
 class SSBOBuffers {
   public:
     SSBOBuffers(VulkanDevice* device, uint32_t drawsCount);
-    void createInstanceBuffers();
+    void createInstanceBuffers(uint32_t instanceCount);
     ~SSBOBuffers();
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
     VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }

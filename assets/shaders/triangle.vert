@@ -1,8 +1,8 @@
 #version 460
 
 layout(binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
+    mat4 projView;
+    vec3 camPos;
 }
 ubo;
 
@@ -59,7 +59,7 @@ void main() {
 
     vec4 vertPos = modelMatrix * vec4(inPosition, 1.0);
 
-    gl_Position = ubo.proj * ubo.view * vertPos;
+    gl_Position = ubo.projView * vertPos;
 
     baseColorFactor = material.baseColorFactor;
 
@@ -77,5 +77,5 @@ void main() {
     fragTexCoord = texCoord;
     WorldPos = vec3(vertPos);
     Normal = normal;
-    camPos = vec3(ubo.view[3]);
+    camPos = ubo.camPos;
 }
