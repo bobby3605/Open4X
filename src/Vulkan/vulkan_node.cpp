@@ -27,7 +27,6 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
             meshIDMap->insert(
                 {meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
-        // Set _modelMatrix
         _modelMatrix = glm::mat4(1.0f);
         //   Update instance count for each primitive
         std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
@@ -60,8 +59,8 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     } else {
         updateMatrix = _locationMatrix * _baseMatrix;
     }
-    if (_modelMatrix.has_value()) {
-        _modelMatrix.value() = updateMatrix;
+    if (objectID != -1) {
+        _modelMatrix = updateMatrix;
     }
     for (VulkanNode* child : children) {
         child->setLocationMatrix(updateMatrix);
@@ -72,10 +71,10 @@ void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
     _locationMatrix[3][0] = newPosition.x;
     _locationMatrix[3][1] = newPosition.y;
     _locationMatrix[3][2] = newPosition.z;
-    if (_modelMatrix.has_value()) {
-        _modelMatrix.value()[3][0] = newPosition.x + _baseMatrix[3][0];
-        _modelMatrix.value()[3][1] = newPosition.y + _baseMatrix[3][1];
-        _modelMatrix.value()[3][2] = newPosition.z + _baseMatrix[3][2];
+    if (objectID != -1) {
+        _modelMatrix[3][0] = newPosition.x + _baseMatrix[3][0];
+        _modelMatrix[3][1] = newPosition.y + _baseMatrix[3][1];
+        _modelMatrix[3][2] = newPosition.z + _baseMatrix[3][2];
     }
     for (VulkanNode* child : children) {
         child->setLocationMatrix(newPosition);
@@ -83,24 +82,24 @@ void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
 }
 
 void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    if (_modelMatrix.has_value()) {
+    if (objectID != -1) {
         // Decompose matrix
         // https://math.stackexchange.com/a/1463487
-        glm::vec3 translation(_modelMatrix.value()[3]);
-        _modelMatrix.value()[3] = glm::vec4(0, 0, 0, 1);
+        glm::vec3 translation(_modelMatrix[3]);
+        _modelMatrix[3] = glm::vec4(0, 0, 0, 1);
 
-        _modelMatrix.value()[0][3] = 0;
-        float scalex = glm::length(_modelMatrix.value()[0]);
-        _modelMatrix.value()[1][3] = 0;
-        float scaley = glm::length(_modelMatrix.value()[1]);
-        _modelMatrix.value()[2][3] = 0;
-        float scalez = glm::length(_modelMatrix.value()[2]);
+        _modelMatrix[0][3] = 0;
+        float scalex = glm::length(_modelMatrix[0]);
+        _modelMatrix[1][3] = 0;
+        float scaley = glm::length(_modelMatrix[1]);
+        _modelMatrix[2][3] = 0;
+        float scalez = glm::length(_modelMatrix[2]);
         glm::vec3 scale(scalex, scaley, scalez);
 
-        _modelMatrix.value()[0] /= scalex;
-        _modelMatrix.value()[1] /= scaley;
-        _modelMatrix.value()[2] /= scalez;
-        glm::quat rotation = glm::toQuat(_modelMatrix.value());
+        _modelMatrix[0] /= scalex;
+        _modelMatrix[1] /= scaley;
+        _modelMatrix[2] /= scalez;
+        glm::quat rotation = glm::toQuat(_modelMatrix);
 
         ssboBuffers->ssboMapped[objectID].translation = translation;
         ssboBuffers->ssboMapped[objectID].rotation = rotation;
@@ -111,7 +110,7 @@ void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
     }
 }
 
-glm::mat4 const VulkanNode::modelMatrix() { return _modelMatrix.value(); }
+glm::mat4 const VulkanNode::modelMatrix() { return _modelMatrix; }
 
 void VulkanNode::updateAnimation() {
     if (animationPair.has_value()) {
@@ -171,8 +170,8 @@ void VulkanNode::updateAnimation() {
             glm::mat4 scaleMatrix = glm::scale(scaleAnimation);
 
             animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
-            if (_modelMatrix.has_value()) {
-                _modelMatrix.value() = _locationMatrix * animationMatrix * _baseMatrix;
+            if (objectID != -1) {
+                _modelMatrix = _locationMatrix * animationMatrix * _baseMatrix;
             }
 
         } else {

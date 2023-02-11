@@ -55,7 +55,7 @@ class VulkanNode {
     std::shared_ptr<GLTF> model;
     int nodeID;
     std::optional<int> meshID;
-    uint32_t objectID;
+    uint32_t objectID = -1;
     std::optional<std::pair<std::shared_ptr<GLTF::Animation::Channel>, std::shared_ptr<GLTF::Animation::Sampler>>> animationPair;
     glm::mat4 const modelMatrix();
     std::vector<VulkanNode*> children;
@@ -63,7 +63,7 @@ class VulkanNode {
     void updateAnimation();
 
   protected:
-    std::optional<glm::mat4> _modelMatrix;
+    glm::mat4 _modelMatrix;
     glm::mat4 _baseMatrix;
     glm::mat4 animationMatrix;
     glm::mat4 _locationMatrix{1.0f};
