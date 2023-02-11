@@ -14,12 +14,13 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    VulkanMesh(GLTF* model, int meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
     std::vector<uint32_t> objectIDs;
     std::mutex objectIDMutex;
     class Primitive {
       public:
-        Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+        Primitive(GLTF* model, int meshID, int primitiveID, std::unordered_map<int, int>* materialIDMap,
+                  std::shared_ptr<SSBOBuffers> ssboBuffers);
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         int materialIndex = 0;
@@ -40,21 +41,21 @@ class VulkanModel {
   public:
     VulkanModel(std::string filePath, uint32_t fileNum);
     std::shared_ptr<GLTF> model;
-    std::map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
-    std::map<int, int> materialIDMap;
+    std::unordered_map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
+    std::unordered_map<int, int> materialIDMap;
 };
 
 class VulkanNode {
   public:
-    VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-               std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate = false);
+    VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+               std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate = false);
     ~VulkanNode();
     void setLocationMatrix(glm::mat4 locationMatrix);
     void setLocationMatrix(glm::vec3 newPosition);
     void uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
     std::shared_ptr<GLTF> model;
     int nodeID;
-    std::optional<int> meshID;
+    int meshID;
     uint32_t objectID = -1;
     std::optional<std::pair<std::shared_ptr<GLTF::Animation::Channel>, std::shared_ptr<GLTF::Animation::Sampler>>> animationPair;
     glm::mat4 const modelMatrix();

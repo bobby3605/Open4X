@@ -12,8 +12,8 @@
 
 VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
 
-VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
+VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+                       std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
     : model{model}, nodeID{nodeID} {
     _baseMatrix = model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
@@ -22,14 +22,14 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::map<int, st
         // Check for unique mesh
         // FIXME:
         // this should have a mutex around it
-        if (!duplicate && meshIDMap->count(meshID.value()) == 0) {
+        if (!duplicate && meshIDMap->count(meshID) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(
-                {meshID.value(), std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
+                {meshID, std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
         _modelMatrix = glm::mat4(1.0f);
         //   Update instance count for each primitive
-        std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID.value())->second;
+        std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID)->second;
         // TODO
         // get rid of this mutex
         mesh->objectIDMutex.lock();
@@ -183,13 +183,13 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) {
+VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
         primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
     }
 }
 
-VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::map<int, int>* materialIDMap,
+VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::unordered_map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
 
     GLTF::Accessor* accessor;
