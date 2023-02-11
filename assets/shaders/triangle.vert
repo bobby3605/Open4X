@@ -7,7 +7,9 @@ layout(binding = 0) uniform UniformBufferObject {
 ubo;
 
 struct ObjectData {
-    mat4 modelMatrix;
+    vec3 translation;
+    vec4 rotation;
+    vec3 scale;
 };
 
 struct MaterialData {
@@ -50,14 +52,22 @@ layout(location = 10) out float normalScale;
 layout(location = 11) out float metallicFactor;
 layout(location = 12) out float roughnessFactor;
 layout(location = 13) out float occulsionStrength;
+
+// https://www.geeks3d.com/20141201/how-to-rotate-a-vertex-by-a-quaternion-in-glsl/
+vec3 rotate_vertex_position(vec3 position, vec4 rotation)
+{
+  return position + 2.0 * cross(rotation.xyz, cross(rotation.xyz, position) + rotation.w * position);
+}
+
+
 void main() {
     MaterialData material = materials[culledMaterialIndices[gl_BaseInstance]];
 
     ObjectData object = objects[culledInstanceIndices[gl_InstanceIndex]];
 
-    mat4 modelMatrix = object.modelMatrix;
-
-    vec4 vertPos = modelMatrix * vec4(inPosition, 1.0);
+    // FIXME:
+    // only supports uniform scaling
+    vec4 vertPos = vec4(rotate_vertex_position(inPosition, object.rotation) * object.scale.x + object.translation, 1.0);
 
     gl_Position = ubo.projView * vertPos;
 

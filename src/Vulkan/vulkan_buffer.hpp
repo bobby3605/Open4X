@@ -4,6 +4,7 @@
 #include "vulkan_device.hpp"
 #include <atomic>
 #include <cstdint>
+#include <glm/gtx/quaternion.hpp>
 #include <map>
 #include <memory>
 #include <vulkan/vulkan.hpp>
@@ -77,7 +78,11 @@ class StorageBuffer {
 };
 
 struct SSBOData {
-    glm::mat4 modelMatrix;
+    glm::vec3 translation;
+    uint pad;
+    glm::quat rotation;
+    glm::vec3 scale;
+    uint pad2;
 };
 
 struct MaterialData {

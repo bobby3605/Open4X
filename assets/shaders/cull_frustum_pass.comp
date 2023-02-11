@@ -8,7 +8,9 @@ layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 struct ObjectData {
-    mat4 modelMatrix;
+    vec3 translation;
+    vec4 rotation;
+    vec3 scale;
 };
 
 layout(push_constant) uniform constants {
@@ -70,18 +72,13 @@ bool sphereInFrustum(vec3 p, float radius) {
 }
 
 bool isVisible(uint index) {
-    mat4 modelMatrix = objects[instances[index]].modelMatrix;
-    mat4 modelMatrixT = transpose(modelMatrix);
-    float xScale = length(modelMatrixT[0]);
-    float yScale = length(modelMatrixT[1]);
-    float zScale = length(modelMatrixT[2]);
-    vec3 center = vec3(modelMatrix[3]);
+    ObjectData object = objects[instances[index]];
     // might not work for radius because objects have different scaling
     // some models might have a much larger or smaller scale than others in order to be reasonably sized
     // this would make the radius too large or too small
     // need to convert scale from model space to world space?
-    float radius = max(xScale, max(yScale, zScale)) * 0.5;
-    return sphereInFrustum(center, radius);
+    float radius = max(object.scale.x, max(object.scale.y, object.scale.z)) * 0.5;
+    return sphereInFrustum(object.translation, radius);
 }
 
 // Prefix sum implementation from

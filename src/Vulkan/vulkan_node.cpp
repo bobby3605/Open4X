@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
@@ -83,7 +84,27 @@ void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
 
 void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
     if (_modelMatrix.has_value()) {
-        ssboBuffers->ssboMapped[objectID].modelMatrix = _modelMatrix.value();
+        // Decompose matrix
+        // https://math.stackexchange.com/a/1463487
+        glm::vec3 translation(_modelMatrix.value()[3]);
+        _modelMatrix.value()[3] = glm::vec4(0, 0, 0, 1);
+
+        _modelMatrix.value()[0][3] = 0;
+        float scalex = glm::length(_modelMatrix.value()[0]);
+        _modelMatrix.value()[1][3] = 0;
+        float scaley = glm::length(_modelMatrix.value()[1]);
+        _modelMatrix.value()[2][3] = 0;
+        float scalez = glm::length(_modelMatrix.value()[2]);
+        glm::vec3 scale(scalex, scaley, scalez);
+
+        _modelMatrix.value()[0] /= scalex;
+        _modelMatrix.value()[1] /= scaley;
+        _modelMatrix.value()[2] /= scalez;
+        glm::quat rotation = glm::toQuat(_modelMatrix.value());
+
+        ssboBuffers->ssboMapped[objectID].translation = translation;
+        ssboBuffers->ssboMapped[objectID].rotation = rotation;
+        ssboBuffers->ssboMapped[objectID].scale = scale;
     }
     for (VulkanNode* child : children) {
         child->uploadModelMatrix(ssboBuffers);
