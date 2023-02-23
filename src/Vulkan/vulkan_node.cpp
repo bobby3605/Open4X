@@ -49,6 +49,9 @@ VulkanNode::~VulkanNode() {
     if (animationMatrix != nullptr) {
         delete animationMatrix;
     }
+    if (_locationMatrix != nullptr) {
+        delete _locationMatrix;
+    }
     for (auto child : children) {
         delete child;
     }
@@ -60,6 +63,7 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     // There's probably a better way to do this (less matrix multiplication)
     glm::mat4 updateMatrix;
     if (animationPair.has_value()) {
+        *_locationMatrix = locationMatrix;
         updateMatrix = locationMatrix * *animationMatrix * *_baseMatrix;
     } else {
         updateMatrix = locationMatrix * *_baseMatrix;
@@ -77,6 +81,11 @@ void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
         (*_modelMatrix)[3][0] = newPosition.x + (*_baseMatrix)[3][0];
         (*_modelMatrix)[3][1] = newPosition.y + (*_baseMatrix)[3][1];
         (*_modelMatrix)[3][2] = newPosition.z + (*_baseMatrix)[3][2];
+        if (animationPair.has_value()) {
+            (*_locationMatrix)[3][0] = newPosition.x;
+            (*_locationMatrix)[3][1] = newPosition.y;
+            (*_locationMatrix)[3][2] = newPosition.z;
+        }
     }
     for (VulkanNode* child : children) {
         child->setLocationMatrix(newPosition);
@@ -173,9 +182,7 @@ void VulkanNode::updateAnimation() {
 
             *animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
             if (objectID != -1) {
-                // FIXME:
-                // test if this works for all animations
-                *_modelMatrix = *animationMatrix * *_modelMatrix;
+                *_modelMatrix = *_locationMatrix * *animationMatrix * *_baseMatrix;
             }
 
         } else {

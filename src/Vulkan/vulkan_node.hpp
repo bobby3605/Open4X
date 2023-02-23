@@ -67,6 +67,7 @@ class VulkanNode {
     glm::mat4* _modelMatrix = nullptr;
     glm::mat4* _baseMatrix = nullptr;
     glm::mat4* animationMatrix = nullptr;
+    glm::mat4* _locationMatrix = nullptr;
 
     friend class VulkanObject;
 };

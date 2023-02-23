@@ -40,6 +40,7 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
                     animatedNodes->push_back(node.value());
                     node.value()->animationPair = {channel, sampler};
                     node.value()->animationMatrix = new glm::mat4(1.0f);
+                    node.value()->_locationMatrix = new glm::mat4(1.0f);
                 }
                 GLTF::Accessor* inputAccessor = &model->accessors[sampler->inputIndex];
                 AccessorLoader<float> inputAccessorLoader(model.get(), inputAccessor);
