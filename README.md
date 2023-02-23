@@ -1,5 +1,5 @@
 # Open4X
-A data-driven game engine written in c++ and vulkan from scratch
+A data-driven game engine written in c++ and vulkan from scratch.
 Currently, this is for my own learning and fun, it is not practically useful
 
 Building on Linux:
