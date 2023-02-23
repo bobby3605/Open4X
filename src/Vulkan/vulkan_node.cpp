@@ -15,7 +15,7 @@ VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
                        std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
     : model{model}, nodeID{nodeID} {
-    _baseMatrix = model->nodes[nodeID].matrix;
+    _baseMatrix = &model->nodes[nodeID].matrix;
     if (model->nodes[nodeID].mesh.has_value()) {
         meshID = model->nodes[nodeID].mesh.value();
         objectID = ssboBuffers->uniqueObjectID.fetch_add(1, std::memory_order_relaxed);
@@ -60,9 +60,9 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
     // There's probably a better way to do this (less matrix multiplication)
     glm::mat4 updateMatrix;
     if (animationPair.has_value()) {
-        updateMatrix = locationMatrix * *animationMatrix * _baseMatrix;
+        updateMatrix = locationMatrix * *animationMatrix * *_baseMatrix;
     } else {
-        updateMatrix = locationMatrix * _baseMatrix;
+        updateMatrix = locationMatrix * *_baseMatrix;
     }
     if (objectID != -1) {
         *_modelMatrix = updateMatrix;
@@ -74,9 +74,9 @@ void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
 
 void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
     if (objectID != -1) {
-        (*_modelMatrix)[3][0] = newPosition.x + _baseMatrix[3][0];
-        (*_modelMatrix)[3][1] = newPosition.y + _baseMatrix[3][1];
-        (*_modelMatrix)[3][2] = newPosition.z + _baseMatrix[3][2];
+        (*_modelMatrix)[3][0] = newPosition.x + (*_baseMatrix)[3][0];
+        (*_modelMatrix)[3][1] = newPosition.y + (*_baseMatrix)[3][1];
+        (*_modelMatrix)[3][2] = newPosition.z + (*_baseMatrix)[3][2];
     }
     for (VulkanNode* child : children) {
         child->setLocationMatrix(newPosition);

@@ -65,7 +65,7 @@ class VulkanNode {
 
   protected:
     glm::mat4* _modelMatrix = nullptr;
-    glm::mat4 _baseMatrix;
+    glm::mat4* _baseMatrix;
     glm::mat4* animationMatrix = nullptr;
 
     friend class VulkanObject;
