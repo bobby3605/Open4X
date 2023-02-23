@@ -18,7 +18,7 @@ class VulkanObject {
     ~VulkanObject();
     std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);
-    glm::vec3 const position() const { return _position; }
+    glm::vec3 const position() const { return _modelMatrix[3]; }
     glm::quat const rotation() const { return _rotation; }
     glm::vec3 const scale() const { return _scale; }
     void setPostion(glm::vec3 newPosition);
@@ -45,11 +45,10 @@ class VulkanObject {
     inline static const glm::vec3 rightVector = glm::vec3(-1.0f, 0.0, 0.0f);
 
   private:
-    std::string _name;
+    char* _name = nullptr;
 
-    std::vector<VulkanNode*> animatedNodes;
+    std::vector<VulkanNode*>* animatedNodes = nullptr;
 
-    glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
 
@@ -57,22 +56,22 @@ class VulkanObject {
     void updateModelMatrix();
 
     struct KeyMappings {
-        int moveLeft = GLFW_KEY_A;
-        int moveRight = GLFW_KEY_D;
-        int moveForward = GLFW_KEY_W;
-        int moveBackward = GLFW_KEY_S;
-        int moveUp = GLFW_KEY_Q;
-        int moveDown = GLFW_KEY_E;
-        int yawLeft = GLFW_KEY_LEFT;
-        int yawRight = GLFW_KEY_RIGHT;
-        int pitchUp = GLFW_KEY_UP;
-        int pitchDown = GLFW_KEY_DOWN;
-        int rollLeft = GLFW_KEY_LEFT_CONTROL;
-        int rollRight = GLFW_KEY_RIGHT_CONTROL;
-        int speedUp = GLFW_KEY_LEFT_SHIFT;
-        int slowDown = GLFW_KEY_LEFT_ALT;
+        static const inline int moveLeft = GLFW_KEY_A;
+        static const inline int moveRight = GLFW_KEY_D;
+        static const inline int moveForward = GLFW_KEY_W;
+        static const inline int moveBackward = GLFW_KEY_S;
+        static const inline int moveUp = GLFW_KEY_Q;
+        static const inline int moveDown = GLFW_KEY_E;
+        static const inline int yawLeft = GLFW_KEY_LEFT;
+        static const inline int yawRight = GLFW_KEY_RIGHT;
+        static const inline int pitchUp = GLFW_KEY_UP;
+        static const inline int pitchDown = GLFW_KEY_DOWN;
+        static const inline int rollLeft = GLFW_KEY_LEFT_CONTROL;
+        static const inline int rollRight = GLFW_KEY_RIGHT_CONTROL;
+        static const inline int speedUp = GLFW_KEY_LEFT_SHIFT;
+        static const inline int slowDown = GLFW_KEY_LEFT_ALT;
     };
-    KeyMappings keys{};
+    static constexpr KeyMappings keys{};
 
     float moveSpeed{6.0f};
     float lookSpeed{2.0f};

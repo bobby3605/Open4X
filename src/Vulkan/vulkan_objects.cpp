@@ -5,6 +5,7 @@
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_image.hpp"
+#include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
 #include <chrono>
