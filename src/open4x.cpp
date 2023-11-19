@@ -92,6 +92,7 @@ void Open4X::run() {
 
     VkQueryPool queryPool;
     vkCreateQueryPool(vulkanDevice->device(), &queryPoolInfo, nullptr, &queryPool);
+    vkResetQueryPool(vulkanDevice->device(), queryPool, 0, queryCount);
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
@@ -146,7 +147,7 @@ void Open4X::run() {
 
         std::vector<uint64_t> queryResults(queryCount);
         vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
 
         float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
         // FIXME:

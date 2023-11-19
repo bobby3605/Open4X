@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include <stdexcept>
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
