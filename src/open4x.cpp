@@ -167,27 +167,6 @@ void Open4X::run() {
             titleFrametime = titleFrametime * 0.95 + frameTime * 0.05;
         }
 
-        std::vector<uint64_t> queryResults(queryCount);
-        vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT);
-
-        float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
-        // FIXME:
-        //        for some reason, queryResults[3] is always 0 whenever it's called after drawIndirect(),
-        //        maybe a driver bug on this computer?
-        //        float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
-
-        std::stringstream title;
-        title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
-              << " "
-              << "Framerate: " << 1.0 / titleFrametime
-              << " "
-              //   << "Drawtime: " << drawTime << "ms"
-              //  << " "
-              << "Culltime: " << cullTime << "ms";
-
-        glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
-
         glm::mat4 cameraModel =
             glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
 
@@ -225,6 +204,25 @@ void Open4X::run() {
             proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
             fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
+
+        std::vector<uint64_t> queryResults(queryCount);
+        vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
+                              queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+
+        float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
+        float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
+
+        std::stringstream title;
+        title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
+              << " "
+              << "Framerate: " << 1.0 / titleFrametime
+              << " "
+              << "Drawtime: " << drawTime << "ms"
+              << " "
+              << "Culltime: " << cullTime << "ms";
+
+        glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
+
     }
     vkDeviceWaitIdle(vulkanDevice->device());
     delete camera;
