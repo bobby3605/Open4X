@@ -10,10 +10,11 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include "common.hpp"
 
 class VulkanObjects {
   public:
-    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager);
+    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings);
     ~VulkanObjects();
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);

@@ -17,4 +17,9 @@
 // https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
 inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
 
+struct Settings {
+    uint32_t extraObjectCount = 10000;
+    uint32_t randLimit = 100;
+};
+
 #endif // COMMON_H_

@@ -16,7 +16,7 @@
 #include <random>
 #include <vulkan/vulkan_core.h>
 
-VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager)
+VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings)
     : device{device}, descriptorManager{descriptorManager} {
     _totalInstanceCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -126,11 +126,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    const int extraObjectCount = 100'009;
+    const int extraObjectCount = settings.extraObjectCount;
     const int threadCount = 10;
     const int batchSize = extraObjectCount / threadCount;
     const int extra = extraObjectCount % threadCount;
-    const float randLimit = 100.0f;
+    const float randLimit = settings.randLimit;
     std::mt19937 mt(time(NULL));
     std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));
@@ -141,7 +141,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
     for (int batch = 0; batch < threadCount; ++batch) {
-        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit, batch]() {
+        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit, batch, batchSize, extra]() {
             std::vector<VulkanObject*> batchObjects;
             std::vector<VulkanObject*> batchAnimatedObjects;
             // NOTE:

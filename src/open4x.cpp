@@ -28,6 +28,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
+#include "../external/rapidjson/istreamwrapper.h"
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -82,7 +83,28 @@ void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, V
     computePushConstants.Y = glm::normalize(camera->rotation() * VulkanObject::upVector);
 }
 
+void Open4X::loadSettings() {
+        std::ifstream file("assets/settings.json");
+        if (file.is_open()) {
+            IStreamWrapper fileStream(file);
+            Document d;
+            d.ParseStream(fileStream);
+            file.close();
+
+            Value& objectsJSON = d["objects"];
+            assert(objectsJSON.IsObject());
+
+            settings.extraObjectCount = objectsJSON["extraObjectCount"].GetInt();
+            settings.randLimit = objectsJSON["randLimit"].GetInt();
+
+        } else {
+            std::cout << "Failed to open settings file, using defaults" << std::endl;
+        }
+}
+
 void Open4X::run() {
+
+    loadSettings();
 
     const uint32_t queryCount = 4;
     VkQueryPoolCreateInfo queryPoolInfo{};
@@ -96,7 +118,7 @@ void Open4X::run() {
 
     VulkanDescriptors descriptorManager(vulkanDevice);
 
-    VulkanObjects objects(vulkanDevice, &descriptorManager);
+    VulkanObjects objects(vulkanDevice, &descriptorManager, settings);
 
     std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
     VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global");
