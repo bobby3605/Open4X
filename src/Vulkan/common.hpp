@@ -20,6 +20,7 @@ inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return
 struct Settings {
     uint32_t extraObjectCount = 10000;
     uint32_t randLimit = 100;
+    bool showFPS = true;
 };
 
 #endif // COMMON_H_

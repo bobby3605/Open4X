@@ -2,5 +2,8 @@
     "objects": {
         "extraObjectCount": 10000000
         ,"randLimit": 1000
+    },
+    "misc": {
+        "showFPS": true
     }
 }
