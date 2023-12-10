@@ -73,6 +73,8 @@ class GLTF {
         };
         std::vector<Primitive> primitives;
         int instanceCount = 0;
+        glm::vec3 max{-MAXFLOAT};
+        glm::vec3 min{MAXFLOAT};
     };
     std::vector<Mesh> meshes;
 

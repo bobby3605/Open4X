@@ -43,21 +43,29 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
 }
 
 void VulkanNode::findCenterpoint(glm::mat4 parentMatrix) {
+    // Calculates per mesh and per model AABB
     glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
     if (mesh != nullptr) {
+        GLTF::Mesh* gltfMesh = &model->meshes[model->nodes[nodeID].mesh.value()];
         for (const auto primitive : mesh->primitives) {
             for (const auto vertex : primitive->vertices) {
                 glm::vec4 vertexWorldPos = modelMatrix * glm::vec4(vertex.pos, 1.0f);
-                model->max.x = glm::max(model->max.x, vertexWorldPos.x);
-                model->max.y = glm::max(model->max.y, vertexWorldPos.y);
-                model->max.z = glm::max(model->max.z, vertexWorldPos.z);
-                model->min.x = glm::min(model->min.x, vertexWorldPos.x);
-                model->min.y = glm::min(model->min.y, vertexWorldPos.y);
-                model->min.z = glm::min(model->min.z, vertexWorldPos.z);
+                gltfMesh->max.x = glm::max(gltfMesh->max.x, vertexWorldPos.x);
+                gltfMesh->max.y = glm::max(gltfMesh->max.y, vertexWorldPos.y);
+                gltfMesh->max.z = glm::max(gltfMesh->max.z, vertexWorldPos.z);
+                gltfMesh->min.x = glm::min(gltfMesh->min.x, vertexWorldPos.x);
+                gltfMesh->min.y = glm::min(gltfMesh->min.y, vertexWorldPos.y);
+                gltfMesh->min.z = glm::min(gltfMesh->min.z, vertexWorldPos.z);
             }
         }
+        model->max.x = glm::max(model->max.x, gltfMesh->max.x);
+        model->max.y = glm::max(model->max.y, gltfMesh->max.y);
+        model->max.z = glm::max(model->max.z, gltfMesh->max.z);
+        model->min.x = glm::min(model->min.x, gltfMesh->min.x);
+        model->min.y = glm::min(model->min.y, gltfMesh->min.y);
+        model->min.z = glm::min(model->min.z, gltfMesh->min.z);
     }
-    for(const auto child : children) {
+    for (const auto child : children) {
         child->findCenterpoint(modelMatrix);
     }
 }

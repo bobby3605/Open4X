@@ -90,7 +90,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             objects.back()->y(-3.0f);
         }
         if (filePath == (baseDir + "GearboxAssy.glb")) {
-            objects.back()->x(10);
+            objects.back()->x(5);
             objects.back()->y(0);
             objects.back()->z(0);
             objects.back()->setScale(glm::vec3(0.1f));
