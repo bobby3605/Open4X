@@ -12,39 +12,41 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
+#include <memory>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
+VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
                            bool duplicate)
-    : model{vulkanModel->model} {
+    : model{model} {
     _name = new char[name.size()];
     for (int i = 0; i < name.size(); ++i) {
         _name[i] = name[i];
     }
+    std::shared_ptr<GLTF> gltfModel = model->model;
     // Load nodes and meshes
-    for (int sceneIndex = 0; sceneIndex < model->scenes.size(); ++sceneIndex) {
-        rootNodes.reserve(rootNodes.size() + model->scenes[sceneIndex].nodes.size());
-        for (int rootNodeID : model->scenes[sceneIndex].nodes) {
+    for (int sceneIndex = 0; sceneIndex < gltfModel->scenes.size(); ++sceneIndex) {
+        rootNodes.reserve(rootNodes.size() + gltfModel->scenes[sceneIndex].nodes.size());
+        for (int rootNodeID : gltfModel->scenes[sceneIndex].nodes) {
             rootNodes.push_back(
-                new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers, duplicate));
+                new VulkanNode(model, rootNodeID, &model->meshIDMap, &model->materialIDMap, ssboBuffers, duplicate));
         }
 
         // TODO
         // Move this into GLTF.cpp, issue is that the accessors have to be loaded first
-        // calculate centerpoint if it hasn't been caluclated yet
+        // calculate centerpoint if it hasn't been calculated yet
         // This would also remove the mutex
         if (model->centerpointLock.try_lock()) {
             if (!model->centerpoint.has_value()) {
                 for (const auto node : rootNodes) {
                     node->findCenterpoint(glm::mat4(1.0f));
                 }
-                glm::vec3 length = {model->max.x - model->min.x, model->max.y - model->min.y, model->max.z - model->min.z};
-                model->centerpoint = {model->max.x - length.x/2, model->max.y - length.y/2, model->max.z - length.z/2};
+                glm::vec3 length = {model->aabb.max.x - model->aabb.min.x, model->aabb.max.y - model->aabb.min.y, model->aabb.max.z - model->aabb.min.z};
+                model->centerpoint = {model->aabb.max.x - length.x/2, model->aabb.max.y - length.y/2, model->aabb.max.z - length.z/2};
             }
             model->centerpointLock.unlock();
         }
         // Load animation data
-        for (GLTF::Animation animation : model->animations) {
+        for (GLTF::Animation animation : gltfModel->animations) {
             if (animatedNodes == nullptr) {
                 animatedNodes = new std::vector<VulkanNode*>;
             }
@@ -57,13 +59,13 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
                     node.value()->animationMatrix = new glm::mat4(1.0f);
                     node.value()->_locationMatrix = new glm::mat4(1.0f);
                 }
-                GLTF::Accessor* inputAccessor = &model->accessors[sampler->inputIndex];
-                AccessorLoader<float> inputAccessorLoader(model.get(), inputAccessor);
+                GLTF::Accessor* inputAccessor = &gltfModel->accessors[sampler->inputIndex];
+                AccessorLoader<float> inputAccessorLoader(gltfModel.get(), inputAccessor);
                 for (int count_index = 0; count_index < inputAccessor->count; ++count_index) {
                     sampler->inputData.push_back(inputAccessorLoader.at(count_index));
                 }
-                GLTF::Accessor* outputAccessor = &model->accessors[sampler->outputIndex];
-                AccessorLoader<glm::vec4> outputAccessorLoader(model.get(), outputAccessor);
+                GLTF::Accessor* outputAccessor = &gltfModel->accessors[sampler->outputIndex];
+                AccessorLoader<glm::vec4> outputAccessorLoader(gltfModel.get(), outputAccessor);
                 for (int count_index = 0; count_index < outputAccessor->count; ++count_index) {
                     sampler->outputData.push_back(glm::make_mat4(glm::value_ptr(outputAccessorLoader.at(count_index))));
                 }
@@ -100,7 +102,7 @@ void VulkanObject::uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers)
 std::optional<VulkanNode*> VulkanObject::findNode(int nodeID) {
     // TODO
     // Improve this
-    for (int i = 0; i < model->nodes.size(); ++i) {
+    for (int i = 0; i < model->model->nodes.size(); ++i) {
         for (VulkanNode* node : rootNodes) {
             if (node->nodeID == nodeID) {
                 return node;
@@ -144,7 +146,7 @@ void VulkanObject::setScale(glm::vec3 newScale) {
 
 void VulkanObject::x(float newX) {
     _position.x = newX;
-        if (model->fileName() == "GearboxAssy.glb") {
+        if (model->model->fileName() == "GearboxAssy.glb") {
         }
     updateModelMatrix();
     for (std::shared_ptr<VulkanObject> child : children) {

@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <vector>
 #include <mutex>
+#include "../Vulkan/common.hpp"
 
 using namespace rapidjson;
 class GLTF {
@@ -25,10 +26,6 @@ class GLTF {
     GLTF(std::string filePath, uint32_t fileNum);
     std::string const path() { return _path; }
     std::string const fileName() { return _fileName; }
-    glm::vec3 max{-MAXFLOAT};
-    glm::vec3 min{MAXFLOAT};
-    std::optional<glm::vec3> centerpoint;
-    std::mutex centerpointLock;
 
     class Scene {
       public:
@@ -73,8 +70,6 @@ class GLTF {
         };
         std::vector<Primitive> primitives;
         int instanceCount = 0;
-        glm::vec3 max{-MAXFLOAT};
-        glm::vec3 min{MAXFLOAT};
     };
     std::vector<Mesh> meshes;
 

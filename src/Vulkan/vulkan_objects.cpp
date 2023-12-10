@@ -67,7 +67,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
         objects.push_back(futureObjects[objectIndex].get());
-        std::shared_ptr<GLTF> model = objects.back()->model;
+        std::shared_ptr<GLTF> model = objects.back()->model->model;
         std::string filePath = model->path() + model->fileName();
 
         if (model->animations.size() > 0) {
@@ -144,7 +144,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
             for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
                 batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath, true));
-                std::shared_ptr<GLTF> model = objects.back()->model;
+                std::shared_ptr<GLTF> model = objects.back()->model->model;
                 if (model->animations.size() > 0) {
                     batchAnimatedObjects.push_back(batchObjects.back());
                 }
@@ -175,8 +175,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     ssboBuffers->createInstanceBuffers(instanceCount);
 
-    for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
-        for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
+    for (std::pair<std::string, std::shared_ptr<VulkanModel>> modelPair : models) {
+        std::shared_ptr<VulkanModel> model = modelPair.second;
+        for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model->meshIDMap) {
             std::shared_ptr<VulkanMesh> mesh = meshPair.second;
             for (std::shared_ptr<VulkanMesh::Primitive> primitive : mesh->primitives) {
                 // increase size of indirect draws
@@ -195,6 +196,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
                 // set first instance
                 indirectDraws.back().firstInstance = _totalInstanceCount;
+
+//                ssboBuffers->AABBs[_totalInstanceCount] = primitive->aabb;
                 ssboBuffers->materialIndicesMapped[indirectDraws.back().firstInstance] = primitive->materialIndex;
                 for (uint32_t i = 0; i < mesh->objectIDs.size(); ++i) {
                     ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i] = mesh->objectIDs[i];

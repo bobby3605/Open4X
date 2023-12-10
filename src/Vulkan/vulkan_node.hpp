@@ -14,9 +14,12 @@
 
 class VulkanMesh {
   public:
-    VulkanMesh(GLTF* model, int meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    VulkanMesh(GLTF* model, uint32_t meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers);
     std::vector<uint32_t> objectIDs;
     std::mutex objectIDMutex;
+    uint32_t const meshID() { return _meshID; };
+    AABB aabb;
+
     class Primitive {
       public:
         Primitive(GLTF* model, int meshID, int primitiveID, std::unordered_map<int, int>* materialIDMap,
@@ -33,8 +36,12 @@ class VulkanMesh {
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
+        AABB aabb;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
+
+  private:
+    uint32_t _meshID;
 };
 
 class VulkanModel {
@@ -43,17 +50,20 @@ class VulkanModel {
     std::shared_ptr<GLTF> model;
     std::unordered_map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
     std::unordered_map<int, int> materialIDMap;
+    AABB aabb;
+    std::optional<glm::vec3> centerpoint;
+    std::mutex centerpointLock;
 };
 
 class VulkanNode {
   public:
-    VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+    VulkanNode(std::shared_ptr<VulkanModel> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
                std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate = false);
     ~VulkanNode();
     void setLocationMatrix(glm::mat4 locationMatrix);
     void setLocationMatrix(glm::vec3 newPosition);
     void uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
-    std::shared_ptr<GLTF> model;
+    std::shared_ptr<VulkanModel> model;
     int nodeID;
     int meshID;
     uint32_t objectID = -1;

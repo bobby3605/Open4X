@@ -12,7 +12,7 @@
 
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
+    VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
                  bool duplicate = false);
     VulkanObject();
     ~VulkanObject();
@@ -31,7 +31,7 @@ class VulkanObject {
     void draw();
 
     void draw(VulkanRenderer* renderer);
-    std::shared_ptr<GLTF> model;
+    std::shared_ptr<VulkanModel> model;
     std::vector<VulkanNode*> rootNodes;
 
     std::optional<VulkanNode*> findNode(int nodeID);

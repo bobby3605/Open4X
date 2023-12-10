@@ -380,6 +380,7 @@ GLTF::Accessor::Accessor(Value& accessorJSON) {
     Value& countJSON = accessorJSON["count"];
     assert(countJSON.IsInt());
     count = countJSON.GetInt();
+    assert(count > 0);
     Value& typeJSON = accessorJSON["type"];
     assert(typeJSON.IsString());
     type = typeJSON.GetString();

@@ -9,15 +9,17 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
 
-VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+VulkanNode::VulkanNode(std::shared_ptr<VulkanModel> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
                        std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
     : model{model}, nodeID{nodeID} {
-    _baseMatrix = &model->nodes[nodeID].matrix;
-    if (model->nodes[nodeID].mesh.has_value()) {
-        meshID = model->nodes[nodeID].mesh.value();
+    std::shared_ptr<GLTF> gltfModel = model->model;
+    _baseMatrix = &gltfModel->nodes[nodeID].matrix;
+    if (gltfModel->nodes[nodeID].mesh.has_value()) {
+        meshID = gltfModel->nodes[nodeID].mesh.value();
         objectID = ssboBuffers->uniqueObjectID.fetch_add(1, std::memory_order_relaxed);
         // Check for unique mesh
         // FIXME:
@@ -25,7 +27,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
         if (!duplicate && meshIDMap->count(meshID) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(
-                {meshID, std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
+                {meshID, std::make_shared<VulkanMesh>(model->model.get(), gltfModel->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
         _modelMatrix = new glm::mat4(1.0f);
         //   Update instance count for each primitive
@@ -36,34 +38,17 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
         mesh->objectIDs.push_back(objectID);
         mesh->objectIDMutex.unlock();
     }
-    children.reserve(model->nodes[nodeID].children.size());
-    for (int childNodeID : model->nodes[nodeID].children) {
+    children.reserve(gltfModel->nodes[nodeID].children.size());
+    for (int childNodeID : gltfModel->nodes[nodeID].children) {
         children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, duplicate));
     }
 }
 
 void VulkanNode::findCenterpoint(glm::mat4 parentMatrix) {
-    // Calculates per mesh and per model AABB
     glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
     if (mesh != nullptr) {
-        GLTF::Mesh* gltfMesh = &model->meshes[model->nodes[nodeID].mesh.value()];
-        for (const auto primitive : mesh->primitives) {
-            for (const auto vertex : primitive->vertices) {
-                glm::vec4 vertexWorldPos = modelMatrix * glm::vec4(vertex.pos, 1.0f);
-                gltfMesh->max.x = glm::max(gltfMesh->max.x, vertexWorldPos.x);
-                gltfMesh->max.y = glm::max(gltfMesh->max.y, vertexWorldPos.y);
-                gltfMesh->max.z = glm::max(gltfMesh->max.z, vertexWorldPos.z);
-                gltfMesh->min.x = glm::min(gltfMesh->min.x, vertexWorldPos.x);
-                gltfMesh->min.y = glm::min(gltfMesh->min.y, vertexWorldPos.y);
-                gltfMesh->min.z = glm::min(gltfMesh->min.z, vertexWorldPos.z);
-            }
-        }
-        model->max.x = glm::max(model->max.x, gltfMesh->max.x);
-        model->max.y = glm::max(model->max.y, gltfMesh->max.y);
-        model->max.z = glm::max(model->max.z, gltfMesh->max.z);
-        model->min.x = glm::min(model->min.x, gltfMesh->min.x);
-        model->min.y = glm::min(model->min.y, gltfMesh->min.y);
-        model->min.z = glm::min(model->min.z, gltfMesh->min.z);
+        model->aabb.update(modelMatrix * glm::vec4(mesh->aabb.max, 1.0f));
+        model->aabb.update(modelMatrix * glm::vec4(mesh->aabb.min, 1.0f));
     }
     for (const auto child : children) {
         child->findCenterpoint(modelMatrix);
@@ -222,9 +207,10 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(GLTF* model, int meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) {
+VulkanMesh::VulkanMesh(GLTF* model, uint32_t meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) : _meshID{meshID} {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
         primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
+        aabb.update(primitives.back()->aabb);
     }
 }
 
@@ -397,6 +383,8 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
             } else {
                 vertex.pos = positionAccessor.at(count_index);
             }
+
+            aabb.update(vertex.pos);
 
             vertex.texCoord = {0.0f, 0.0f};
             // Texcoord
