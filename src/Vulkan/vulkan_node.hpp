@@ -62,6 +62,8 @@ class VulkanNode {
     std::vector<VulkanNode*> children;
     void updateChildrenMatrices();
     void updateAnimation();
+    void findCenterpoint(glm::mat4 parentMatrix);
+    std::shared_ptr<VulkanMesh> mesh = nullptr;
 
   protected:
     glm::mat4* _modelMatrix = nullptr;

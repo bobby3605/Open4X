@@ -29,7 +29,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
         }
         _modelMatrix = new glm::mat4(1.0f);
         //   Update instance count for each primitive
-        std::shared_ptr<VulkanMesh> mesh = meshIDMap->find(meshID)->second;
+        mesh = meshIDMap->find(meshID)->second;
         // TODO
         // get rid of this mutex
         mesh->objectIDMutex.lock();
@@ -39,6 +39,26 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
     children.reserve(model->nodes[nodeID].children.size());
     for (int childNodeID : model->nodes[nodeID].children) {
         children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, duplicate));
+    }
+}
+
+void VulkanNode::findCenterpoint(glm::mat4 parentMatrix) {
+    glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
+    if (mesh != nullptr) {
+        for (const auto primitive : mesh->primitives) {
+            for (const auto vertex : primitive->vertices) {
+                glm::vec4 vertexWorldPos = modelMatrix * glm::vec4(vertex.pos, 1.0f);
+                model->max.x = glm::max(model->max.x, vertexWorldPos.x);
+                model->max.y = glm::max(model->max.y, vertexWorldPos.y);
+                model->max.z = glm::max(model->max.z, vertexWorldPos.z);
+                model->min.x = glm::min(model->min.x, vertexWorldPos.x);
+                model->min.y = glm::min(model->min.y, vertexWorldPos.y);
+                model->min.z = glm::min(model->min.z, vertexWorldPos.z);
+            }
+        }
+    }
+    for(const auto child : children) {
+        child->findCenterpoint(modelMatrix);
     }
 }
 

@@ -28,6 +28,21 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> vulkanModel, std::shared
             rootNodes.push_back(
                 new VulkanNode(model, rootNodeID, &vulkanModel->meshIDMap, &vulkanModel->materialIDMap, ssboBuffers, duplicate));
         }
+
+        // TODO
+        // Move this into GLTF.cpp, issue is that the accessors have to be loaded first
+        // calculate centerpoint if it hasn't been caluclated yet
+        // This would also remove the mutex
+        if (model->centerpointLock.try_lock()) {
+            if (!model->centerpoint.has_value()) {
+                for (const auto node : rootNodes) {
+                    node->findCenterpoint(glm::mat4(1.0f));
+                }
+                glm::vec3 length = {model->max.x - model->min.x, model->max.y - model->min.y, model->max.z - model->min.z};
+                model->centerpoint = {model->max.x - length.x/2, model->max.y - length.y/2, model->max.z - length.z/2};
+            }
+            model->centerpointLock.unlock();
+        }
         // Load animation data
         for (GLTF::Animation animation : model->animations) {
             if (animatedNodes == nullptr) {
@@ -103,9 +118,8 @@ std::optional<VulkanNode*> VulkanObject::findNode(int nodeID) {
 VulkanObject::VulkanObject() {}
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {
-    _modelMatrix[3][0] = newPosition.x;
-    _modelMatrix[3][1] = newPosition.y;
-    _modelMatrix[3][2] = newPosition.z;
+    _position = newPosition;
+    updateModelMatrix();
     for (VulkanNode* rootNode : rootNodes) {
         rootNode->setLocationMatrix(newPosition);
     }
@@ -129,21 +143,23 @@ void VulkanObject::setScale(glm::vec3 newScale) {
 }
 
 void VulkanObject::x(float newX) {
-    _modelMatrix[3][0] = newX;
+    _position.x = newX;
+        if (model->fileName() == "GearboxAssy.glb") {
+        }
     updateModelMatrix();
     for (std::shared_ptr<VulkanObject> child : children) {
         child->x(newX);
     }
 }
 void VulkanObject::y(float newY) {
-    _modelMatrix[3][1] = newY;
+    _position.y = newY;
     updateModelMatrix();
     for (std::shared_ptr<VulkanObject> child : children) {
         child->y(newY);
     }
 }
 void VulkanObject::z(float newZ) {
-    _modelMatrix[3][2] = newZ;
+    _position.z = newZ;
     updateModelMatrix();
     for (std::shared_ptr<VulkanObject> child : children) {
         child->z(newZ);
@@ -151,7 +167,12 @@ void VulkanObject::z(float newZ) {
 }
 
 void VulkanObject::updateModelMatrix() {
-    _modelMatrix = glm::translate(glm::mat4(1.0f), position()) * glm::toMat4(rotation()) * glm::scale(scale());
+    // Calculate offset to normalize position into world space
+    glm::vec3 positionOffset{0, 0, 0};
+    if (model != nullptr && model->centerpoint.has_value()) {
+        positionOffset = model->centerpoint.value() * scale();
+    }
+    _modelMatrix = glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
     for (VulkanNode* rootNode : rootNodes) {
         rootNode->setLocationMatrix(_modelMatrix);
     }

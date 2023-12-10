@@ -2,6 +2,7 @@
 #define GLTF_H_
 #include "../../external/rapidjson/document.h"
 #include <atomic>
+#include <cmath>
 #include <fstream>
 #include <glm/detail/qualifier.hpp>
 #include <glm/glm.hpp>
@@ -13,6 +14,7 @@
 #include <queue>
 #include <stdexcept>
 #include <vector>
+#include <mutex>
 
 using namespace rapidjson;
 class GLTF {
@@ -23,6 +25,10 @@ class GLTF {
     GLTF(std::string filePath, uint32_t fileNum);
     std::string const path() { return _path; }
     std::string const fileName() { return _fileName; }
+    glm::vec3 max{-MAXFLOAT};
+    glm::vec3 min{MAXFLOAT};
+    std::optional<glm::vec3> centerpoint;
+    std::mutex centerpointLock;
 
     class Scene {
       public:

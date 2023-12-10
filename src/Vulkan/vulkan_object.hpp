@@ -18,7 +18,7 @@ class VulkanObject {
     ~VulkanObject();
     std::string const name() { return _name; }
     void keyboardUpdate(GLFWwindow* window, float frameTime);
-    glm::vec3 const position() const { return _modelMatrix[3]; }
+    glm::vec3 const position() const { return _position; }
     glm::quat const rotation() const { return _rotation; }
     glm::vec3 const scale() const { return _scale; }
     void setPostion(glm::vec3 newPosition);
@@ -49,6 +49,7 @@ class VulkanObject {
 
     std::vector<VulkanNode*>* animatedNodes = nullptr;
 
+    glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
 
