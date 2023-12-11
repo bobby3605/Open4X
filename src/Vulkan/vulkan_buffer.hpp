@@ -100,7 +100,8 @@ struct MaterialData {
 
 class SSBOBuffers {
   public:
-    SSBOBuffers(VulkanDevice* device, uint32_t drawsCount);
+    SSBOBuffers(VulkanDevice* device);
+    void createMaterialBuffer(uint32_t drawsCount);
     void createInstanceBuffers(uint32_t instanceCount);
     ~SSBOBuffers();
     VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }

@@ -2,17 +2,17 @@
 #define VULKAN_NODE_H_
 #include "../glTF/AccessorLoader.hpp"
 #include "../glTF/GLTF.hpp"
+#include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
 #include <cstdint>
+#include <glm/gtx/hash.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
-#include <glm/gtx/hash.hpp>
-#include "vulkan_buffer.hpp"
-#include <set>
 
 struct Vertex {
     glm::vec3 pos;
@@ -74,9 +74,11 @@ class VulkanMesh {
       public:
         Primitive(GLTF* model, int meshID, int primitiveID, std::unordered_map<int, int>* materialIDMap,
                   std::shared_ptr<SSBOBuffers> ssboBuffers);
+        void uploadMaterial(std::shared_ptr<SSBOBuffers> ssboBuffers);
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         int materialIndex = 0;
+        MaterialData materialData{};
         std::shared_ptr<VulkanImage> image;
         std::shared_ptr<VulkanSampler> sampler;
         std::shared_ptr<VulkanImage> normalMap;
@@ -87,6 +89,9 @@ class VulkanMesh {
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
         AABB aabb;
+
+      private:
+        bool unique = 0;
     };
     std::vector<std::shared_ptr<Primitive>> primitives;
 

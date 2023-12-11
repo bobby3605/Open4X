@@ -69,7 +69,7 @@ VulkanNode::~VulkanNode() {
 
 void VulkanNode::uploadModelMatrix(uint32_t& globalInstanceID, glm::mat4 parentMatrix, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     glm::mat4 modelMatrix{1.0f};
-    if(animationPair.has_value()){
+    if (animationPair.has_value()) {
         modelMatrix = parentMatrix = parentMatrix * animationMatrix * *_baseMatrix;
     } else {
         modelMatrix = parentMatrix = parentMatrix * *_baseMatrix;
@@ -201,10 +201,10 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
     // NOTE:
     // might need separate texCoordSelector and texCoord for normal map
     int texCoordSelector = 0;
-    MaterialData materialData{};
-    bool unique = 0;
     if (primitive->material.has_value()) {
         GLTF::Material* material = &model->materials[primitive->material.value()];
+        // NOTE:
+        // This might need a mutex
         if (materialIDMap->count(primitive->material.value()) == 0) {
             unique = 1;
             GLTF::Material::PBRMetallicRoughness* pbrMetallicRoughness = material->pbrMetallicRoughness.get();
@@ -253,7 +253,6 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
             }
 
             materialIndex = ssboBuffers->uniqueMaterialID++;
-            ssboBuffers->materialMapped[materialIndex] = materialData;
             materialIDMap->insert({primitive->material.value(), materialIndex});
 
         } else {
@@ -293,16 +292,6 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         if (ssboBuffers->uniqueAoMapsMap.count((void*)aoMap.get()) == 0) {
             ssboBuffers->uniqueAoMapsMap.insert({(void*)aoMap.get(), ssboBuffers->aoMapsCount.fetch_add(1, std::memory_order_relaxed)});
         }
-        ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
-        ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
-        ssboBuffers->materialMapped[materialIndex].metallicRoughnessMapIndex =
-            ssboBuffers->uniqueMetallicRoughnessMapsMap.find((void*)metallicRoughnessMap.get())->second;
-        ssboBuffers->materialMapped[materialIndex].metallicFactor = metallicFactor;
-        ssboBuffers->materialMapped[materialIndex].roughnessFactor = roughnessFactor;
-        ssboBuffers->materialMapped[materialIndex].normalMapIndex = ssboBuffers->uniqueNormalMapsMap.find((void*)normalMap.get())->second;
-        ssboBuffers->materialMapped[materialIndex].normalScale = normalScale;
-        ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
-        ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
 
     // Load vertices
@@ -439,5 +428,21 @@ VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::
         for (uint32_t count_index = 0; count_index < accessor->count; ++count_index) {
             indices[count_index] = indicesAccessor.at(count_index);
         }
+    }
+}
+
+void VulkanMesh::Primitive::uploadMaterial(std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    if (unique) {
+        ssboBuffers->materialMapped[materialIndex] = materialData;
+        ssboBuffers->materialMapped[materialIndex].imageIndex = ssboBuffers->uniqueImagesMap.find((void*)image.get())->second;
+        ssboBuffers->materialMapped[materialIndex].samplerIndex = ssboBuffers->uniqueSamplersMap.find((void*)sampler.get())->second;
+        ssboBuffers->materialMapped[materialIndex].metallicRoughnessMapIndex =
+            ssboBuffers->uniqueMetallicRoughnessMapsMap.find((void*)metallicRoughnessMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].metallicFactor = metallicFactor;
+        ssboBuffers->materialMapped[materialIndex].roughnessFactor = roughnessFactor;
+        ssboBuffers->materialMapped[materialIndex].normalMapIndex = ssboBuffers->uniqueNormalMapsMap.find((void*)normalMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].normalScale = normalScale;
+        ssboBuffers->materialMapped[materialIndex].aoMapIndex = ssboBuffers->uniqueAoMapsMap.find((void*)aoMap.get())->second;
+        ssboBuffers->materialMapped[materialIndex].occlusionStrength = occlusionStrength;
     }
 }

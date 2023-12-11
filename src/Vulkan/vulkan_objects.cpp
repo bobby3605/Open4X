@@ -13,6 +13,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iterator>
 #include <memory>
+#include <pstl/glue_execution_defs.h>
 #include <random>
 #include <vulkan/vulkan_core.h>
 #include <execution>
@@ -26,12 +27,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     uint32_t fileNum = 0;
     const std::string baseDir = "assets/glTF/";
 
-    // FIXME:
-//    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::primitiveCount);
-//    remove model dependence on ssboBuffers, or split ssboBuffers into dependent and independent sections
-//    primitiveCount should be GLTF::primitiveCount, instead of a magic number
-
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, 100);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -65,6 +61,12 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             animatedModels.push_back(model.get());
         }
     }
+
+    // NOTE:
+    // Creating material buffer after all gltf files have been loaded
+    // TODO:
+    // Better solution, possibly dynamically creating and resizing material buffer
+    ssboBuffers->createMaterialBuffer(GLTF::primitiveCount);
 
     // Load objects
     // This needs to be in a separate loop from loading models in order to dynamically size ssboBuffers
@@ -183,6 +185,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
             std::shared_ptr<VulkanMesh> mesh = meshPair.second;
             instanceCount += mesh->instanceIDs.size() * mesh->primitives.size();
+            // NOTE:
+            // Uploading materials after material buffer has been generated
+            // Material buffer needs to have a size in order to be generated
+            // So I need to know how many unique materials I have first
+            for(const auto primitive : mesh->primitives) {
+                primitive->uploadMaterial(ssboBuffers);
+            }
         }
     }
 
@@ -222,7 +231,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
     }
 
-    std::for_each(std::execution::par, objects.begin(), objects.end(),[this](auto&& object) {
+    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),[this](auto&& object) {
         object->updateModelMatrix(ssboBuffers);
     });
 

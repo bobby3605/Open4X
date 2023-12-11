@@ -82,7 +82,7 @@ void VulkanObject::z(float newZ) {
 }
 
 void VulkanObject::updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    if (!_isBufferValid) {
+    if (!_isBufferValid || model->hasAnimations()) {
         // Calculate offset to normalize position into world space
         glm::vec3 positionOffset{0, 0, 0};
         if (model != nullptr) {
