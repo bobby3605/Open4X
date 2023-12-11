@@ -12,8 +12,6 @@ VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum, std::shared_ptr
         for (const auto node : rootNodes) {
             node->updateAABB(glm::mat4(1.0f), aabb);
         }
-        glm::vec3 length = {aabb.max.x - aabb.min.x, aabb.max.y - aabb.min.y, aabb.max.z - aabb.min.z};
-        centerpoint = {aabb.max.x - length.x / 2, aabb.max.y - length.y / 2, aabb.max.z - length.z / 2};
 
         // Load animation data
         for (GLTF::Animation animation : model->animations) {

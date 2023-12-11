@@ -23,8 +23,6 @@ class VulkanModel {
     std::unordered_map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
     std::unordered_map<int, int> materialIDMap;
     AABB aabb;
-    std::optional<glm::vec3> centerpoint;
-    std::mutex centerpointLock;
     uint32_t const totalInstanceCount() { return _totalInstanceCounter; }
     void addInstance(uint32_t firstInstanceID, std::shared_ptr<SSBOBuffers> ssboBuffers);
     void uploadModelMatrix(uint32_t firstInstanceID, glm::mat4 modelMatrix, std::shared_ptr<SSBOBuffers> ssboBuffers);

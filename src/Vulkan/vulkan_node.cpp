@@ -53,8 +53,8 @@ void VulkanNode::addInstance(uint32_t& globalInstanceIDIterator, std::shared_ptr
 void VulkanNode::updateAABB(glm::mat4 parentMatrix, AABB& aabb) {
     glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
     if (mesh != nullptr) {
-        aabb.update(modelMatrix * glm::vec4(mesh->aabb.max, 1.0f));
-        aabb.update(modelMatrix * glm::vec4(mesh->aabb.min, 1.0f));
+        aabb.update(modelMatrix * glm::vec4(mesh->aabb.max(), 1.0f));
+        aabb.update(modelMatrix * glm::vec4(mesh->aabb.min(), 1.0f));
     }
     for (const auto child : children) {
         child->updateAABB(modelMatrix, aabb);

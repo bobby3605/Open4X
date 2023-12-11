@@ -58,8 +58,6 @@ void VulkanObject::setScale(glm::vec3 newScale) {
 
 void VulkanObject::x(float newX) {
     _position.x = newX;
-        if (model->model->fileName() == "GearboxAssy.glb") {
-        }
     for (std::shared_ptr<VulkanObject> child : children) {
         child->x(newX);
     }
@@ -80,8 +78,8 @@ void VulkanObject::z(float newZ) {
 void VulkanObject::updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
     // Calculate offset to normalize position into world space
     glm::vec3 positionOffset{0, 0, 0};
-    if (model != nullptr && model->centerpoint.has_value()) {
-        positionOffset = model->centerpoint.value() * scale();
+    if (model != nullptr) {
+        positionOffset = model->aabb.centerpoint() * scale();
     }
     glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
     model->uploadModelMatrix(firstInstanceID, modelMatrix, ssboBuffers);
