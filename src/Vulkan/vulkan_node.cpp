@@ -1,140 +1,110 @@
 #include "vulkan_node.hpp"
+#include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
 #include <chrono>
 #include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 
-VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum) { model = std::make_shared<GLTF>(filePath, fileNum); }
-
-VulkanNode::VulkanNode(std::shared_ptr<VulkanModel> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
-                       std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers, bool duplicate)
+VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,
+                       std::unordered_map<int, int>* materialIDMap, uint32_t& instanceCounter, std::shared_ptr<SSBOBuffers> ssboBuffers)
     : model{model}, nodeID{nodeID} {
-    std::shared_ptr<GLTF> gltfModel = model->model;
-    _baseMatrix = &gltfModel->nodes[nodeID].matrix;
-    if (gltfModel->nodes[nodeID].mesh.has_value()) {
-        meshID = gltfModel->nodes[nodeID].mesh.value();
-        objectID = ssboBuffers->uniqueObjectID.fetch_add(1, std::memory_order_relaxed);
-        // Check for unique mesh
-        // FIXME:
-        // this should have a mutex around it
-        if (!duplicate && meshIDMap->count(meshID) == 0) {
+    _baseMatrix = &model->nodes[nodeID].matrix;
+    if (model->nodes[nodeID].mesh.has_value()) {
+        meshID = model->nodes[nodeID].mesh.value();
+        if (meshIDMap->count(meshID) == 0) {
             // gl_BaseInstance cannot be nodeID, since only nodes with a mesh value are rendered
             meshIDMap->insert(
-                {meshID, std::make_shared<VulkanMesh>(model->model.get(), gltfModel->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
+                {meshID, std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
-        _modelMatrix = new glm::mat4(1.0f);
-        //   Update instance count for each primitive
+        // Update instance count for each primitive
+        // TODO:
+        // Get rid of the mutex
         mesh = meshIDMap->find(meshID)->second;
-        // TODO
-        // get rid of this mutex
-        mesh->objectIDMutex.lock();
-        mesh->objectIDs.push_back(objectID);
-        mesh->objectIDMutex.unlock();
+        // NOTE:
+        // Every node has a matrix
+        // Not every node has a mesh
+        // Only nodes with a mesh need to be uploaded
+        // So only nodes with a mesh get an instance id
+        ++instanceCounter;
     }
-    children.reserve(gltfModel->nodes[nodeID].children.size());
-    for (int childNodeID : gltfModel->nodes[nodeID].children) {
-        children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, ssboBuffers, duplicate));
+    children.reserve(model->nodes[nodeID].children.size());
+    for (int childNodeID : model->nodes[nodeID].children) {
+        children.push_back(new VulkanNode(model, childNodeID, meshIDMap, materialIDMap, instanceCounter, ssboBuffers));
     }
 }
 
-void VulkanNode::findCenterpoint(glm::mat4 parentMatrix) {
-    glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
+void VulkanNode::addInstance(uint32_t& globalInstanceIDIterator, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     if (mesh != nullptr) {
-        model->aabb.update(modelMatrix * glm::vec4(mesh->aabb.max, 1.0f));
-        model->aabb.update(modelMatrix * glm::vec4(mesh->aabb.min, 1.0f));
+        mesh->instanceIDsMutex.lock();
+        mesh->instanceIDs.push_back(globalInstanceIDIterator++);
+        mesh->instanceIDsMutex.unlock();
     }
     for (const auto child : children) {
-        child->findCenterpoint(modelMatrix);
+        child->addInstance(globalInstanceIDIterator, ssboBuffers);
+    }
+}
+
+void VulkanNode::updateAABB(glm::mat4 parentMatrix, AABB& aabb) {
+    glm::mat4 modelMatrix = parentMatrix * *_baseMatrix;
+    if (mesh != nullptr) {
+        aabb.update(modelMatrix * glm::vec4(mesh->aabb.max, 1.0f));
+        aabb.update(modelMatrix * glm::vec4(mesh->aabb.min, 1.0f));
+    }
+    for (const auto child : children) {
+        child->updateAABB(modelMatrix, aabb);
     }
 }
 
 VulkanNode::~VulkanNode() {
-    if (_modelMatrix != nullptr) {
-        delete _modelMatrix;
-    }
-    if (animationMatrix != nullptr) {
-        delete animationMatrix;
-    }
-    if (_locationMatrix != nullptr) {
-        delete _locationMatrix;
-    }
     for (auto child : children) {
         delete child;
     }
 }
 
-void VulkanNode::setLocationMatrix(glm::mat4 locationMatrix) {
-    // TODO
-    // Clean up the logic for setting the location and updating the animation
-    // There's probably a better way to do this (less matrix multiplication)
-    glm::mat4 updateMatrix;
-    if (animationPair.has_value()) {
-        *_locationMatrix = locationMatrix;
-        updateMatrix = locationMatrix * *animationMatrix * *_baseMatrix;
+void VulkanNode::uploadModelMatrix(uint32_t& globalInstanceID, glm::mat4 parentMatrix, std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    glm::mat4 modelMatrix{1.0f};
+    if(animationPair.has_value()){
+        modelMatrix = parentMatrix = parentMatrix * animationMatrix * *_baseMatrix;
     } else {
-        updateMatrix = locationMatrix * *_baseMatrix;
+        modelMatrix = parentMatrix = parentMatrix * *_baseMatrix;
     }
-    if (objectID != -1) {
-        *_modelMatrix = updateMatrix;
-    }
-    for (VulkanNode* child : children) {
-        child->setLocationMatrix(updateMatrix);
-    }
-}
-
-void VulkanNode::setLocationMatrix(glm::vec3 newPosition) {
-    if (objectID != -1) {
-        (*_modelMatrix)[3][0] = newPosition.x + (*_baseMatrix)[3][0];
-        (*_modelMatrix)[3][1] = newPosition.y + (*_baseMatrix)[3][1];
-        (*_modelMatrix)[3][2] = newPosition.z + (*_baseMatrix)[3][2];
-        if (animationPair.has_value()) {
-            (*_locationMatrix)[3][0] = newPosition.x;
-            (*_locationMatrix)[3][1] = newPosition.y;
-            (*_locationMatrix)[3][2] = newPosition.z;
-        }
-    }
-    for (VulkanNode* child : children) {
-        child->setLocationMatrix(newPosition);
-    }
-}
-
-void VulkanNode::uploadModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    if (objectID != -1) {
+    if (mesh != nullptr) {
         // Decompose matrix
         // https://math.stackexchange.com/a/1463487
-        glm::vec3 translation((*_modelMatrix)[3]);
-        (*_modelMatrix)[3] = glm::vec4(0, 0, 0, 1);
+        glm::vec3 translation((modelMatrix)[3]);
+        (modelMatrix)[3] = glm::vec4(0, 0, 0, 1);
 
-        (*_modelMatrix)[0][3] = 0;
-        float scalex = glm::length((*_modelMatrix)[0]);
-        (*_modelMatrix)[1][3] = 0;
-        float scaley = glm::length((*_modelMatrix)[1]);
-        (*_modelMatrix)[2][3] = 0;
-        float scalez = glm::length((*_modelMatrix)[2]);
+        (modelMatrix)[0][3] = 0;
+        float scalex = glm::length((modelMatrix)[0]);
+        (modelMatrix)[1][3] = 0;
+        float scaley = glm::length((modelMatrix)[1]);
+        (modelMatrix)[2][3] = 0;
+        float scalez = glm::length((modelMatrix)[2]);
         glm::vec3 scale(scalex, scaley, scalez);
 
-        (*_modelMatrix)[0] /= scalex;
-        (*_modelMatrix)[1] /= scaley;
-        (*_modelMatrix)[2] /= scalez;
-        glm::quat rotation = glm::toQuat(*_modelMatrix);
+        (modelMatrix)[0] /= scalex;
+        (modelMatrix)[1] /= scaley;
+        (modelMatrix)[2] /= scalez;
+        glm::quat rotation = glm::toQuat(modelMatrix);
 
-        ssboBuffers->ssboMapped[objectID].translation = translation;
-        ssboBuffers->ssboMapped[objectID].rotation = rotation;
-        ssboBuffers->ssboMapped[objectID].scale = scale;
+        ssboBuffers->ssboMapped[globalInstanceID].translation = translation;
+        ssboBuffers->ssboMapped[globalInstanceID].rotation = rotation;
+        ssboBuffers->ssboMapped[globalInstanceID].scale = scale;
+        ++globalInstanceID;
     }
-    for (VulkanNode* child : children) {
-        child->uploadModelMatrix(ssboBuffers);
+
+    for (const auto child : children) {
+        // NOTE:
+        // Parent matrix was updated at the top of the function
+        child->uploadModelMatrix(globalInstanceID, parentMatrix, ssboBuffers);
     }
 }
-
-glm::mat4 const VulkanNode::modelMatrix() { return *_modelMatrix; }
 
 void VulkanNode::updateAnimation() {
     if (animationPair.has_value()) {
@@ -193,10 +163,7 @@ void VulkanNode::updateAnimation() {
 
             glm::mat4 scaleMatrix = glm::scale(scaleAnimation);
 
-            *animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
-            if (objectID != -1) {
-                *_modelMatrix = *_locationMatrix * *animationMatrix * *_baseMatrix;
-            }
+            animationMatrix = translationMatrix * rotationMatrix * scaleMatrix;
 
         } else {
             throw std::runtime_error("Animation channel target node: " + std::to_string(channel->target->node) +
@@ -207,7 +174,8 @@ void VulkanNode::updateAnimation() {
     }
 }
 
-VulkanMesh::VulkanMesh(GLTF* model, uint32_t meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers) : _meshID{meshID} {
+VulkanMesh::VulkanMesh(GLTF* model, uint32_t meshID, std::unordered_map<int, int>* materialIDMap, std::shared_ptr<SSBOBuffers> ssboBuffers)
+    : _meshID{meshID} {
     for (int primitiveID = 0; primitiveID < model->meshes[meshID].primitives.size(); ++primitiveID) {
         primitives.push_back(std::make_shared<VulkanMesh::Primitive>(model, meshID, primitiveID, materialIDMap, ssboBuffers));
         aabb.update(primitives.back()->aabb);

@@ -29,14 +29,14 @@ class VulkanObject {
     void z(float newZ);
     glm::mat4 const modelMatrix() { return _modelMatrix; }
     void draw();
+    uint32_t firstInstanceID = -1;
+    void updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
     void draw(VulkanRenderer* renderer);
     std::shared_ptr<VulkanModel> model;
-    std::vector<VulkanNode*> rootNodes;
 
     std::optional<VulkanNode*> findNode(int nodeID);
     void updateAnimations(std::shared_ptr<SSBOBuffers> ssboBuffers);
-    void uploadModelMatrices(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
     std::vector<std::shared_ptr<VulkanObject>> children;
 
@@ -47,14 +47,11 @@ class VulkanObject {
   private:
     char* _name = nullptr;
 
-    std::vector<VulkanNode*>* animatedNodes = nullptr;
-
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
 
     glm::mat4 _modelMatrix{1.0f};
-    void updateModelMatrix();
 
     struct KeyMappings {
         static const inline int moveLeft = GLFW_KEY_A;

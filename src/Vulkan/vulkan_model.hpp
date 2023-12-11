@@ -10,97 +10,33 @@
 #include "glm/gtx/string_cast.hpp"
 #include "vulkan_buffer.hpp"
 #include <glm/glm.hpp>
-#include <glm/gtx/hash.hpp>
 #include <set>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
+#include "vulkan_node.hpp"
 
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec2 texCoord;
-    glm::vec3 normal;
-    glm::vec4 tangent;
-
-    static VkVertexInputBindingDescription getBindingDescription() {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions;
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, texCoord);
-
-        attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(Vertex, normal);
-
-        attributeDescriptions[3].binding = 0;
-        attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        attributeDescriptions[3].offset = offsetof(Vertex, tangent);
-        return attributeDescriptions;
-    }
-
-    bool operator==(const Vertex& other) const { return pos == other.pos; }
-};
-
-namespace std {
-template <> struct hash<Vertex> {
-    size_t operator()(Vertex const& vertex) const { return (hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec2>()(vertex.texCoord)) << 1); }
-};
-} // namespace std
-
-/*
 class VulkanModel {
-
   public:
-    VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, GLTF* gltf_model);
-    VulkanModel(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::string model_path, std::string texture_path);
+    VulkanModel(std::string filePath, uint32_t fileNum, std::shared_ptr<SSBOBuffers> ssboBuffers);
     ~VulkanModel();
-
-    void draw(VulkanRenderer* renderer, glm::mat4 _modelMatrix);
-    void drawIndirect(VulkanRenderer* renderer);
-
-    GLTF* gltf_model;
+    std::shared_ptr<GLTF> model;
+    std::unordered_map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
+    std::unordered_map<int, int> materialIDMap;
+    AABB aabb;
+    std::optional<glm::vec3> centerpoint;
+    std::mutex centerpointLock;
+    uint32_t const totalInstanceCount() { return _totalInstanceCounter; }
+    void addInstance(uint32_t firstInstanceID, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    void uploadModelMatrix(uint32_t firstInstanceID, glm::mat4 modelMatrix, std::shared_ptr<SSBOBuffers> ssboBuffers);
+    void updateAnimations();
+    bool hasAnimations() { return animatedNodes.size() != 0; }
 
   private:
-    StagedBuffer* vertexBuffer;
-    StagedBuffer* indexBuffer;
-    VulkanDevice* device;
-
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-    std::vector<VkDrawIndexedIndirectCommand> indirectDraws;
-    StagedBuffer* indirectDrawsBuffer = nullptr;
-
-    VkSampler imageSampler;
-    VkImageView imageView;
-    VkImage image;
-    VkDeviceMemory imageMemory;
-    uint32_t mipLevels;
-
-    VulkanDescriptors* descriptorManager;
-    VkDescriptorSet materialSet;
-
-    void loadImage(std::string path);
-
-    void loadAccessors();
-    void loadAnimations();
-
+    std::optional<VulkanNode*> findNode(int nodeID);
+    std::vector<VulkanNode*> rootNodes;
+    std::vector<VulkanNode*> animatedNodes;
+    uint32_t _totalInstanceCounter = 0;
 };
-*/
+
 
 #endif // VULKAN_MODEL_H_

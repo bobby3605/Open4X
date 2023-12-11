@@ -129,7 +129,7 @@ class SSBOBuffers {
     std::map<void*, int> uniqueAoMapsMap;
     uint32_t* instanceIndicesMapped;
     uint32_t* materialIndicesMapped;
-    std::atomic<uint32_t> uniqueObjectID = 0;
+    std::atomic<uint32_t> uniqueInstanceID = 0;
     // starts at 1 since the default material is made in the constructor
     std::atomic<uint32_t> uniqueMaterialID = 1;
     std::atomic<uint32_t> currDrawIndex = 0;

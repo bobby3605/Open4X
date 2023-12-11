@@ -34,6 +34,7 @@ class VulkanObjects {
     std::shared_ptr<VulkanBuffer> activeLanesBuffer;
     std::vector<VulkanObject*> objects;
     std::vector<std::future<VulkanObject*>> futureObjects;
+    std::vector<VulkanModel*> animatedModels;
     std::vector<VulkanObject*> animatedObjects;
     std::unordered_map<std::string, std::shared_ptr<VulkanModel>> models;
     std::vector<std::future<std::shared_ptr<VulkanModel>>> futureModels;

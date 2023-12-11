@@ -23,25 +23,13 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     // Load models
     uint32_t fileNum = 0;
     const std::string baseDir = "assets/glTF/";
-    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator(baseDir)) {
-        // For some reason, !filePath.is_regular_file() isn't short circuiting
-        // so it will try to get the file extension of a directory if these are in the same if statement
-        if (filePath.exists() && filePath.is_regular_file()) {
-            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
-                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
-                futureModels.push_back(std::async(
-                    std::launch::async, [filePath, fileNum]() { return std::make_shared<VulkanModel>(filePath.path(), fileNum); }));
-                ++fileNum;
-            }
-        }
-    }
 
-    for (int modelIndex = 0; modelIndex < futureModels.size(); ++modelIndex) {
-        std::shared_ptr<VulkanModel> model = futureModels[modelIndex].get();
-        models.insert({model->model->path() + model->model->fileName(), model});
-    }
+    // FIXME:
+//    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::primitiveCount);
+//    remove model dependence on ssboBuffers, or split ssboBuffers into dependent and independent sections
+//    primitiveCount should be GLTF::primitiveCount, instead of a magic number
 
-    ssboBuffers = std::make_shared<SSBOBuffers>(device, GLTF::primitiveCount);
+    ssboBuffers = std::make_shared<SSBOBuffers>(device, 100);
     ssboBuffers->defaultImage = std::make_shared<VulkanImage>(device, "assets/pixels/white_pixel.png");
     ssboBuffers->defaultSampler =
         std::make_shared<VulkanSampler>(device, reinterpret_cast<VulkanImage*>(ssboBuffers->defaultImage.get())->mipLevels());
@@ -55,6 +43,27 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     ssboBuffers->uniqueMetallicRoughnessMapsMap.insert({(void*)ssboBuffers->defaultMetallicRoughnessMap.get(), 0});
     ssboBuffers->uniqueAoMapsMap.insert({(void*)ssboBuffers->defaultAoMap.get(), 0});
 
+    for (const std::filesystem::directory_entry& filePath : std::filesystem::recursive_directory_iterator(baseDir)) {
+        // For some reason, !filePath.is_regular_file() isn't short circuiting
+        // so it will try to get the file extension of a directory if these are in the same if statement
+        if (filePath.exists() && filePath.is_regular_file()) {
+            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
+                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
+                futureModels.push_back(std::async(
+                    std::launch::async, [filePath, fileNum, this]() { return std::make_shared<VulkanModel>(filePath.path(), fileNum, ssboBuffers); }));
+                ++fileNum;
+            }
+        }
+    }
+
+    for (int modelIndex = 0; modelIndex < futureModels.size(); ++modelIndex) {
+        std::shared_ptr<VulkanModel> model = futureModels[modelIndex].get();
+        models.insert({model->model->path() + model->model->fileName(), model});
+        if(model->hasAnimations()){
+            animatedModels.push_back(model.get());
+        }
+    }
+
     // Load objects
     // This needs to be in a separate loop from loading models in order to dynamically size ssboBuffers
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> pathModelPair : models) {
@@ -67,12 +76,14 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
         objects.push_back(futureObjects[objectIndex].get());
+        if(objects.back()->model->hasAnimations()) {
+            animatedObjects.push_back(objects.back());
+        }
         std::shared_ptr<GLTF> model = objects.back()->model->model;
         std::string filePath = model->path() + model->fileName();
 
-        if (model->animations.size() > 0) {
-            animatedObjects.push_back(objects.back());
-        }
+        // TODO
+        // move this into some kind of scene file
         if (filePath == (baseDir + "TriangleWithoutIndices.gltf")) {
             objects.back()->x(-3.0f);
         }
@@ -160,7 +171,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (int i = 0; i < futures.size(); ++i) {
         std::pair<std::vector<VulkanObject*>, std::vector<VulkanObject*>> batchObjectsPair = futures[i].get();
         objects.insert(std::end(objects), std::begin(batchObjectsPair.first), std::end(batchObjectsPair.first));
-        animatedObjects.insert(std::end(objects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
+        animatedObjects.insert(std::end(animatedObjects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
 
     // TODO:
@@ -169,7 +180,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (std::pair<std::string, std::shared_ptr<VulkanModel>> model : models) {
         for (std::pair<int, std::shared_ptr<VulkanMesh>> meshPair : model.second->meshIDMap) {
             std::shared_ptr<VulkanMesh> mesh = meshPair.second;
-            instanceCount += mesh->objectIDs.size() * mesh->primitives.size();
+            instanceCount += mesh->instanceIDs.size() * mesh->primitives.size();
         }
     }
 
@@ -185,7 +196,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
                 // copy indirect draw data from primitive
                 indirectDraws.back().indexCount = primitive->indices.size();
-                indirectDraws.back().instanceCount = mesh->objectIDs.size();
+                indirectDraws.back().instanceCount = mesh->instanceIDs.size();
 
                 // set indices and vertices
                 indirectDraws.back().firstIndex = indices.size();
@@ -199,16 +210,18 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
 //                ssboBuffers->AABBs[_totalInstanceCount] = primitive->aabb;
                 ssboBuffers->materialIndicesMapped[indirectDraws.back().firstInstance] = primitive->materialIndex;
-                for (uint32_t i = 0; i < mesh->objectIDs.size(); ++i) {
-                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i] = mesh->objectIDs[i];
+                // TODO
+                // IDs are now contiguous within a mesh, so this can be optimized
+                for (uint32_t i = 0; i < mesh->instanceIDs.size(); ++i) {
+                    ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i] = mesh->instanceIDs[i];
                 }
-                _totalInstanceCount += mesh->objectIDs.size();
+                _totalInstanceCount += mesh->instanceIDs.size();
             }
         }
     }
 
     for (VulkanObject* object : objects) {
-        object->uploadModelMatrices(ssboBuffers);
+        object->updateModelMatrix(ssboBuffers);
     }
 
     vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
@@ -330,8 +343,11 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
-    for (VulkanObject* animatedObject : animatedObjects) {
-        animatedObject->updateAnimations(ssboBuffers);
+    for (VulkanModel* model : animatedModels) {
+        model->updateAnimations();
+    }
+    for (VulkanObject* object : animatedObjects) {
+        object->updateModelMatrix(ssboBuffers);
     }
 
     vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer, 0,
