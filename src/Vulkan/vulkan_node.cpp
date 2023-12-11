@@ -23,8 +23,6 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
                 {meshID, std::make_shared<VulkanMesh>(model.get(), model->nodes[nodeID].mesh.value(), materialIDMap, ssboBuffers)});
         }
         // Update instance count for each primitive
-        // TODO:
-        // Get rid of the mutex
         mesh = meshIDMap->find(meshID)->second;
         // NOTE:
         // Every node has a matrix
@@ -41,6 +39,8 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
 
 void VulkanNode::addInstance(uint32_t& globalInstanceIDIterator, std::shared_ptr<SSBOBuffers> ssboBuffers) {
     if (mesh != nullptr) {
+        // TODO:
+        // Get rid of the mutex
         mesh->instanceIDsMutex.lock();
         mesh->instanceIDs.push_back(globalInstanceIDIterator++);
         mesh->instanceIDsMutex.unlock();

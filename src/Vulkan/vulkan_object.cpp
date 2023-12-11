@@ -42,18 +42,21 @@ void VulkanObject::setPostion(glm::vec3 newPosition) {
     for (std::shared_ptr<VulkanObject> child : children) {
         child->setPostion(newPosition);
     }
+    _isBufferValid = 0;
 }
 void VulkanObject::setRotation(glm::quat newRotation) {
     _rotation = newRotation;
     for (std::shared_ptr<VulkanObject> child : children) {
         child->setRotation(newRotation);
     }
+    _isBufferValid = 0;
 }
 void VulkanObject::setScale(glm::vec3 newScale) {
     _scale = newScale;
     for (std::shared_ptr<VulkanObject> child : children) {
         child->setScale(newScale);
     }
+    _isBufferValid = 0;
 }
 
 void VulkanObject::x(float newX) {
@@ -61,28 +64,35 @@ void VulkanObject::x(float newX) {
     for (std::shared_ptr<VulkanObject> child : children) {
         child->x(newX);
     }
+    _isBufferValid = 0;
 }
 void VulkanObject::y(float newY) {
     _position.y = newY;
     for (std::shared_ptr<VulkanObject> child : children) {
         child->y(newY);
     }
+    _isBufferValid = 0;
 }
 void VulkanObject::z(float newZ) {
     _position.z = newZ;
     for (std::shared_ptr<VulkanObject> child : children) {
         child->z(newZ);
     }
+    _isBufferValid = 0;
 }
 
 void VulkanObject::updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
-    // Calculate offset to normalize position into world space
-    glm::vec3 positionOffset{0, 0, 0};
-    if (model != nullptr) {
-        positionOffset = model->aabb.centerpoint() * scale();
+    if (!_isBufferValid) {
+        // Calculate offset to normalize position into world space
+        glm::vec3 positionOffset{0, 0, 0};
+        if (model != nullptr) {
+            positionOffset = model->aabb.centerpoint() * scale();
+        }
+        glm::mat4 modelMatrix =
+            glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
+        model->uploadModelMatrix(firstInstanceID, modelMatrix, ssboBuffers);
+        _isBufferValid = 1;
     }
-    glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
-    model->uploadModelMatrix(firstInstanceID, modelMatrix, ssboBuffers);
 }
 
 void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {

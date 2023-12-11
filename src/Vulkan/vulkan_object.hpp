@@ -53,6 +53,8 @@ class VulkanObject {
 
     glm::mat4 _modelMatrix{1.0f};
 
+    bool _isBufferValid = 0;
+
     struct KeyMappings {
         static const inline int moveLeft = GLFW_KEY_A;
         static const inline int moveRight = GLFW_KEY_D;
