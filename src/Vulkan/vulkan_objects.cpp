@@ -15,6 +15,8 @@
 #include <memory>
 #include <random>
 #include <vulkan/vulkan_core.h>
+#include <execution>
+#include <algorithm>
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings)
     : device{device}, descriptorManager{descriptorManager} {
@@ -220,9 +222,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
     }
 
-    for (VulkanObject* object : objects) {
+    std::for_each(std::execution::par, objects.begin(), objects.end(),[this](auto&& object) {
         object->updateModelMatrix(ssboBuffers);
-    }
+    });
 
     vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
