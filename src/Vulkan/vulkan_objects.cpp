@@ -236,10 +236,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),
                   [this](auto&& object) { object->updateModelMatrix(ssboBuffers); });
 
-    vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    indexBuffer = std::make_shared<StagedBuffer>(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(),
-                                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    vertexBuffer = VulkanBuffer::StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
+                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    indexBuffer =
+        VulkanBuffer::StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
@@ -276,12 +276,12 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
 
-    objectDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->ssboBuffer());
-    objectDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->materialBuffer());
-    culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount,
-                                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    objectDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledInstanceIndicesBuffer->buffer);
-    objectDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->culledMaterialIndicesBuffer());
+    objectDescriptor->addBinding(0, ssboBuffers->ssboBuffer());
+    objectDescriptor->addBinding(1, ssboBuffers->materialBuffer());
+    culledInstanceIndicesBuffer =
+        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    objectDescriptor->addBinding(2, culledInstanceIndicesBuffer);
+    objectDescriptor->addBinding(3, ssboBuffers->culledMaterialIndicesBuffer());
 
     objectDescriptor->allocateSets();
     objectDescriptor->update();
@@ -296,44 +296,42 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
               [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
-    indirectDrawsBuffer =
-        std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                       VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
+                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->instanceIndicesBuffer());
+    cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
 
-    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->ssboBuffer());
+    cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
 
-    prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
+    prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
 
     partialSumsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, partialSumsBuffer->buffer);
+    cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
 
-    activeLanesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount / 32,
-                                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, activeLanesBuffer->buffer);
+    activeLanesBuffer =
+        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount / 32, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    cullFrustumDescriptor->addBinding(4, activeLanesBuffer);
 
     VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
         descriptorManager->createDescriptor("reduce_prefix_sum", VK_SHADER_STAGE_COMPUTE_BIT);
 
-    reduceDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->instanceIndicesBuffer());
-    reduceDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
-    reduceDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, partialSumsBuffer->buffer);
-    reduceDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, activeLanesBuffer->buffer);
-    reduceDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledInstanceIndicesBuffer->buffer);
+    reduceDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
+    reduceDescriptor->addBinding(1, prefixSumBuffer);
+    reduceDescriptor->addBinding(2, partialSumsBuffer);
+    reduceDescriptor->addBinding(3, activeLanesBuffer);
+    reduceDescriptor->addBinding(4, culledInstanceIndicesBuffer);
 
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
         descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
-    cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, indirectDrawsBuffer->getBuffer());
-    cullDrawDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
-    cullDrawDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->materialIndicesBuffer());
-    cullDrawDescriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->culledMaterialIndicesBuffer());
+    cullDrawDescriptor->addBinding(0, indirectDrawsBuffer);
+    cullDrawDescriptor->addBinding(3, prefixSumBuffer);
+    cullDrawDescriptor->addBinding(4, ssboBuffers->materialIndicesBuffer());
+    cullDrawDescriptor->addBinding(5, ssboBuffers->culledMaterialIndicesBuffer());
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
@@ -341,7 +339,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 }
 
 void VulkanObjects::bind(VulkanRenderer* renderer) {
-    VkBuffer vertexBuffers[] = {vertexBuffer->getBuffer()};
+    VkBuffer vertexBuffers[] = {vertexBuffer->buffer()};
     VkDeviceSize offsets[] = {0};
 
     renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1,
@@ -351,7 +349,7 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
 
     vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->buffer(), 0, VK_INDEX_TYPE_UINT32);
 }
 
 void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
@@ -362,8 +360,8 @@ void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
         object->updateModelMatrix(ssboBuffers);
     }
 
-    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer, 0,
-                                  renderer->culledDrawIndirectCount->buffer, 0, indirectDraws.size(), sizeof(indirectDraws[0]));
+    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer(), 0,
+                                  renderer->culledDrawIndirectCount->buffer(), 0, indirectDraws.size(), sizeof(indirectDraws[0]));
 }
 
 VulkanObject* VulkanObjects::getObjectByName(std::string name) {

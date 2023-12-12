@@ -188,7 +188,7 @@ void VulkanImage::loadPixels() {
 
     device->singleTimeCommands()
         .transitionImageLayout(_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mipLevels)
-        .copyBufferToImage(stagingBuffer.buffer, _image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
+        .copyBufferToImage(stagingBuffer.buffer(), _image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight))
         // TODO
         // Save and load mipmaps from a file
         .generateMipmaps(_image, _format, texWidth, texHeight, _mipLevels)

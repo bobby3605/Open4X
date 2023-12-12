@@ -143,12 +143,12 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledDrawIndirectCount->buffer);
+    descriptor->addBinding(1, culledDrawIndirectCount);
 
     culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(drawCommands[0]) * drawCommands.size(),
                                                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledDrawCommandsBuffer->buffer);
+    descriptor->addBinding(2, culledDrawCommandsBuffer);
 
     descriptor->allocateSets();
     descriptor->update();
@@ -392,7 +392,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     bindComputePipeline(name);
 
     // zero out scratch buffers
-    vkCmdFillBuffer(getCurrentCommandBuffer(), culledDrawIndirectCount->buffer, 0, culledDrawIndirectCount->size(), 0);
+    vkCmdFillBuffer(getCurrentCommandBuffer(), culledDrawIndirectCount->buffer(), 0, culledDrawIndirectCount->size(), 0);
 
     // barrier until the buffer has been cleared
     memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,

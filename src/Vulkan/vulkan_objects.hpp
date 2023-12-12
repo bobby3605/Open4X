@@ -1,5 +1,6 @@
 #ifndef VULKAN_OBJECTS_H_
 #define VULKAN_OBJECTS_H_
+#include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
@@ -10,7 +11,6 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include "common.hpp"
 
 class VulkanObjects {
   public:
@@ -24,9 +24,9 @@ class VulkanObjects {
     std::shared_ptr<SSBOBuffers> ssboBuffers;
 
   private:
-    std::shared_ptr<StagedBuffer> vertexBuffer;
-    std::shared_ptr<StagedBuffer> indexBuffer;
-    std::shared_ptr<StagedBuffer> indirectDrawsBuffer;
+    std::shared_ptr<VulkanBuffer> vertexBuffer;
+    std::shared_ptr<VulkanBuffer> indexBuffer;
+    std::shared_ptr<VulkanBuffer> indirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
     std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
     std::shared_ptr<VulkanBuffer> partialSumsBuffer;

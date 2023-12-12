@@ -5,33 +5,41 @@
 #include <cstring>
 #include <glm/fwd.hpp>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
-    : device{device}, bufferSize{size} {
-    device->createBuffer(size, usage, properties, buffer, memory);
+    : device{device} {
+    device->createBuffer(size, usage, properties, buffer(), memory());
+    _bufferInfo.range = size;
+    _bufferInfo.offset = 0;
+    _usageFlags = usage;
 }
 
 void VulkanBuffer::map() {
-    checkResult(vkMapMemory(device->device(), memory, 0, bufferSize, 0, &mapped), "memory map failed");
+    checkResult(vkMapMemory(device->device(), memory(), 0, size(), 0, &_mapped), "memory map failed");
     isMapped = true;
 }
 
 void VulkanBuffer::unmap() {
-    vkUnmapMemory(device->device(), memory);
+    vkUnmapMemory(device->device(), memory());
     isMapped = false;
 }
 
-void VulkanBuffer::write(void* data, VkDeviceSize size, VkDeviceSize offset) { memcpy(((char*)mapped) + offset, data, size); }
+void VulkanBuffer::write(void* data, VkDeviceSize size, VkDeviceSize offset) { memcpy(((char*)mapped()) + offset, data, size); }
+
+void VulkanBuffer::write(void* data) { write(data, size(), _bufferInfo.offset); }
 
 VulkanBuffer::~VulkanBuffer() {
     if (isMapped)
         unmap();
-    vkDestroyBuffer(device->device(), buffer, nullptr);
-    vkFreeMemory(device->device(), memory, nullptr);
+    vkDestroyBuffer(device->device(), buffer(), nullptr);
+    vkFreeMemory(device->device(), memory(), nullptr);
 }
 
-StagedBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkMemoryPropertyFlags type) {
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
+                                                         VkBufferUsageFlags usageFlags) {
 
     VulkanBuffer stagingBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -39,52 +47,42 @@ StagedBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, 
     stagingBuffer.write(data, size, 0);
     stagingBuffer.unmap();
 
-    stagedBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    std::shared_ptr<VulkanBuffer> stagedBuffer =
+        std::make_shared<VulkanBuffer>(device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    device->singleTimeCommands().copyBuffer(stagingBuffer.buffer, stagedBuffer->buffer, size).run();
+    device->singleTimeCommands().copyBuffer(stagingBuffer.buffer(), stagedBuffer->buffer(), size).run();
+
+    return stagedBuffer;
 }
 
-StagedBuffer::~StagedBuffer() { delete stagedBuffer; }
+std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(VulkanDevice* device, VkDeviceSize size) {
 
-UniformBuffer::UniformBuffer(VulkanDevice* device, VkDeviceSize size) {
-
-    uniformBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    std::shared_ptr<VulkanBuffer> uniformBuffer = std::make_shared<VulkanBuffer>(
+        device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     uniformBuffer->map();
 
-    bufferInfo.buffer = uniformBuffer->buffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = size;
+    return uniformBuffer;
 }
 
-void* UniformBuffer::mapped() { return uniformBuffer->getMapped(); }
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size, VkMemoryPropertyFlags memoryFlags) {
+    std::shared_ptr<VulkanBuffer> storageBuffer =
+        std::make_shared<VulkanBuffer>(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, memoryFlags);
 
-UniformBuffer::~UniformBuffer() {
-    uniformBuffer->unmap();
-    delete uniformBuffer;
+    if (memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+        storageBuffer->map();
+    }
+
+    return storageBuffer;
 }
 
-void UniformBuffer::write(void* data) { uniformBuffer->write(data, sizeof(UniformBufferObject), 0); }
-
-StorageBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size) {
-    storageBuffer = new VulkanBuffer(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    storageBuffer->map();
-    mapped = storageBuffer->getMapped();
-}
-
-StorageBuffer::~StorageBuffer() { delete storageBuffer; }
-
-SSBOBuffers::SSBOBuffers(VulkanDevice* device) : device{device} {
-}
+SSBOBuffers::SSBOBuffers(VulkanDevice* device) : device{device} {}
 
 void SSBOBuffers::createMaterialBuffer(uint32_t drawsCount) {
     // NOTE:
     // could be optimized further by only using referenced materials
-    _materialBuffer = new StorageBuffer(device, (drawsCount + 1) * sizeof(MaterialData));
-    materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped);
+    _materialBuffer = VulkanBuffer::StorageBuffer(device, (drawsCount + 1) * sizeof(MaterialData));
+    materialMapped = reinterpret_cast<MaterialData*>(_materialBuffer->mapped());
     // create default material at index 0
     MaterialData materialData{};
     materialData.baseColorFactor = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -97,20 +95,12 @@ void SSBOBuffers::createMaterialBuffer(uint32_t drawsCount) {
 void SSBOBuffers::createInstanceBuffers(uint32_t instanceCount) {
     // NOTE:
     // must only be called once after uniqueObjectID has been set
-    _ssboBuffer = new StorageBuffer(device, instanceCount * sizeof(SSBOData));
-    ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped);
-    _instanceIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
-    _materialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
-    _culledMaterialIndicesBuffer = new StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _ssboBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(SSBOData));
+    ssboMapped = reinterpret_cast<SSBOData*>(_ssboBuffer->mapped());
+    _instanceIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _materialIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _culledMaterialIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
 
-    instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped);
-    materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped);
-}
-
-SSBOBuffers::~SSBOBuffers() {
-    delete _ssboBuffer;
-    delete _materialBuffer;
-    delete _instanceIndicesBuffer;
-    delete _materialIndicesBuffer;
-    delete _culledMaterialIndicesBuffer;
+    instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped());
+    materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped());
 }

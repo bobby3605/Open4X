@@ -5,6 +5,7 @@
 #include <glm/gtx/dual_quaternion.hpp>
 #include <glm/trigonometric.hpp>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -124,11 +125,11 @@ void Open4X::run() {
 
     VulkanObjects objects(vulkanDevice, &descriptorManager, settings);
 
-    std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    std::vector<std::shared_ptr<VulkanBuffer>> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
     VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global", VK_SHADER_STAGE_VERTEX_BIT);
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffers[i]->getBufferInfo().buffer, i);
+        uniformBuffers[i] = VulkanBuffer::UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
+        globalDescriptor->addBinding(0, uniformBuffers[i], i);
     }
     globalDescriptor->allocateSets(2);
     globalDescriptor->update();
@@ -228,8 +229,5 @@ void Open4X::run() {
     }
     vkDeviceWaitIdle(vulkanDevice->device());
     delete camera;
-    for (size_t i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        delete uniformBuffers[i];
-    }
     vkDestroyQueryPool(vulkanDevice->device(), queryPool, nullptr);
 }

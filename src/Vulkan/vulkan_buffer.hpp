@@ -14,67 +14,35 @@ class VulkanBuffer {
 
   public:
     VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    static std::shared_ptr<VulkanBuffer> StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkBufferUsageFlags usageFlags);
+    static std::shared_ptr<VulkanBuffer> UniformBuffer(VulkanDevice* device, VkDeviceSize size);
+    static std::shared_ptr<VulkanBuffer> StorageBuffer(VulkanDevice* device, VkDeviceSize size,
+                                                       VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     void map();
     void unmap();
     void write(void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+    void write(void* data);
     ~VulkanBuffer();
-    VkBuffer buffer = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
-    const VkDeviceSize size() const { return bufferSize; }
+    VkDeviceSize size() { return _bufferInfo.range; }
+    VkDescriptorBufferInfo bufferInfo() { return _bufferInfo; }
+    void* mapped() { return _mapped; }
+    VkBuffer& buffer() { return _bufferInfo.buffer; }
+    VkDeviceMemory& memory() { return _memory; }
+    VkBufferUsageFlags usageFlags() { return _usageFlags; }
 
   private:
     VulkanDevice* device;
-    VkDeviceSize bufferSize;
     bool isMapped = false;
-    void* mapped = nullptr;
-
-  protected:
-    void* getMapped() { return mapped; }
-
-    friend class StorageBuffer;
-    friend class UniformBuffer;
-};
-
-class StagedBuffer {
-  public:
-    StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkMemoryPropertyFlags type);
-    ~StagedBuffer();
-    VkBuffer getBuffer() { return stagedBuffer->buffer; }
-
-  private:
-    VulkanBuffer* stagedBuffer;
+    void* _mapped = nullptr;
+    VkDescriptorBufferInfo _bufferInfo{};
+    VkDeviceMemory _memory = VK_NULL_HANDLE;
+    VkBufferUsageFlags _usageFlags;
 };
 
 struct UniformBufferObject {
     glm::mat4 projView;
     glm::vec3 camPos;
-};
-
-class UniformBuffer {
-  public:
-    UniformBuffer(VulkanDevice* device, VkDeviceSize size);
-    ~UniformBuffer();
-    void write(void* data);
-    VkDescriptorBufferInfo getBufferInfo() { return bufferInfo; }
-    void* mapped();
-    VkBuffer buffer() { return bufferInfo.buffer; }
-
-  private:
-    VulkanBuffer* uniformBuffer;
-    VkDescriptorBufferInfo bufferInfo;
-
-    friend class SSBOBuffers;
-};
-
-class StorageBuffer {
-  public:
-    StorageBuffer(VulkanDevice* device, VkDeviceSize size);
-    ~StorageBuffer();
-    VkBuffer buffer() { return storageBuffer->buffer; }
-    void* mapped = nullptr;
-
-  private:
-    VulkanBuffer* storageBuffer;
 };
 
 struct SSBOData {
@@ -103,12 +71,11 @@ class SSBOBuffers {
     SSBOBuffers(VulkanDevice* device);
     void createMaterialBuffer(uint32_t drawsCount);
     void createInstanceBuffers(uint32_t instanceCount);
-    ~SSBOBuffers();
-    VkBuffer const ssboBuffer() { return _ssboBuffer->buffer(); }
-    VkBuffer const materialBuffer() { return _materialBuffer->buffer(); }
-    VkBuffer const instanceIndicesBuffer() { return _instanceIndicesBuffer->buffer(); }
-    VkBuffer const materialIndicesBuffer() { return _materialIndicesBuffer->buffer(); }
-    VkBuffer const culledMaterialIndicesBuffer() { return _culledMaterialIndicesBuffer->buffer(); }
+    std::shared_ptr<VulkanBuffer> ssboBuffer() { return _ssboBuffer; }
+    std::shared_ptr<VulkanBuffer> materialBuffer() { return _materialBuffer; }
+    std::shared_ptr<VulkanBuffer> instanceIndicesBuffer() { return _instanceIndicesBuffer; }
+    std::shared_ptr<VulkanBuffer> materialIndicesBuffer() { return _materialIndicesBuffer; }
+    std::shared_ptr<VulkanBuffer> culledMaterialIndicesBuffer() { return _culledMaterialIndicesBuffer; }
     SSBOData* ssboMapped;
     MaterialData* materialMapped;
     // void* because VulkanImage depends on this header
@@ -137,11 +104,11 @@ class SSBOBuffers {
     VulkanDevice* device;
 
   private:
-    StorageBuffer* _ssboBuffer;
-    StorageBuffer* _materialBuffer;
-    StorageBuffer* _instanceIndicesBuffer;
-    StorageBuffer* _materialIndicesBuffer;
-    StorageBuffer* _culledMaterialIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> _ssboBuffer;
+    std::shared_ptr<VulkanBuffer> _materialBuffer;
+    std::shared_ptr<VulkanBuffer> _instanceIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> _materialIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> _culledMaterialIndicesBuffer;
 };
 
 #endif // VULKAN_BUFFER_H_

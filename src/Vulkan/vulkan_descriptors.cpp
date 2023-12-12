@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -15,6 +17,20 @@ VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descrip
 
 VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
     vkDestroyDescriptorSetLayout(descriptorManager->device->device(), layout, nullptr);
+}
+
+// TODO
+// Find a faster way to extract the valid buffer usage flags
+// Flags like indirect need to be removed before the map can work properly
+VkDescriptorType VulkanDescriptors::getType(VkBufferUsageFlags usageFlags) {
+    for (auto flagPair : usageToTypes) {
+        if ((usageFlags & flagPair.first) == flagPair.first) {
+            return flagPair.second;
+        }
+    }
+    // TODO
+    // Print hex string
+    throw std::runtime_error("Failed to find descriptor type for usage flags: " + std::to_string(usageFlags));
 }
 
 void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType,
@@ -33,11 +49,11 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescr
     _imageInfos.insert({{setID, bindingID}, imageInfos.data()});
 }
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkBuffer buffer, uint32_t setID) {
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, std::shared_ptr<VulkanBuffer> buffer, uint32_t setID) {
     if (setID == 0) {
         VkDescriptorSetLayoutBinding binding{};
         binding.binding = bindingID;
-        binding.descriptorType = descriptorType;
+        binding.descriptorType = getType(buffer->usageFlags());
         binding.descriptorCount = 1;
         binding.pImmutableSamplers = nullptr;
         binding.stageFlags = _stageFlags;
@@ -45,12 +61,7 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescr
         bindings.insert({bindingID, binding});
     }
 
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = buffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = VK_WHOLE_SIZE;
-
-    bufferInfos.insert({{setID, bindingID}, bufferInfo});
+    bufferInfos.insert({{setID, bindingID}, buffer->bufferInfo()});
 }
 
 void VulkanDescriptors::VulkanDescriptor::createLayout() {
@@ -120,9 +131,12 @@ VulkanDescriptors::VulkanDescriptor* VulkanDescriptors::createDescriptor(std::st
 VkDescriptorPool VulkanDescriptors::createPool() {
     int count = 10 * VulkanSwapChain::MAX_FRAMES_IN_FLIGHT;
     std::vector<VkDescriptorPoolSize> poolSizes{};
-    poolSizes.reserve(descriptorTypes.size());
-    for (VkDescriptorType t : descriptorTypes) {
-        poolSizes.push_back({t, uint32_t(count)});
+    poolSizes.reserve(usageToTypes.size() + extraTypes.size());
+    for (auto typePair : usageToTypes) {
+        poolSizes.push_back({typePair.second, uint32_t(count)});
+    }
+    for (auto type : extraTypes) {
+        poolSizes.push_back({type, uint32_t(count)});
     }
 
     VkDescriptorPoolCreateInfo poolInfo{};
