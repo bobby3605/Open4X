@@ -49,9 +49,9 @@ class VulkanDescriptors {
         {VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC},
     };
 
-    std::vector<VkDescriptorType> extraTypes = {VK_DESCRIPTOR_TYPE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                                                VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT};
+    static inline const std::vector<VkDescriptorType> extraTypes = {VK_DESCRIPTOR_TYPE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                                    VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT};
 
   private:
     void createDescriptorSetLayout();
