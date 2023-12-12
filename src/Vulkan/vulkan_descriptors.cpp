@@ -33,8 +33,14 @@ VkDescriptorType VulkanDescriptors::getType(VkBufferUsageFlags usageFlags) {
     throw std::runtime_error("Failed to find descriptor type for usage flags: " + std::to_string(usageFlags));
 }
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType,
-                                                     std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID) {
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID) {
+
+    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+
+    if (imageInfos[0].imageView != VK_NULL_HANDLE) {
+        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+
     if (setID == 0) {
         VkDescriptorSetLayoutBinding binding{};
         binding.binding = bindingID;

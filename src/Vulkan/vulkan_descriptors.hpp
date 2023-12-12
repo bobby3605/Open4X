@@ -12,8 +12,7 @@ class VulkanDescriptors {
       public:
         VulkanDescriptor(VulkanDescriptors* descriptorManager, VkShaderStageFlags stageFlags);
         ~VulkanDescriptor();
-        void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, std::vector<VkDescriptorImageInfo>& imageInfos,
-                        uint32_t setID = 0);
+        void addBinding(uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID = 0);
         void addBinding(uint32_t bindingID, std::shared_ptr<VulkanBuffer> buffer, uint32_t setID = 0);
         void allocateSets(uint32_t count = 1);
         void update();

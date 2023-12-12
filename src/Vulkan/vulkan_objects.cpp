@@ -245,6 +245,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
     for (auto it = ssboBuffers->uniqueSamplersMap.begin(); it != ssboBuffers->uniqueSamplersMap.end(); ++it) {
         samplerInfos[it->second].sampler = reinterpret_cast<VulkanSampler*>(it->first)->imageSampler();
+        samplerInfos[it->second].imageView = VK_NULL_HANDLE;
     }
     imageInfos.resize(ssboBuffers->uniqueImagesMap.size());
     for (auto it = ssboBuffers->uniqueImagesMap.begin(); it != ssboBuffers->uniqueImagesMap.end(); ++it) {
@@ -265,11 +266,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    materialDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, samplerInfos);
-    materialDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, imageInfos);
-    materialDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, normalMapInfos);
-    materialDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, metallicRoughnessMapInfos);
-    materialDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, aoMapInfos);
+    materialDescriptor->addBinding(0, samplerInfos);
+    materialDescriptor->addBinding(1, imageInfos);
+    materialDescriptor->addBinding(2, normalMapInfos);
+    materialDescriptor->addBinding(3, metallicRoughnessMapInfos);
+    materialDescriptor->addBinding(4, aoMapInfos);
 
     materialDescriptor->allocateSets();
     materialDescriptor->update();
