@@ -143,12 +143,12 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawIndirectCount->buffer);
+    descriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledDrawIndirectCount->buffer);
 
     culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(drawCommands[0]) * drawCommands.size(),
                                                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledDrawCommandsBuffer->buffer);
+    descriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledDrawCommandsBuffer->buffer);
 
     descriptor->allocateSets();
     descriptor->update();

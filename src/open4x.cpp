@@ -12,6 +12,7 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "../external/rapidjson/istreamwrapper.h"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
@@ -28,7 +29,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
-#include "../external/rapidjson/istreamwrapper.h"
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -84,26 +84,26 @@ void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, V
 }
 
 void Open4X::loadSettings() {
-        std::ifstream file("assets/settings.json");
-        if (file.is_open()) {
-            IStreamWrapper fileStream(file);
-            Document d;
-            d.ParseStream(fileStream);
-            file.close();
+    std::ifstream file("assets/settings.json");
+    if (file.is_open()) {
+        IStreamWrapper fileStream(file);
+        Document d;
+        d.ParseStream(fileStream);
+        file.close();
 
-            Value& objectsJSON = d["objects"];
-            assert(objectsJSON.IsObject());
+        Value& objectsJSON = d["objects"];
+        assert(objectsJSON.IsObject());
 
-            settings.extraObjectCount = objectsJSON["extraObjectCount"].GetInt();
-            settings.randLimit = objectsJSON["randLimit"].GetInt();
+        settings.extraObjectCount = objectsJSON["extraObjectCount"].GetInt();
+        settings.randLimit = objectsJSON["randLimit"].GetInt();
 
-            Value& miscJSON = d["misc"];
-            assert(miscJSON.IsObject());
-            settings.showFPS = miscJSON["showFPS"].GetBool();
+        Value& miscJSON = d["misc"];
+        assert(miscJSON.IsObject());
+        settings.showFPS = miscJSON["showFPS"].GetBool();
 
-        } else {
-            std::cout << "Failed to open settings file, using defaults" << std::endl;
-        }
+    } else {
+        std::cout << "Failed to open settings file, using defaults" << std::endl;
+    }
 }
 
 void Open4X::run() {
@@ -125,11 +125,10 @@ void Open4X::run() {
     VulkanObjects objects(vulkanDevice, &descriptorManager, settings);
 
     std::vector<UniformBuffer*> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global");
+    VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global", VK_SHADER_STAGE_VERTEX_BIT);
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uniformBuffers[i] = new UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,
-                                     uniformBuffers[i]->getBufferInfo().buffer, i);
+        globalDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffers[i]->getBufferInfo().buffer, i);
     }
     globalDescriptor->allocateSets(2);
     globalDescriptor->update();
@@ -208,26 +207,24 @@ void Open4X::run() {
             fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
 
-        if(settings.showFPS) {
+        if (settings.showFPS) {
             std::vector<uint64_t> queryResults(queryCount);
             vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                                queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+                                  queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
             float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
             float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
 
             std::stringstream title;
             title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
-                << " "
-                << "Framerate: " << 1.0 / titleFrametime
-                << " "
-                << "Drawtime: " << drawTime << "ms"
-                << " "
-                << "Culltime: " << cullTime << "ms";
+                  << " "
+                  << "Framerate: " << 1.0 / titleFrametime << " "
+                  << "Drawtime: " << drawTime << "ms"
+                  << " "
+                  << "Culltime: " << cullTime << "ms";
 
             glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
         }
-
     }
     vkDeviceWaitIdle(vulkanDevice->device());
     delete camera;

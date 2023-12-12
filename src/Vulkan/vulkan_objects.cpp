@@ -8,7 +8,9 @@
 #include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include <algorithm>
 #include <chrono>
+#include <execution>
 #include <filesystem>
 #include <glm/gtx/string_cast.hpp>
 #include <iterator>
@@ -16,8 +18,6 @@
 #include <pstl/glue_execution_defs.h>
 #include <random>
 #include <vulkan/vulkan_core.h>
-#include <execution>
-#include <algorithm>
 
 VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings)
     : device{device}, descriptorManager{descriptorManager} {
@@ -47,8 +47,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         if (filePath.exists() && filePath.is_regular_file()) {
             if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
                 (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
-                futureModels.push_back(std::async(
-                    std::launch::async, [filePath, fileNum, this]() { return std::make_shared<VulkanModel>(filePath.path(), fileNum, ssboBuffers); }));
+                futureModels.push_back(std::async(std::launch::async, [filePath, fileNum, this]() {
+                    return std::make_shared<VulkanModel>(filePath.path(), fileNum, ssboBuffers);
+                }));
                 ++fileNum;
             }
         }
@@ -57,7 +58,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     for (int modelIndex = 0; modelIndex < futureModels.size(); ++modelIndex) {
         std::shared_ptr<VulkanModel> model = futureModels[modelIndex].get();
         models.insert({model->model->path() + model->model->fileName(), model});
-        if(model->hasAnimations()){
+        if (model->hasAnimations()) {
             animatedModels.push_back(model.get());
         }
     }
@@ -80,7 +81,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     for (int objectIndex = 0; objectIndex < futureObjects.size(); ++objectIndex) {
         objects.push_back(futureObjects[objectIndex].get());
-        if(objects.back()->model->hasAnimations()) {
+        if (objects.back()->model->hasAnimations()) {
             animatedObjects.push_back(objects.back());
         }
         std::shared_ptr<GLTF> model = objects.back()->model->model;
@@ -151,25 +152,26 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     std::shared_ptr<VulkanModel> vulkanModel = models[filePath];
 
     for (int batch = 0; batch < threadCount; ++batch) {
-        futures.push_back(std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, randLimit, batch, batchSize, extra]() {
-            std::vector<VulkanObject*> batchObjects;
-            std::vector<VulkanObject*> batchAnimatedObjects;
-            // NOTE:
-            // adding remainder to last batch
-            batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
-            for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
-                batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath, true));
-                std::shared_ptr<GLTF> model = objects.back()->model->model;
-                if (model->animations.size() > 0) {
-                    batchAnimatedObjects.push_back(batchObjects.back());
+        futures.push_back(
+            std::async(std::launch::async, [this, baseDir, vulkanModel, filePath, &distribution, &mt, batch, batchSize, extra]() {
+                std::vector<VulkanObject*> batchObjects;
+                std::vector<VulkanObject*> batchAnimatedObjects;
+                // NOTE:
+                // adding remainder to last batch
+                batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
+                for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
+                    batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath, true));
+                    std::shared_ptr<GLTF> model = objects.back()->model->model;
+                    if (model->animations.size() > 0) {
+                        batchAnimatedObjects.push_back(batchObjects.back());
+                    }
+                    float x = distribution(mt);
+                    float y = distribution(mt);
+                    float z = distribution(mt);
+                    batchObjects.back()->setPostion({x, y, z});
                 }
-                float x = distribution(mt);
-                float y = distribution(mt);
-                float z = distribution(mt);
-                batchObjects.back()->setPostion({x, y, z});
-            }
-            return std::pair{batchObjects, batchAnimatedObjects};
-        }));
+                return std::pair{batchObjects, batchAnimatedObjects};
+            }));
     }
 
     for (int i = 0; i < futures.size(); ++i) {
@@ -189,7 +191,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             // Uploading materials after material buffer has been generated
             // Material buffer needs to have a size in order to be generated
             // So I need to know how many unique materials I have first
-            for(const auto primitive : mesh->primitives) {
+            for (const auto& primitive : mesh->primitives) {
                 primitive->uploadMaterial(ssboBuffers);
             }
         }
@@ -219,7 +221,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 // set first instance
                 indirectDraws.back().firstInstance = _totalInstanceCount;
 
-//                ssboBuffers->AABBs[_totalInstanceCount] = primitive->aabb;
+                //                ssboBuffers->AABBs[_totalInstanceCount] = primitive->aabb;
                 ssboBuffers->materialIndicesMapped[indirectDraws.back().firstInstance] = primitive->materialIndex;
                 // TODO
                 // IDs are now contiguous within a mesh, so this can be optimized
@@ -231,9 +233,8 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         }
     }
 
-    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),[this](auto&& object) {
-        object->updateModelMatrix(ssboBuffers);
-    });
+    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),
+                  [this](auto&& object) { object->updateModelMatrix(ssboBuffers); });
 
     vertexBuffer = std::make_shared<StagedBuffer>(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
@@ -262,31 +263,31 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material");
+    VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    materialDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, samplerInfos);
-    materialDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, imageInfos);
-    materialDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, normalMapInfos);
-    materialDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, metallicRoughnessMapInfos);
-    materialDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, aoMapInfos);
+    materialDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_SAMPLER, samplerInfos);
+    materialDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, imageInfos);
+    materialDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, normalMapInfos);
+    materialDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, metallicRoughnessMapInfos);
+    materialDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, aoMapInfos);
 
     materialDescriptor->allocateSets();
     materialDescriptor->update();
 
-    VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object");
+    VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
 
-    objectDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->ssboBuffer());
-    objectDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, ssboBuffers->materialBuffer());
+    objectDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->ssboBuffer());
+    objectDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->materialBuffer());
     culledInstanceIndicesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount,
                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    objectDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, culledInstanceIndicesBuffer->buffer);
-    objectDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,
-                                 ssboBuffers->culledMaterialIndicesBuffer());
+    objectDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledInstanceIndicesBuffer->buffer);
+    objectDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->culledMaterialIndicesBuffer());
 
     objectDescriptor->allocateSets();
     objectDescriptor->update();
 
-    VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor = descriptorManager->createDescriptor("cull_frustum_pass");
+    VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor =
+        descriptorManager->createDescriptor("cull_frustum_pass", VK_SHADER_STAGE_COMPUTE_BIT);
 
     // NOTE:
     // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and
@@ -299,40 +300,40 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         std::make_shared<StagedBuffer>(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
-                                      ssboBuffers->instanceIndicesBuffer());
+    cullFrustumDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->instanceIndicesBuffer());
 
-    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->ssboBuffer());
+    cullFrustumDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->ssboBuffer());
 
     prefixSumBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
+    cullFrustumDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
 
     partialSumsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, partialSumsBuffer->buffer);
+    cullFrustumDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, partialSumsBuffer->buffer);
 
     activeLanesBuffer = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t) * _totalInstanceCount / 32,
                                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, activeLanesBuffer->buffer);
+    cullFrustumDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, activeLanesBuffer->buffer);
 
-    VulkanDescriptors::VulkanDescriptor* reduceDescriptor = descriptorManager->createDescriptor("reduce_prefix_sum");
+    VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
+        descriptorManager->createDescriptor("reduce_prefix_sum", VK_SHADER_STAGE_COMPUTE_BIT);
 
-    reduceDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->instanceIndicesBuffer());
-    reduceDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
-    reduceDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, partialSumsBuffer->buffer);
-    reduceDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, activeLanesBuffer->buffer);
-    reduceDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, culledInstanceIndicesBuffer->buffer);
+    reduceDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->instanceIndicesBuffer());
+    reduceDescriptor->addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
+    reduceDescriptor->addBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, partialSumsBuffer->buffer);
+    reduceDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, activeLanesBuffer->buffer);
+    reduceDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, culledInstanceIndicesBuffer->buffer);
 
-    VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor = descriptorManager->createDescriptor("cull_draw_pass");
-    cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, indirectDrawsBuffer->getBuffer());
-    cullDrawDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, prefixSumBuffer->buffer);
-    cullDrawDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, ssboBuffers->materialIndicesBuffer());
-    cullDrawDescriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT,
-                                   ssboBuffers->culledMaterialIndicesBuffer());
+    VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
+        descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
+    cullDrawDescriptor->addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, indirectDrawsBuffer->getBuffer());
+    cullDrawDescriptor->addBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, prefixSumBuffer->buffer);
+    cullDrawDescriptor->addBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->materialIndicesBuffer());
+    cullDrawDescriptor->addBinding(5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ssboBuffers->culledMaterialIndicesBuffer());
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "

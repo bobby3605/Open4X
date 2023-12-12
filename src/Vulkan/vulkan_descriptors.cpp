@@ -10,13 +10,14 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descriptorManager) : descriptorManager{descriptorManager} {}
+VulkanDescriptors::VulkanDescriptor::VulkanDescriptor(VulkanDescriptors* descriptorManager, VkShaderStageFlags stageFlags)
+    : descriptorManager{descriptorManager}, _stageFlags{stageFlags} {}
 
 VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
     vkDestroyDescriptorSetLayout(descriptorManager->device->device(), layout, nullptr);
 }
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType,
                                                      std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID) {
     if (setID == 0) {
         VkDescriptorSetLayoutBinding binding{};
@@ -24,7 +25,7 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescr
         binding.descriptorType = descriptorType;
         binding.descriptorCount = imageInfos.size();
         binding.pImmutableSamplers = nullptr;
-        binding.stageFlags = stageFlags;
+        binding.stageFlags = _stageFlags;
 
         bindings.insert({bindingID, binding});
     }
@@ -32,15 +33,14 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescr
     _imageInfos.insert({{setID, bindingID}, imageInfos.data()});
 }
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
-                                                     VkBuffer buffer, uint32_t setID) {
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkBuffer buffer, uint32_t setID) {
     if (setID == 0) {
         VkDescriptorSetLayoutBinding binding{};
         binding.binding = bindingID;
         binding.descriptorType = descriptorType;
         binding.descriptorCount = 1;
         binding.pImmutableSamplers = nullptr;
-        binding.stageFlags = stageFlags;
+        binding.stageFlags = _stageFlags;
 
         bindings.insert({bindingID, binding});
     }
@@ -111,8 +111,8 @@ void VulkanDescriptors::VulkanDescriptor::update() {
 
 VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} { pool = createPool(); }
 
-VulkanDescriptors::VulkanDescriptor* VulkanDescriptors::createDescriptor(std::string name) {
-    VulkanDescriptor* tmp = new VulkanDescriptor(this);
+VulkanDescriptors::VulkanDescriptor* VulkanDescriptors::createDescriptor(std::string name, VkShaderStageFlags stageFlags) {
+    VulkanDescriptor* tmp = new VulkanDescriptor(this, stageFlags);
     descriptors.insert({name, tmp});
     return tmp;
 }

@@ -9,12 +9,11 @@ class VulkanDescriptors {
   public:
     class VulkanDescriptor {
       public:
-        VulkanDescriptor(VulkanDescriptors* descriptorManager);
+        VulkanDescriptor(VulkanDescriptors* descriptorManager, VkShaderStageFlags stageFlags);
         ~VulkanDescriptor();
-        void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags,
-                        std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID = 0);
-        void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags, VkBuffer buffer,
+        void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, std::vector<VkDescriptorImageInfo>& imageInfos,
                         uint32_t setID = 0);
+        void addBinding(uint32_t bindingID, VkDescriptorType descriptorType, VkBuffer buffer, uint32_t setID = 0);
         void allocateSets(uint32_t count = 1);
         void update();
         VkDescriptorSetLayout getLayout() const { return layout; }
@@ -28,13 +27,14 @@ class VulkanDescriptors {
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo> bufferInfos;
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorImageInfo*> _imageInfos;
         void createLayout();
+        VkShaderStageFlags _stageFlags;
     };
 
     VulkanDescriptors(VulkanDevice* deviceRef);
     ~VulkanDescriptors();
 
     VkDescriptorPool createPool();
-    VulkanDescriptor* createDescriptor(std::string name);
+    VulkanDescriptor* createDescriptor(std::string name, VkShaderStageFlags stageFlags);
     std::unordered_map<std::string, VulkanDescriptor*> descriptors;
 
   private:
