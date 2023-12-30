@@ -76,6 +76,11 @@ void VulkanNode::uploadModelMatrix(uint32_t& globalInstanceID, glm::mat4 parentM
         modelMatrix = parentMatrix = parentMatrix * *_baseMatrix;
     }
     if (mesh != nullptr) {
+        // FIXME:
+        //  Only upload AABBs once
+        ssboBuffers->ssboMapped[globalInstanceID].centerpoint = modelMatrix * glm::vec4(mesh->aabb.centerpoint(), 1.0f);
+        ssboBuffers->ssboMapped[globalInstanceID].halfExtents = modelMatrix * glm::vec4(mesh->aabb.max() - mesh->aabb.centerpoint(), 1.0f);
+
         // Decompose matrix
         // https://math.stackexchange.com/a/1463487
         glm::vec3 translation((modelMatrix)[3]);

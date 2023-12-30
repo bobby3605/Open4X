@@ -28,6 +28,8 @@ struct ComputePushConstants {
     glm::vec3 Z;
     uint32_t pad3;
     glm::vec3 camPos;
+    uint32_t pad4;
+    Frustum frustum;
 };
 
 class VulkanObjects {

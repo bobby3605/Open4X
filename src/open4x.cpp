@@ -66,6 +66,34 @@ Open4X::~Open4X() {
     delete vulkanWindow;
 }
 
+// Modified from:
+// https://github.com/travisvroman/kohi/blob/main/engine/src/math/kmath.c
+glm::vec4 plane_3d_create(glm::vec3 p1, glm::vec3 norm) {
+    glm::vec3 normal = glm::normalize(norm);
+    float distance = glm::dot(normal, p1);
+    return {normal, distance};
+}
+
+Frustum frustum_create(const glm::vec3 position, const glm::vec3 forward, const glm::vec3 right, const glm::vec3 up, float aspect,
+                       float fov, float near, float far) {
+    Frustum f;
+
+    float half_v = far * tanf(fov * 0.5f);
+    float half_h = half_v * aspect;
+    glm::vec3 fwd = forward;
+    glm::vec3 forward_far = fwd * far;
+
+    // Top, bottom, right, left, far, near
+    f.sides[0] = plane_3d_create((fwd * near) + position, fwd);
+    f.sides[1] = plane_3d_create(position + forward_far, fwd * -1.0f);
+    f.sides[2] = plane_3d_create(position, glm::cross(up, forward_far + (right * half_h)));
+    f.sides[3] = plane_3d_create(position, glm::cross(forward_far - (right * half_h), up));
+    f.sides[4] = plane_3d_create(position, glm::cross(right, (forward_far - (up * half_v))));
+    f.sides[5] = plane_3d_create(position, glm::cross((forward_far + (up * half_v)), right));
+
+    return f;
+}
+
 void fillComputePushConstants(ComputePushConstants& computePushConstants, float vFov, float aspectRatio, float nearClip, float farClip) {
     computePushConstants.nearD = nearClip;
     computePushConstants.farD = farClip;
@@ -163,6 +191,9 @@ void Open4X::run() {
         setComputePushConstantsCamera(objects.computePushConstants, camera);
 
         objects.updateModels();
+        objects.computePushConstants.frustum =
+            frustum_create(camera->position(), camera->rotation() * camera->forwardVector, camera->rotation() * camera->rightVector,
+                           camera->rotation() * camera->upVector, aspectRatio, vFov, nearClip, farClip);
 
         if (renderGraph.render()) {
             aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;

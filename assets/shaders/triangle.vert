@@ -9,6 +9,8 @@ struct ObjectData {
     vec3 translation;
     vec4 rotation;
     vec3 scale;
+    vec3 centerpoint;
+    vec3 halfExtents;
 };
 
 struct MaterialData {

@@ -78,4 +78,13 @@ static std::vector<char> readFile(const std::string& filename) {
     return buffer;
 }
 
+struct Plane {
+    glm::vec3 normal;
+    float distance;
+};
+
+struct Frustum {
+    std::array<glm::vec4, 6> sides;
+};
+
 #endif // COMMON_H_

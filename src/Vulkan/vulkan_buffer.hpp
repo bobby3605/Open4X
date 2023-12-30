@@ -53,6 +53,10 @@ struct SSBOData {
     glm::quat rotation;
     glm::vec3 scale;
     uint pad2;
+    glm::vec3 centerpoint;
+    uint pad3;
+    glm::vec3 halfExtents;
+    uint pad4;
 };
 
 struct MaterialData {

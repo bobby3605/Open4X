@@ -11,6 +11,9 @@
 #include <chrono>
 #include <memory>
 
+Frustum frustum_create(const glm::vec3* position, const glm::vec3* forward, const glm::vec3* right, const glm::vec3* up, float aspect,
+                       float fov, float near, float far);
+
 class Open4X {
   public:
     Open4X();
