@@ -221,7 +221,6 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
                 // set first instance
                 indirectDraws.back().firstInstance = _totalInstanceCount;
 
-                //                ssboBuffers->AABBs[_totalInstanceCount] = primitive->aabb;
                 ssboBuffers->materialIndicesMapped[indirectDraws.back().firstInstance] = primitive->materialIndex;
                 // TODO
                 // IDs are now contiguous within a mesh, so this can be optimized
@@ -232,6 +231,12 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
             }
         }
     }
+
+    // NOTE:
+    // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and
+    // the previous draw
+    std::sort(indirectDraws.begin(), indirectDraws.end(),
+              [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 
     std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),
                   [this](auto&& object) { object->updateModelMatrix(ssboBuffers); });
@@ -277,10 +282,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
 
-    objectDescriptor->addBinding(0, ssboBuffers->ssboBuffer());
-    objectDescriptor->addBinding(1, ssboBuffers->materialBuffer());
     culledInstanceIndicesBuffer =
         VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    objectDescriptor->addBinding(0, ssboBuffers->ssboBuffer());
+    objectDescriptor->addBinding(1, ssboBuffers->materialBuffer());
     objectDescriptor->addBinding(2, culledInstanceIndicesBuffer);
     objectDescriptor->addBinding(3, ssboBuffers->culledMaterialIndicesBuffer());
 
@@ -290,32 +296,20 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor =
         descriptorManager->createDescriptor("cull_frustum_pass", VK_SHADER_STAGE_COMPUTE_BIT);
 
-    // NOTE:
-    // sorting indirect draws by firstInstance so that the draw cull pass can get the culled instance count from the prefix sum and
-    // the previous draw
-    std::sort(indirectDraws.begin(), indirectDraws.end(),
-              [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
-
-    // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
-    indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-    cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
-
-    cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
-
     prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
-
     partialSumsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
-
+    // NOTE:
+    // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
     activeLanesBuffer =
         VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount / 32, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
+    cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
+    cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
+    cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
     cullFrustumDescriptor->addBinding(4, activeLanesBuffer);
 
     VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
@@ -329,6 +323,10 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
         descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
+    // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
+    indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
+                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
     cullDrawDescriptor->addBinding(0, indirectDrawsBuffer);
     cullDrawDescriptor->addBinding(3, prefixSumBuffer);
     cullDrawDescriptor->addBinding(4, ssboBuffers->materialIndicesBuffer());

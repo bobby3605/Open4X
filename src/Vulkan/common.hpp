@@ -1,9 +1,10 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
-#include <stdexcept>
-#include <glm/glm.hpp>
 #include "aabb.hpp"
+#include <array>
+#include <glm/glm.hpp>
+#include <stdexcept>
 
 #ifdef NDEBUG
 #define checkResult(f, str)

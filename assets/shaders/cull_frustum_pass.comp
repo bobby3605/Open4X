@@ -88,11 +88,17 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     bool laneActive = index < totalInstanceCount && isVisible(index);
     uvec4 ballot = subgroupBallot(laneActive);
+    // {x,y,z,w}
+    // {x,y,.,.}
+    // x = 0b0101111111...
+    // y = 0b111010000... 32 bits long
     uint sum = subgroupBallotInclusiveBitCount(ballot);
     // NOTE:
     // subgroup size needs to be >= 32
     if (((gl_SubgroupInvocationID + 1) % 32) == 0) {
         activeLanes[index / 32] = ballot[gl_SubgroupInvocationID / 32];
+        // activeLanes[0] = x
+        // activeLanes[1] = y
     }
 
     if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) {

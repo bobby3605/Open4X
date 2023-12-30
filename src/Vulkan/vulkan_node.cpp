@@ -1,4 +1,5 @@
 #include "vulkan_node.hpp"
+#include "aabb.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
 #include <chrono>
@@ -96,6 +97,7 @@ void VulkanNode::uploadModelMatrix(uint32_t& globalInstanceID, glm::mat4 parentM
         ssboBuffers->ssboMapped[globalInstanceID].translation = translation;
         ssboBuffers->ssboMapped[globalInstanceID].rotation = rotation;
         ssboBuffers->ssboMapped[globalInstanceID].scale = scale;
+
         ++globalInstanceID;
     }
 
