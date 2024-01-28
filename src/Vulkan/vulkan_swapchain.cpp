@@ -144,6 +144,7 @@ void VulkanSwapChain::createImageViews() {
     swapChainImageViews.resize(swapChainImages.size());
     for (size_t i = 0; i < swapChainImages.size(); i++) {
         swapChainImageViews[i] = device->createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        device->setDebugName(VK_OBJECT_TYPE_IMAGE, (uint64_t)swapChainImages[i], "SwapChainImage[" + std::to_string(i) + "]");
     }
 }
 
@@ -220,6 +221,7 @@ void VulkanSwapChain::createDepthResources() {
     VkFormat depthFormat = findDepthFormat();
     device->createImage(swapChainExtent.width, swapChainExtent.height, 1, device->getMsaaSamples(), depthFormat, VK_IMAGE_TILING_OPTIMAL,
                         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+    device->setDebugName(VK_OBJECT_TYPE_IMAGE, (uint64_t)depthImage, "depthImage");
     depthImageView = device->createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
 
@@ -229,6 +231,7 @@ void VulkanSwapChain::createColorResources() {
     device->createImage(swapChainExtent.width, swapChainExtent.height, 1, device->getMsaaSamples(), colorFormat, VK_IMAGE_TILING_OPTIMAL,
                         VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         colorImage, colorImageMemory);
+    device->setDebugName(VK_OBJECT_TYPE_IMAGE, (uint64_t)colorImage, "colorImage");
     colorImageView = device->createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 

@@ -246,6 +246,9 @@ void VulkanDevice::setupDebugMessenger() {
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
         throw std::runtime_error("failed to set up debug messenger");
     }
+
+    setDebugUtilsObjectName =
+        reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
@@ -756,6 +759,19 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
            vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing && vk13_featuresCheck.dynamicRendering &&
            vk13_featuresCheck.synchronization2 && vk12_featuresCheck.drawIndirectCount && vk12_featuresCheck.hostQueryReset &&
            vk12_featuresCheck.scalarBlockLayout && vk13_featuresCheck.subgroupSizeControl;
+}
+
+void VulkanDevice::setDebugName(VkObjectType type, uint64_t handle, std::string name) {
+    if (enableValidationLayers) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = VK_NULL_HANDLE;
+        nameInfo.objectType = type;
+        nameInfo.objectHandle = handle;
+        nameInfo.pObjectName = name.c_str();
+
+        setDebugUtilsObjectName(device_, &nameInfo);
+    }
 }
 
 VulkanDevice::~VulkanDevice() {

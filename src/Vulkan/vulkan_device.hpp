@@ -6,10 +6,10 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <stdexcept>
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
@@ -69,9 +69,12 @@ class VulkanDevice {
 
     float timestampPeriod() const { return _timestampPeriod; }
 
+    void setDebugName(VkObjectType type, uint64_t handle, std::string name);
+
   private:
     void actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
                                        VkCommandBuffer commandBuffer);
+    PFN_vkSetDebugUtilsObjectNameEXT setDebugUtilsObjectName;
 
   public:
     class singleTimeBuilder {
