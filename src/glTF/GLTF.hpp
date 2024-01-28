@@ -219,13 +219,6 @@ class GLTF {
         file.read((char*)&buffer, sizeof(uint32_t));
         return buffer;
     }
-    static std::string getFileExtension(std::string filePath) {
-        try {
-            return filePath.substr(filePath.find_last_of("."));
-        } catch (std::exception& e) {
-            throw std::runtime_error("failed to get file extension of: " + filePath);
-        }
-    }
 
     static std::atomic<uint32_t> baseInstanceCount;
     static std::atomic<uint32_t> primitiveCount;

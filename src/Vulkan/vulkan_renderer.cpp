@@ -162,7 +162,7 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
 void VulkanRenderer::createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
                                            std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo) {
 
-    computePipelines[name] = std::make_shared<VulkanPipeline>(device, "build/assets/shaders/" + name + ".comp.spv", descriptorLayouts,
+    computePipelines[name] = std::make_shared<VulkanPipeline>(device, "build/assets/shaders/" + name + ".comp", descriptorLayouts,
                                                               pushConstants, specializationInfo);
 }
 

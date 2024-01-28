@@ -2,6 +2,7 @@
 #define VULKAN_PIPELINE_H_
 
 #include "vulkan_device.hpp"
+#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -18,7 +19,8 @@ class VulkanPipeline {
   private:
     void createGraphicsPipeline();
     void createComputePipeline();
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
+    std::vector<uint32_t> compileShader(std::string filePath);
 
     void createPipelineLayout(std::vector<VkDescriptorSetLayout>& descriptorLayouts, std::vector<VkPushConstantRange>& pushConstants);
 

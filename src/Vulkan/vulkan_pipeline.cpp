@@ -1,7 +1,14 @@
 #include "vulkan_pipeline.hpp"
 #include "common.hpp"
 #include "vulkan_model.hpp"
+#include <cstdint>
 #include <fstream>
+#include <glslang/Include/ResourceLimits.h>
+#include <glslang/MachineIndependent/Versions.h>
+#include <glslang/MachineIndependent/localintermediate.h>
+#include <glslang/Public/ResourceLimits.h>
+#include <glslang/Public/ShaderLang.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -9,27 +16,111 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-static std::vector<char> readFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+static EShLanguage getStage(std::string shaderPath) {
+    std::string fileExtension = getFileExtension(shaderPath);
+    if (fileExtension == "vert") {
+        return EShLangVertex;
+    } else if (fileExtension == "frag") {
+        return EShLangFragment;
+    } else if (fileExtension == "comp") {
+        return EShLangCompute;
+    } else {
+        throw std::runtime_error(shaderPath + " has unsupported shader stage type: " + fileExtension);
+    }
+}
 
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file: " + filename);
+std::vector<uint32_t> VulkanPipeline::compileShader(std::string filePath) {
+    glslang::InitializeProcess();
+    EShLanguage stage = getStage(filePath);
+    glslang::TShader shader(stage);
+    shader.setInvertY(true);
+    // NOTE:
+    // GL_KHR_vulkan_glsl version is 100
+    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 100);
+    // NOTE:
+    // EShTarget must match VK_API_VERSION in device
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+
+    std::vector<char> shaderCode = readFile(filePath);
+    const char* shaderString = shaderCode.data();
+    const int shaderLength = shaderCode.size();
+    const char* shaderNames = filePath.c_str();
+    shader.setStringsWithLengthsAndNames(&shaderString, &shaderLength, &shaderNames, 1);
+    const char* preamble = "";
+    shader.setPreamble(preamble);
+    const char* entryPoint = "main";
+    shader.setEntryPoint(entryPoint);
+
+    bool result;
+
+    // TODO
+    // Get resource limits from GPU
+    const TBuiltInResource* limits = GetDefaultResources();
+
+    int defaultVersion = 110;
+    EProfile defaultProfile = ENoProfile;
+
+    bool forceDefaultVersionAndProfile = false;
+    bool forwardCompatible = false;
+
+    EShMessages rules;
+    rules = static_cast<EShMessages>(rules | EShMsgSpvRules | EShMsgVulkanRules);
+    bool debug = false;
+    if (debug) {
+        rules = static_cast<EShMessages>(rules | EShMsgDebugInfo);
     }
 
-    size_t fileSize = (size_t)file.tellg();
-    std::vector<char> buffer(fileSize);
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    file.close();
-    return buffer;
+    // TODO
+    // Custom includer
+    glslang::TShader::ForbidIncluder includer;
+
+    result = shader.parse(limits, defaultVersion, defaultProfile, forceDefaultVersionAndProfile, forwardCompatible, rules, includer);
+    if (!result) {
+        throw std::runtime_error("Shader parsing failed for: " + filePath);
+    }
+
+    glslang::TProgram shaderProgram;
+    shaderProgram.addShader(&shader);
+    result = shaderProgram.link(EShMsgDefault);
+    if (!result) {
+        throw std::runtime_error("Shader linking failed for: " + filePath);
+    }
+    result = shaderProgram.mapIO();
+    if (!result) {
+        throw std::runtime_error("Shader IO mapping failed for: " + filePath);
+    }
+    shaderProgram.buildReflection();
+    for (uint32_t i = 0; i < shaderProgram.getNumBufferVariables(); ++i) {
+        glslang::TObjectReflection bufferBindingInfo = shaderProgram.getBufferVariable(i);
+        std::cout << "Found buffer named: " << bufferBindingInfo.name << " at binding: " << bufferBindingInfo.getBinding()
+                  << " with size: " << bufferBindingInfo.size << std::endl;
+    }
+
+    glslang::SpvOptions options;
+
+    std::vector<uint32_t> spirv;
+    glslang::GlslangToSpv(*shaderProgram.getIntermediate(stage), spirv, &options);
+    glslang::FinalizeProcess();
+
+    return spirv;
 }
 
 VulkanPipeline::VulkanPipeline(VulkanDevice* device, VkGraphicsPipelineCreateInfo pipelineInfo) : device{device} {
 
     assert(pipelineInfo.layout != nullptr && "Graphics pipeline layout == nullptr");
 
-    auto vertShaderCode = readFile("build/assets/shaders/triangle.vert.spv");
-    auto fragShaderCode = readFile("build/assets/shaders/triangle.frag.spv");
+    //    auto vertShaderCode = readFile("build/assets/shaders/triangle.vert.spv");
+    //  auto fragShaderCode = readFile("build/assets/shaders/triangle.frag.spv");
+    //
+    std::string baseShaderPath = "assets/shaders/";
+    std::string baseShaderName = "triangle";
+
+    std::string vertShaderPath = baseShaderPath + baseShaderName + ".vert";
+    std::string fragShaderPath = baseShaderPath + baseShaderName + ".frag";
+
+    std::vector<uint32_t> vertShaderCode = compileShader(vertShaderPath);
+    std::vector<uint32_t> fragShaderCode = compileShader(fragShaderPath);
 
     VkShaderModule vertModule = createShaderModule(vertShaderCode);
     VkShaderModule fragModule = createShaderModule(fragShaderCode);
@@ -91,7 +182,9 @@ VulkanPipeline::VulkanPipeline(VulkanDevice* device, std::string computeShaderPa
     computePipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     computePipelineInfo.layout = _pipelineLayout;
 
-    VkShaderModule computeModule = createShaderModule(readFile(computeShaderPath));
+    std::vector<uint32_t> compShaderCode = compileShader(computeShaderPath);
+
+    VkShaderModule computeModule = createShaderModule(compShaderCode);
 
     VkPipelineShaderStageCreateInfo computeStageInfo{};
     computeStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -130,11 +223,11 @@ VulkanPipeline::~VulkanPipeline() {
     vkDestroyPipeline(device->device(), _pipeline, nullptr);
 }
 
-VkShaderModule VulkanPipeline::createShaderModule(const std::vector<char>& code) {
+VkShaderModule VulkanPipeline::createShaderModule(const std::vector<uint32_t>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    createInfo.codeSize = code.size() * sizeof(code[0]);
+    createInfo.pCode = code.data();
     VkShaderModule shaderModule;
 
     checkResult(vkCreateShaderModule(device->device(), &createInfo, nullptr, &shaderModule), "failed to create shader module");

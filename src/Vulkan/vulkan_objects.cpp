@@ -45,8 +45,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         // For some reason, !filePath.is_regular_file() isn't short circuiting
         // so it will try to get the file extension of a directory if these are in the same if statement
         if (filePath.exists() && filePath.is_regular_file()) {
-            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
-                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
+            if ((getFileExtension(filePath.path()).compare("gltf") == 0) || (getFileExtension(filePath.path()).compare("glb") == 0)) {
                 futureModels.push_back(std::async(std::launch::async, [filePath, fileNum, this]() {
                     return std::make_shared<VulkanModel>(filePath.path(), fileNum, ssboBuffers);
                 }));

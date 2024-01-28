@@ -20,18 +20,18 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
     _fileNum = fileNum;
     _path = filePath.substr(0, filePath.find_last_of("/") + 1);
     _fileName = filePath.substr(filePath.find_last_of("/") + 1);
-    if (getFileExtension(filePath).compare(".gltf") == 0) {
+    if (getFileExtension(filePath).compare("gltf") == 0) {
         std::ifstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Failed to open gltf file: " + filePath);
+            throw std::runtime_error("GLTF::GLTF Failed to open gltf file: " + filePath);
         }
         IStreamWrapper fileStream(file);
         d.ParseStream(fileStream);
         file.close();
-    } else if (getFileExtension(filePath).compare(".glb") == 0) {
+    } else if (getFileExtension(filePath).compare("glb") == 0) {
         std::ifstream file(filePath, std::ios::binary);
         if (!file.is_open()) {
-            throw std::runtime_error("Failed to open glb file: " + filePath);
+            throw std::runtime_error("GLTF::GLTF Failed to open glb file: " + filePath);
         } // Get header
 
         uint32_t magic = readuint32(file);
@@ -39,7 +39,7 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
         uint32_t length = readuint32(file);
 
         if (magic != 0x46546C67) {
-            throw std::runtime_error("Bad magic number: " + std::to_string(magic) + " on file: " + filePath);
+            throw std::runtime_error("GLTF::GLTF Bad magic number: " + std::to_string(magic) + " on file: " + filePath);
         }
 
         while (file.tellg() < length) {
@@ -65,12 +65,12 @@ GLTF::GLTF(std::string filePath, uint32_t fileNum) {
                 // binary chunk
                 binaryBuffers.push(dataBuffer);
             } else {
-                throw std::runtime_error("Unknown chunk type: " + std::to_string(chunkType));
+                throw std::runtime_error("GLTF::GLTF Unknown chunk type: " + std::to_string(chunkType));
             }
         }
         file.close();
     } else {
-        throw std::runtime_error("Unknown file extension on file: " + filePath);
+        throw std::runtime_error("GLTF::GLTF Unknown file extension on file: " + filePath);
     }
 
     Value& scenesJSON = d["scenes"];
