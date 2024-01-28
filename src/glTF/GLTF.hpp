@@ -1,6 +1,7 @@
 #ifndef GLTF_H_
 #define GLTF_H_
-#include "../../external/rapidjson/document.h"
+#include "../Vulkan/common.hpp"
+#include "rapidjson/document.h"
 #include <atomic>
 #include <cmath>
 #include <fstream>
@@ -10,12 +11,11 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <queue>
 #include <stdexcept>
 #include <vector>
-#include <mutex>
-#include "../Vulkan/common.hpp"
 
 using namespace rapidjson;
 class GLTF {

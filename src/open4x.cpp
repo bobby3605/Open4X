@@ -13,13 +13,13 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include "../external/rapidjson/istreamwrapper.h"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
 #include "Vulkan/vulkan_objects.hpp"
 #include "Vulkan/vulkan_swapchain.hpp"
 #include "open4x.hpp"
+#include "rapidjson/istreamwrapper.h"
 #include <GLFW/glfw3.h>
 #include <cstring>
 #include <glm/glm.hpp>

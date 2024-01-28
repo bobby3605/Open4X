@@ -1,6 +1,6 @@
 #include "vulkan_descriptors.hpp"
-#include "../../external/stb_image.h"
 #include "common.hpp"
+#include "stb/stb_image.h"
 #include "vulkan_swapchain.hpp"
 #include <array>
 #include <cassert>

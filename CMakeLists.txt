@@ -28,11 +28,14 @@ file(GLOB SOURCES
   src/Vulkan/*.cpp
   src/glTF/*.hpp
   src/glTF/*.cpp
-  external/*.h
-  external/rapidjson/*
   )
 
 add_executable(Open4X ${SOURCES})
+
+target_include_directories(Open4X PUBLIC
+  external/rapidjson/rapidjson/include
+  external/stb
+)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
