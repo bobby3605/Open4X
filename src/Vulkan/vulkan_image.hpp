@@ -1,7 +1,7 @@
 #ifndef VULKAN_IMAGE_H_
 #define VULKAN_IMAGE_H_
-#include "../../external/stb_image.h"
 #include "../glTF/GLTF.hpp"
+#include "stb/stb_image.h"
 #include "vulkan_device.hpp"
 #include <cstdint>
 #include <string>

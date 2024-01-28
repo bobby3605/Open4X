@@ -7,8 +7,8 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "../../external/stb_image.h"
 #include "common.hpp"
+#include "stb/stb_image.h"
 #include "vulkan_swapchain.hpp"
 #include "vulkan_window.hpp"
 #include <array>

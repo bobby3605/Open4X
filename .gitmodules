@@ -1,0 +1,6 @@
+[submodule "external/rapidjson/rapidjson"]
+	path = external/rapidjson/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
+[submodule "external/stb/stb"]
+	path = external/stb/stb
+	url = https://github.com/nothings/stb.git
