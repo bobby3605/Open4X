@@ -1,6 +1,8 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include "aabb.hpp"
 #include <array>
 #include <glm/glm.hpp>

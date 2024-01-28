@@ -1,5 +1,6 @@
 #ifndef VULKAN_BUFFER_H_
 #define VULKAN_BUFFER_H_
+#include "common.hpp"
 #include "glm/glm.hpp"
 #include "vulkan_device.hpp"
 #include <atomic>
