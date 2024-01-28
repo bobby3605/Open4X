@@ -1,7 +1,7 @@
 #include "GLTF.hpp"
-#include "../../external/rapidjson/istreamwrapper.h"
 #include "../Vulkan/common.hpp"
 #include "base64.hpp"
+#include "rapidjson/istreamwrapper.h"
 #include <cstdint>
 #include <fstream>
 #include <glm/glm.hpp>
