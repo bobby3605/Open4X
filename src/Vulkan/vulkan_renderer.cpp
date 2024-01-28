@@ -17,8 +17,8 @@
 #include <stdexcept>
 
 VulkanRenderer::VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager,
-                               const std::vector<VkDrawIndexedIndirectCommand>& drawCommands)
-    : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager} {
+                               const std::vector<VkDrawIndexedIndirectCommand>& drawCommands, std::shared_ptr<Settings> settingsPtr)
+    : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager}, settings{settingsPtr} {
     init(drawCommands);
 }
 
@@ -70,13 +70,13 @@ void VulkanRenderer::bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipeline
 
 void VulkanRenderer::recreateSwapChain() {
     // pause on minimization
-    /*
-    int width = 0, height = 0;
-    while (width == 0 || height == 0) {
-      glfwGetFramebufferSize(vulkanWindow->getGLFWwindow(), &width, &height);
-      glfwWaitEvents();
+    if (settings->pauseOnMinimization) {
+        int width = 0, height = 0;
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(vulkanWindow->getGLFWwindow(), &width, &height);
+            glfwWaitEvents();
+        }
     }
-    */
 
     vkDeviceWaitIdle(device->device());
 

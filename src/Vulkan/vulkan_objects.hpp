@@ -14,7 +14,7 @@
 
 class VulkanObjects {
   public:
-    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings);
+    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings);
     ~VulkanObjects();
     void bind(VulkanRenderer* renderer);
     void drawIndirect(VulkanRenderer* renderer);

@@ -5,5 +5,6 @@
     },
     "misc": {
         "showFPS": true
+        ,"pauseOnMinimization": false
     }
 }

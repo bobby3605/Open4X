@@ -85,6 +85,7 @@ void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, V
 }
 
 void Open4X::loadSettings() {
+    settings = std::make_shared<Settings>();
     std::ifstream file("assets/settings.json");
     if (file.is_open()) {
         IStreamWrapper fileStream(file);
@@ -95,12 +96,13 @@ void Open4X::loadSettings() {
         Value& objectsJSON = d["objects"];
         assert(objectsJSON.IsObject());
 
-        settings.extraObjectCount = objectsJSON["extraObjectCount"].GetInt();
-        settings.randLimit = objectsJSON["randLimit"].GetInt();
+        settings->extraObjectCount = objectsJSON["extraObjectCount"].GetInt();
+        settings->randLimit = objectsJSON["randLimit"].GetInt();
 
         Value& miscJSON = d["misc"];
         assert(miscJSON.IsObject());
-        settings.showFPS = miscJSON["showFPS"].GetBool();
+        settings->showFPS = miscJSON["showFPS"].GetBool();
+        settings->pauseOnMinimization = miscJSON["pauseOnMinimization"].GetBool();
 
     } else {
         std::cout << "Failed to open settings file, using defaults" << std::endl;
@@ -134,7 +136,7 @@ void Open4X::run() {
     globalDescriptor->allocateSets(2);
     globalDescriptor->update();
 
-    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws());
+    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws(), settings);
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -208,7 +210,7 @@ void Open4X::run() {
             fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
 
-        if (settings.showFPS) {
+        if (settings->showFPS) {
             std::vector<uint64_t> queryResults(queryCount);
             vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
                                   queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);

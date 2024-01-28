@@ -44,7 +44,7 @@ struct ComputePushConstants {
 class VulkanRenderer {
   public:
     VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager,
-                   const std::vector<VkDrawIndexedIndirectCommand>& drawCommands);
+                   const std::vector<VkDrawIndexedIndirectCommand>& drawCommands, std::shared_ptr<Settings> settingsPtr);
     ~VulkanRenderer();
     void recordCommandBuffer(uint32_t imageIndex);
     void startFrame();
@@ -90,6 +90,8 @@ class VulkanRenderer {
     std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
 
     uint drawCount;
+
+    std::shared_ptr<Settings> settings;
 
     friend class VulkanObjects;
 };

@@ -19,7 +19,7 @@
 #include <random>
 #include <vulkan/vulkan_core.h>
 
-VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, Settings settings)
+VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings)
     : device{device}, descriptorManager{descriptorManager} {
     _totalInstanceCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -137,11 +137,11 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     futureObjects.clear();
 
-    const int extraObjectCount = settings.extraObjectCount;
+    const int extraObjectCount = settings->extraObjectCount;
     const int threadCount = 10;
     const int batchSize = extraObjectCount / threadCount;
     const int extra = extraObjectCount % threadCount;
-    const float randLimit = settings.randLimit;
+    const float randLimit = settings->randLimit;
     std::mt19937 mt(time(NULL));
     std::uniform_real_distribution<float> distribution(0, randLimit);
     srand(time(NULL));

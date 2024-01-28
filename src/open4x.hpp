@@ -10,6 +10,7 @@
 #include "Vulkan/vulkan_window.hpp"
 #include "glTF/GLTF.hpp"
 #include <chrono>
+#include <memory>
 
 class Open4X {
   public:
@@ -28,7 +29,7 @@ class Open4X {
 
     std::chrono::system_clock::time_point creationTime;
 
-    Settings settings;
+    std::shared_ptr<Settings> settings;
     void loadSettings();
 };
 
