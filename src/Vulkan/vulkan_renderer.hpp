@@ -73,6 +73,7 @@ class VulkanRenderer {
     void bindComputePipeline(std::string name);
     void memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 dstAccessMask,
                        VkPipelineStageFlags2 dstStageMask);
+    void debugBarrier();
 
     VulkanDevice* device;
     VulkanPipeline* graphicsPipeline;

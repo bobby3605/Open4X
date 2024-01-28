@@ -343,6 +343,16 @@ void VulkanRenderer::memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStage
     vkCmdPipelineBarrier2(getCurrentCommandBuffer(), &dependencyInfo);
 }
 
+// Memory barrier between all stages and accesses
+void VulkanRenderer::debugBarrier() {
+    memoryBarrier(VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                  VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                  VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                  VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+}
+
 void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands,
                                ComputePushConstants& frustumCullPushConstants) {
     std::string name;
@@ -357,6 +367,10 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
+
+    // ensure previous frame vertex read completed before writing
+    memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     // frustum culling
     vkCmdDispatch(getCurrentCommandBuffer(),
@@ -390,6 +404,10 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     // bind the cull draw pipeline
     bindComputePipeline(name);
+
+    // ensure previous frame vertex read completed before zeroing out buffer
+    memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                  VK_PIPELINE_STAGE_2_COPY_BIT);
 
     // zero out scratch buffers
     vkCmdFillBuffer(getCurrentCommandBuffer(), culledDrawIndirectCount->buffer(), 0, culledDrawIndirectCount->size(), 0);
