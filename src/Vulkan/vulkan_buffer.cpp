@@ -9,7 +9,8 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
-VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
+VulkanBuffer::VulkanBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size, VkBufferUsageFlags usage,
+                           VkMemoryPropertyFlags properties)
     : device{device} {
     device->createBuffer(size, usage, properties, buffer(), memory());
     _bufferInfo.range = size;
@@ -38,7 +39,7 @@ VulkanBuffer::~VulkanBuffer() {
     vkFreeMemory(device->device(), memory(), nullptr);
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(std::shared_ptr<VulkanDevice> device, void* data, VkDeviceSize size,
                                                          VkBufferUsageFlags usageFlags) {
 
     VulkanBuffer stagingBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -55,7 +56,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(VulkanDevice* device, v
     return stagedBuffer;
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(VulkanDevice* device, VkDeviceSize size) {
+std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size) {
 
     std::shared_ptr<VulkanBuffer> uniformBuffer = std::make_shared<VulkanBuffer>(
         device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -65,7 +66,8 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(VulkanDevice* device, 
     return uniformBuffer;
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size, VkMemoryPropertyFlags memoryFlags) {
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size,
+                                                          VkMemoryPropertyFlags memoryFlags) {
     std::shared_ptr<VulkanBuffer> storageBuffer =
         std::make_shared<VulkanBuffer>(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, memoryFlags);
 
@@ -76,7 +78,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(VulkanDevice* device, 
     return storageBuffer;
 }
 
-SSBOBuffers::SSBOBuffers(VulkanDevice* device) : device{device} {}
+SSBOBuffers::SSBOBuffers(std::shared_ptr<VulkanDevice> device) : device{device} {}
 
 void SSBOBuffers::createMaterialBuffer(uint32_t drawsCount) {
     // NOTE:

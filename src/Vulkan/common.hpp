@@ -40,6 +40,16 @@ static std::string getFileExtension(std::string filePath) {
     }
 }
 
+static std::string getFilename(std::string filePath) {
+    try {
+        auto pos = filePath.find_last_of("/\\") + 1;
+        // returns npos if / is not found, would happen if there is no subdirectory
+        return filePath.substr(pos == std::string::npos ? 0 : pos);
+    } catch (std::exception& e) {
+        throw std::runtime_error("failed to get filename of: " + filePath);
+    }
+}
+
 static std::vector<char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 

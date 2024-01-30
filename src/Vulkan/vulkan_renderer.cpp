@@ -35,7 +35,7 @@ void VulkanRenderer::init(const std::vector<VkDrawIndexedIndirectCommand>& drawC
     createPipeline();
 }
 
-void VulkanRenderer::bindPipeline() {
+void VulkanRenderer::bindPipeline(std::shared_ptr<VulkanPipeline> pipeline) {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.width = swapChain->getExtent().width;
@@ -58,13 +58,16 @@ void VulkanRenderer::bindPipeline() {
     vkCmdSetScissor(getCurrentCommandBuffer(), 0, 1, &scissor);
 
     vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->pipeline());
+
+    bindDescriptorSets(pipeline);
 }
 
 void VulkanRenderer::bindComputePipeline(std::string name) {
     vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipeline());
 }
 
-void VulkanRenderer::bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set) {
+void VulkanRenderer::bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, VkDescriptorSet set) {
+    uint32_t setNum;
     vkCmdBindDescriptorSets(getCurrentCommandBuffer(), bindPoint, layout, setNum, 1, &set, 0, nullptr);
 }
 
@@ -86,25 +89,6 @@ void VulkanRenderer::recreateSwapChain() {
 // TODO
 // decouple objects from renderer
 void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands) {
-
-    struct SpecData {
-        uint32_t local_size_x;
-        uint32_t subgroup_size;
-    } specData;
-
-    std::vector<VkSpecializationMapEntry> specEntries(2);
-    specEntries[0].constantID = 0;
-    specEntries[0].offset = offsetof(SpecData, local_size_x);
-    specEntries[0].size = sizeof(SpecData::local_size_x);
-    specEntries[1].constantID = 1;
-    specEntries[1].offset = offsetof(SpecData, subgroup_size);
-    specEntries[1].size = sizeof(SpecData::subgroup_size);
-
-    VkSpecializationInfo specInfo;
-    specInfo.mapEntryCount = specEntries.size();
-    specInfo.pMapEntries = specEntries.data();
-    specInfo.dataSize = sizeof(specData);
-    specInfo.pData = &specData;
 
     std::vector<VkPushConstantRange> pushConstants(1);
     std::vector<VkDescriptorSetLayout> descriptorLayouts(1);
@@ -162,33 +146,11 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
 void VulkanRenderer::createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
                                            std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo) {
 
-    computePipelines[name] = std::make_shared<VulkanPipeline>(device, "build/assets/shaders/" + name + ".comp", descriptorLayouts,
-                                                              pushConstants, specializationInfo);
+    computePipelines[name] =
+        std::make_shared<VulkanPipeline>(device, "assets/shaders/" + name + ".comp", descriptorLayouts, pushConstants, specializationInfo);
 }
 
 void VulkanRenderer::createPipeline() {
-    /*
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(PushConstants);
-    */
-
-    std::vector<VkDescriptorSetLayout> descriptorLayouts;
-    descriptorLayouts.push_back(descriptorManager->descriptors["global"]->getLayout());
-    descriptorLayouts.push_back(descriptorManager->descriptors["material"]->getLayout());
-    descriptorLayouts.push_back(descriptorManager->descriptors["object"]->getLayout());
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
-    pipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
-    // pipelineLayoutInfo.pushConstantRangeCount = 1;
-    //  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-
-    checkResult(vkCreatePipelineLayout(device->device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
-                "failed to create pipeline layout");
-
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -297,7 +259,7 @@ void VulkanRenderer::createPipeline() {
     pipelineInfo.pDepthStencilState = nullptr;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.layout = VK_NULL_HANDLE;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
@@ -362,7 +324,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     bindComputePipeline(name);
 
     // bind descriptors for cull_frustum_pass
-    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
+    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
 
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
@@ -386,7 +348,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     bindComputePipeline(name);
 
     // bind descriptors for reduce_prefix_sum
-    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
+    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
 
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
@@ -417,7 +379,7 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
                   VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     // bind descriptors for cull draw pass
-    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(), 0,
+    bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
 
     // push the draw indirect count

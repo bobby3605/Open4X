@@ -8,6 +8,7 @@
 #include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include "vulkan_rendergraph.hpp"
 #include <algorithm>
 #include <chrono>
 #include <execution>
@@ -19,7 +20,7 @@
 #include <random>
 #include <vulkan/vulkan_core.h>
 
-VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings)
+VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings)
     : device{device}, descriptorManager{descriptorManager} {
     _totalInstanceCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -268,6 +269,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
+    /*
     VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     materialDescriptor->addBinding(0, samplerInfos);
@@ -278,7 +280,9 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     materialDescriptor->allocateSets();
     materialDescriptor->update();
+    */
 
+    /*
     VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
 
     culledInstanceIndicesBuffer =
@@ -291,26 +295,61 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
 
     objectDescriptor->allocateSets();
     objectDescriptor->update();
+    */
 
+    /*
     VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor =
         descriptorManager->createDescriptor("cull_frustum_pass", VK_SHADER_STAGE_COMPUTE_BIT);
+        */
 
-    prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    // prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     partialSumsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     // NOTE:
     // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
+    /*
     activeLanesBuffer =
         VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount / 32, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        */
 
+    struct SpecData {
+        uint32_t local_size_x;
+        uint32_t subgroup_size;
+    } specData;
+
+    std::vector<VkSpecializationMapEntry> specEntries(2);
+    specEntries[0].constantID = 0;
+    specEntries[0].offset = offsetof(SpecData, local_size_x);
+    specEntries[0].size = sizeof(SpecData::local_size_x);
+    specEntries[1].constantID = 1;
+    specEntries[1].offset = offsetof(SpecData, subgroup_size);
+    specEntries[1].size = sizeof(SpecData::subgroup_size);
+
+    VkSpecializationInfo specInfo{};
+    specInfo.mapEntryCount = specEntries.size();
+    specInfo.pMapEntries = specEntries.data();
+    specInfo.dataSize = sizeof(specData);
+    specInfo.pData = &specData;
+
+    VulkanRenderGraph rg(device);
+    rg.shader("cull_frustum_pass", &specInfo)
+        .buffer("Instances", ssboBuffers->instanceIndicesBuffer())
+        .buffer("Objects", ssboBuffers->ssboBuffer())
+        .buffer("PrefixSum", _totalInstanceCount)
+        .buffer("PartialSums", partialSumsBuffer)
+        .buffer("ActiveLanes", _totalInstanceCount / 32);
+
+    /*
     cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
     cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
     cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
     cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
     cullFrustumDescriptor->addBinding(4, activeLanesBuffer);
+    */
 
+    /*
     VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
         descriptorManager->createDescriptor("reduce_prefix_sum", VK_SHADER_STAGE_COMPUTE_BIT);
 
@@ -319,17 +358,27 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
     reduceDescriptor->addBinding(2, partialSumsBuffer);
     reduceDescriptor->addBinding(3, activeLanesBuffer);
     reduceDescriptor->addBinding(4, culledInstanceIndicesBuffer);
+    */
 
+    rg.shader("reduce_prefix_sum", &specInfo).buffer("VisibleInstances", _totalInstanceCount);
+
+    /*
     VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
         descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
+        */
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                                      VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
+    /*
     cullDrawDescriptor->addBinding(0, indirectDrawsBuffer);
     cullDrawDescriptor->addBinding(3, prefixSumBuffer);
     cullDrawDescriptor->addBinding(4, ssboBuffers->materialIndicesBuffer());
     cullDrawDescriptor->addBinding(5, ssboBuffers->culledMaterialIndicesBuffer());
+    */
+
+    rg.shader("cull_draw_pass", &specInfo).buffer("DrawCommands", indirectDrawsBuffer);
+    rg.compile();
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
@@ -340,9 +389,9 @@ void VulkanObjects::bind(VulkanRenderer* renderer) {
     VkBuffer vertexBuffers[] = {vertexBuffer->buffer()};
     VkDeviceSize offsets[] = {0};
 
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1,
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(),
                                 descriptorManager->descriptors["material"]->getSets()[0]);
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2,
+    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(),
                                 descriptorManager->descriptors["object"]->getSets()[0]);
 
     vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);

@@ -52,9 +52,10 @@ class VulkanRenderer {
     void beginRendering();
     void endRendering();
     VkCommandBuffer getCurrentCommandBuffer() { return commandBuffers[getCurrentFrame()]; }
-    void bindPipeline();
+    void bindPipeline(std::shared_ptr<VulkanPipeline> pipeline);
     VulkanDescriptors* descriptorManager;
-    void bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, uint32_t setNum, VkDescriptorSet set);
+    void bindDescriptorSet(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, VkDescriptorSet set);
+    void bindDescriptorSets(std::shared_ptr<VulkanPipeline> pipeline);
     void loadImage(std::string path, VkSampler& sampler, VkImageView& imageView);
     VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
     VulkanWindow* getWindow() { return vulkanWindow; }

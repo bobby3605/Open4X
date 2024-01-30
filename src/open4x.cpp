@@ -193,7 +193,7 @@ void Open4X::run() {
 
         vulkanRenderer->bindPipeline();
 
-        vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(), 0,
+        vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(),
                                           descriptorManager.descriptors["global"]->getSets()[vulkanRenderer->getCurrentFrame()]);
 
         objects.bind(vulkanRenderer);
