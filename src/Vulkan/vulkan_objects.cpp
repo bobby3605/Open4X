@@ -345,7 +345,6 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
     queryPoolInfo.queryCount = queryCount;
 
-    VkQueryPool queryPool;
     vkCreateQueryPool(device->device(), &queryPoolInfo, nullptr, &queryPool);
     vkResetQueryPool(device->device(), queryPool, 0, queryCount);
 
@@ -421,26 +420,28 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     rg->buffer("CulledDrawIndirectCount", culledDrawIndirectCount);
-    rg->setBuffer("CulledDrawIndirectCount", 0);
-
-    uint32_t drawCount;
-    shaderOptions.pushConstantData = &drawCount;
     // ensure previous frame vertex read completed before zeroing out buffer
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                       VK_PIPELINE_STAGE_2_COPY_BIT);
 
+    rg->setBuffer("CulledDrawIndirectCount", 0);
+
+    uint32_t drawCount = indirectDraws.size();
+    shaderOptions.pushConstantData = &drawCount;
     // barrier until the CulledDrawIndirectCount buffer has been cleared
     rg->memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
                       VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-    rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions)
-        .buffer("DrawCommands", indirectDrawsBuffer);
-    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
     std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    rg->buffer("CulledDrawCommandsBuffer", culledDrawCommandsBuffer);
+    rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions)
+        .buffer("DrawCommands", indirectDrawsBuffer)
+        .buffer("CulledMaterialIndices", ssboBuffers->culledMaterialIndicesBuffer())
+        .buffer("MaterialIndices", ssboBuffers->materialIndicesBuffer())
+        .buffer("CulledDrawCommands", culledDrawCommandsBuffer);
+    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
     // wait until culling is completed
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -450,7 +451,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     VulkanRenderGraph::ShaderOptions fragOptions{};
 
     rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertexBuffer, indexBuffer);
-    rg->buffer("Globals", 1);
+    rg->buffer("Globals", 1).buffer("Materials", ssboBuffers->materialBuffer()).buffer("CulledInstanceIndices", _totalInstanceCount);
 
     rg->imageInfos("samplers", samplerInfos);
     rg->imageInfos("images", imageInfos);
@@ -459,11 +460,10 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->imageInfos("aos", aoMapInfos);
 
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
-    rg->drawIndirect("CulledDrawCommandsBuffer", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
+    rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
-    std::cout << "compiling rg" << std::endl;
     rg->compile();
-    std::cout << "compiled rg" << std::endl;
+    std::cout << "done compiling" << std::endl;
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "

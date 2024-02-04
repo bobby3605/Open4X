@@ -165,6 +165,7 @@ void Open4X::run() {
     float titleFrametime = 0.0f;
     std::string title;
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
+        std::cout << "starting new render loop" << std::endl;
         glfwPollEvents();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -220,9 +221,17 @@ void Open4X::run() {
         }
 
         if (settings->showFPS) {
+            std::cout << "getting query results" << std::endl;
             std::vector<uint64_t> queryResults(queryCount);
+            const bool intel = false;
+            // FIXME:
+            // workaround for waiting on intel gpus
+            // It fails on amd gpus if wait bit is enabled,
+            // but fails on intel if it's disabled
             vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                                  queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+                                  queryResults.data(), sizeof(queryResults[0]),
+                                  VK_QUERY_RESULT_64_BIT | (intel ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
+            std::cout << "got query results" << std::endl;
 
             float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
             float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;

@@ -52,6 +52,7 @@ void VulkanRenderGraph::VulkanShader::createShaderModule() {
 
     stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stageInfo.stage = stageFlags;
+    std::cout << "created shader module with name: " << name << " and stageFlags: " << stageInfo.stage << std::endl;
     stageInfo.module = shaderModule;
     stageInfo.pName = _entryPoint.c_str();
 }
@@ -121,12 +122,20 @@ void VulkanRenderGraph::VulkanShader::compile() {
     }
 
     if (shaderProgram.buildReflection(EShReflectionSeparateBuffers)) {
+        std::cout << "Dumping shader reflection for: " << path << std::endl;
+        shaderProgram.dumpReflection();
         buffers.reserve(shaderProgram.getNumBufferBlocks() + shaderProgram.getNumUniformBlocks());
         for (uint32_t i = 0; i < shaderProgram.getNumUniformBlocks(); ++i) {
             buffers.push_back(shaderProgram.getUniformBlock(i));
         }
+        for (uint32_t i = 0; i < shaderProgram.getNumUniformVariables(); ++i) {
+            buffers.push_back(shaderProgram.getUniform(i));
+        }
         for (uint32_t i = 0; i < shaderProgram.getNumBufferBlocks(); ++i) {
             buffers.push_back(shaderProgram.getBufferBlock(i));
+        }
+        for (uint32_t i = 0; i < shaderProgram.getNumBufferVariables(); ++i) {
+            buffers.push_back(shaderProgram.getBufferVariable(i));
         }
     } else {
         throw std::runtime_error("Failed to build reflection for: " + path);
@@ -137,7 +146,7 @@ void VulkanRenderGraph::VulkanShader::compile() {
     glslang::GlslangToSpv(*shaderProgram.getIntermediate(stage), spirv, &options);
     glslang::FinalizeProcess();
 
-    bool optimize = true;
+    bool optimize = false;
     if (optimize) {
         // NOTE:
         // Must be consistent with compiler envClient and envTarget versions
@@ -153,50 +162,74 @@ void VulkanRenderGraph::VulkanShader::compile() {
 
 void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts,
                                                            bufferMap& globalBuffers, imageInfosMap& globalImageInfos) {
+
     for (auto buffer : buffers) {
-        if (buffer.getType()->getQualifier().isPushConstant()) {
+        auto type = buffer.getType();
+        auto qualifier = buffer.getType()->getQualifier();
+        if (type->getBasicType() == glslang::EbtSampler) {
+            if (globalImageInfos.count(buffer.name) == 1) {
+                descriptor->setImageInfos(qualifier.layoutSet, buffer.getBinding(), globalImageInfos[buffer.name]);
+            } else {
+                throw std::runtime_error("missing image info named: '" + buffer.name + "' for file: " + path);
+            }
+        } else if (qualifier.isPushConstant()) {
+            hasPushConstants = true;
             // If push constant, set values and skip the rest
             pushConstantRange.size = buffer.size;
             pushConstantRange.stageFlags = stageFlags;
-            continue;
-        } else if (globalBuffers.count(buffer.name) == 0) {
-            if (bufferCounts.count(buffer.name) != 0) {
-                switch (buffer.getType()->getQualifier().storage) {
-                case glslang::TStorageQualifier::EvqUniform:
-                    std::cout << "adding uniform binding: " << buffer.getType()->getQualifier().layoutSet << ", " << buffer.getBinding()
-                              << std::endl;
-                    descriptor->addBinding(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
-                                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        } else if (qualifier.isUniformOrBuffer()) {
+            // Check if is a uniform push constant, and skip
+            if (buffer.getBinding() == -1) {
+                continue;
+            }
+            auto storageType = qualifier.storage;
+            VkDescriptorType descriptorType;
+            // If the buffer hasn't been created yet,
+            // and a count has been specified,
+            // create the buffer
+            uint32_t bufferExists = globalBuffers.count(buffer.name) == 1;
+            uint32_t bufferHasCount = bufferCounts.count(buffer.name) == 1;
+            // NOTE:
+            // might be a better way to do this logic
+            bool createBuffer = !bufferExists && bufferHasCount;
+            // If buffer neither exists nor has a count
+            // throw a runtime error
+            if (!bufferExists && !bufferHasCount) {
+                throw std::runtime_error("missing buffer named: '" + buffer.name +
+                                         "' with basic type: " + std::to_string(type->getBasicType()) + " for file: " + path);
+            }
+            switch (storageType) {
+            case glslang::TStorageQualifier::EvqUniform:
+                std::cout << "got unifrom buffer" << std::endl;
+                descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                if (qualifier.layoutSet == 63) {
+                    qualifier.layoutSet = 0;
+                }
+                if (createBuffer) {
                     globalBuffers[buffer.name] = VulkanBuffer::UniformBuffer(_device, buffer.size * bufferCounts[buffer.name]);
-                    break;
-                case glslang::TStorageQualifier::EvqBuffer:
-                    std::cout << "adding storage binding: " << buffer.getType()->getQualifier().layoutSet << ", " << buffer.getBinding()
-                              << std::endl;
-                    descriptor->addBinding(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
-                                           VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+                }
+                break;
+            case glslang::TStorageQualifier::EvqBuffer:
+                std::cout << "got storage buffer" << std::endl;
+                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                if (createBuffer) {
                     // FIXME:
                     // Add a way to set memory flags from the interface
                     globalBuffers[buffer.name] =
                         VulkanBuffer::StorageBuffer(_device, buffer.size * bufferCounts[buffer.name], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-                    break;
-                default:
-                    throw std::runtime_error("Unknown storage buffer type when creating descriptor buffers: " +
-                                             std::to_string(buffer.getType()->getQualifier().storage));
                 }
-            } else {
-                throw std::runtime_error("missing buffer named: " + buffer.name + " for file: " + path);
+                break;
+            default:
+                throw std::runtime_error("Unknown storage buffer type when creating descriptor buffers: " +
+                                         std::to_string(qualifier.storage));
             }
-        }
-        // FIXME:
-        // Check if buffer or image/sampler and use setBuffer or setImageInfos
-        // Don't need to check if globalBuffers[buffer.name] exists because an exception would have been thrown above if it doesn't exist
-        if (buffer.getType()->isImage()) {
-            descriptor->setImageInfos(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(), globalImageInfos[buffer.name]);
-        } else {
-            descriptor->setBuffer(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
-                                  globalBuffers[buffer.name]->bufferInfo());
+            std::cout << "Adding binding for buffer: " << buffer.name << std::endl;
+            std::cout << "Type: " << descriptorType << std::endl;
+            descriptor->addBinding(qualifier.layoutSet, buffer.getBinding(), descriptorType);
+            descriptor->setBuffer(qualifier.layoutSet, buffer.getBinding(), globalBuffers[buffer.name]->bufferInfo());
         }
     }
+
     descriptor->allocateSets();
     descriptor->update();
 }
@@ -210,4 +243,7 @@ VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, VkSpecialization
     name = getFilename(path);
 }
 
-VulkanRenderGraph::VulkanShader::~VulkanShader() { vkDestroyShaderModule(_device->device(), shaderModule, nullptr); }
+VulkanRenderGraph::VulkanShader::~VulkanShader() {
+    if (shaderModule != VK_NULL_HANDLE)
+        vkDestroyShaderModule(_device->device(), shaderModule, nullptr);
+}

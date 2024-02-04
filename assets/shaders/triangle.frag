@@ -21,11 +21,11 @@ layout(location = 10) in flat float normalScale;
 layout(location = 11) in flat float metallicFactor;
 layout(location = 12) in flat float roughnessFactor;
 layout(location = 13) in flat float occlusionStrength;
-layout(set = 1, binding = 0) uniform sampler samplers[];
-layout(set = 1, binding = 1) uniform texture2D images[];
-layout(set = 1, binding = 2) uniform texture2D normals[];
-layout(set = 1, binding = 3) uniform texture2D metallicRoughnesses[];
-layout(set = 1, binding = 4) uniform texture2D aos[];
+layout(set = 2, binding = 0) uniform sampler samplers[];
+layout(set = 2, binding = 1) uniform texture2D images[];
+layout(set = 2, binding = 2) uniform texture2D normals[];
+layout(set = 2, binding = 3) uniform texture2D metallicRoughnesses[];
+layout(set = 2, binding = 4) uniform texture2D aos[];
 
 layout(location = 0) out vec4 outColor;
 

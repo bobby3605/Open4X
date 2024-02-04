@@ -108,7 +108,6 @@ GraphicsPipeline::GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanS
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
     // set in VulkanPipeline::createGraphicsPipeline()
     pipelineInfo.pStages = nullptr;
     pipelineInfo.pVertexInputState = nullptr;
@@ -200,6 +199,7 @@ GraphicsPipeline::GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanS
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
+    pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     createPipelineLayout(descriptorLayouts, pushConstants);
@@ -224,7 +224,7 @@ void VulkanPipeline::createPipelineLayout(std::vector<VkDescriptorSetLayout>& de
     pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
     checkResult(vkCreatePipelineLayout(_device->device(), &pipelineLayoutInfo, nullptr, &_pipelineLayout),
-                "failed to create compute pipeline layout");
+                "failed to create pipeline layout");
 }
 
 ComputePipeline::ComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,

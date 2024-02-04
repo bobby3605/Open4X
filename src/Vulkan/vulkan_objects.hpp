@@ -47,6 +47,7 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> metallicRoughnessMapInfos;
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
+    VkQueryPool queryPool;
 
     std::shared_ptr<VulkanDevice> device;
 

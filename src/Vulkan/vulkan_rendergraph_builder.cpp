@@ -1,7 +1,9 @@
+#include "common.hpp"
 #include "vulkan_pipeline.hpp"
 #include "vulkan_rendergraph.hpp"
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ,
@@ -57,7 +59,11 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string f
     renderOps.push_back(setScissorOp(scissor));
 
     renderOps.push_back(bindPipeline(vert));
+    // FIXME:
+    // Find better way to name descriptor sets,
+    // possibly by pipeline name
     renderOps.push_back(bindDescriptorSets(vert));
+    renderOps.push_back(bindDescriptorSets(frag));
     ShaderOptions defaultOptions{};
     if (vertOptions.pushConstantData != defaultOptions.pushConstantData) {
         // TODO
@@ -85,7 +91,6 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string f
     }
     renderOps.push_back(dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ));
     */
-    renderOps.push_back(endRendering());
     return *this;
 }
 
@@ -154,6 +159,9 @@ VulkanRenderGraph& VulkanRenderGraph::drawIndirect(std::string buffer, VkDeviceS
                                                    VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) {
     renderOps.push_back(drawIndexedIndirectCount(globalBuffers[buffer]->buffer(), offset, globalBuffers[countBuffer]->buffer(),
                                                  countBufferOffset, maxDrawCount, stride));
+    // FIXME:
+    // Find a better way to manage start and end rendering
+    renderOps.push_back(endRendering());
     return *this;
 }
 
@@ -173,28 +181,60 @@ void VulkanRenderGraph::addComputePipeline(std::shared_ptr<VulkanRenderGraph::Vu
                                            std::vector<VkDescriptorSetLayout>& layouts) {
     std::vector<VkPushConstantRange> pushConstants(1);
     pushConstants = getPushConstants(computeShader);
-    pipelines[computeShader->name] = std::make_shared<ComputePipeline>(_device, layouts, pushConstants, computeShader->stageInfo);
+    pipelines[getFilenameNoExt(computeShader->name)] =
+        std::make_shared<ComputePipeline>(_device, layouts, pushConstants, computeShader->stageInfo);
 }
 
 void VulkanRenderGraph::addGraphicsPipeline(std::shared_ptr<VulkanRenderGraph::VulkanShader> vertShader,
                                             std::shared_ptr<VulkanRenderGraph::VulkanShader> fragShader) {
-    std::vector<VkDescriptorSetLayout> layouts = descriptorManager->descriptors[vertShader->name]->getLayouts();
-    layouts.insert(layouts.end(), descriptorManager->descriptors[fragShader->name]->getLayouts().begin(),
-                   descriptorManager->descriptors[fragShader->name]->getLayouts().end());
-    std::vector<VkPushConstantRange> pushConstants(2);
+    if (vertShader->stageFlags != VK_SHADER_STAGE_VERTEX_BIT) {
+        throw std::runtime_error("graphics pipeline vertShader has incorrect stageFlags: " + std::to_string(vertShader->stageFlags));
+    }
+    if (fragShader->stageFlags != VK_SHADER_STAGE_FRAGMENT_BIT) {
+        throw std::runtime_error("graphics pipeline fragShader has incorrect stageFlags: " + std::to_string(fragShader->stageFlags));
+    }
+    // FIXME:
+    // Better handling of names for descriptors
+    std::cout << "appending vert layouts" << std::endl;
+    std::vector<VkDescriptorSetLayout> vertLayouts = descriptorManager->descriptors[vertShader->path]->getLayouts();
+    std::cout << "appending frag layouts" << std::endl;
+    std::vector<VkDescriptorSetLayout> fragLayouts = descriptorManager->descriptors[fragShader->path]->getLayouts();
+    std::vector<VkDescriptorSetLayout> layouts;
+    // FIXME:
+    // maybe have to be in set order???
+    // so set 0, then 1, then 2
+    // set 0 and 2 are in vert
+    // set 1 is in frag
+    // can probably easily swap given new interface
+    for (auto layout : vertLayouts) {
+        layouts.push_back(layout);
+    }
+    for (auto layout : fragLayouts) {
+        layouts.push_back(layout);
+    }
+    std::vector<VkPushConstantRange> pushConstants;
     // FIXME:
     // Use getPushConstants
     // Needs to support 0 offsets for both shaders
-    pushConstants.push_back(vertShader->pushConstantRange);
-    pushConstants.push_back(fragShader->pushConstantRange);
-    pipelines[vertShader->name] =
+    if (vertShader->hasPushConstants) {
+        pushConstants.push_back(vertShader->pushConstantRange);
+    }
+    if (fragShader->hasPushConstants) {
+        pushConstants.push_back(fragShader->pushConstantRange);
+    }
+    std::cout << "creating graphics pipeline with name: " << getFilenameNoExt(vertShader->name) << std::endl;
+    pipelines[getFilenameNoExt(vertShader->name)] =
         std::make_shared<GraphicsPipeline>(_device, swapChain, vertShader->stageInfo, fragShader->stageInfo, layouts, pushConstants);
 }
 
 void VulkanRenderGraph::compile() {
     std::shared_ptr<VulkanShader> prev;
+    std::cout << "stage flags decode: " << std::endl;
+    std::cout << "VK_SHADER_STAGE_VERTEX_BIT: " << VK_SHADER_STAGE_VERTEX_BIT << std::endl;
+    std::cout << "VK_SHADER_STAGE_FRAGMENT_BIT: " << VK_SHADER_STAGE_FRAGMENT_BIT << std::endl;
+    std::cout << "VK_SHADER_STAGE_COMPUTE_BIT: " << VK_SHADER_STAGE_COMPUTE_BIT << std::endl;
     for (auto shader : shaders) {
-        std::cout << "compiling shader: " << shader->name << std::endl;
+        std::cout << "processing shader: " << shader->path << std::endl;
 
         shader->compile();
         shader->createShaderModule();
@@ -204,11 +244,10 @@ void VulkanRenderGraph::compile() {
         // For example, culling compute shaders re-use buffers between stages
         // These re-used buffers only need to be bound once
         // Total set bindings might have to be identical though, so maybe this won't work
-        VulkanDescriptors::VulkanDescriptor* descriptor = descriptorManager->createDescriptor(shader->name, shader->stageFlags);
-        std::cout << "setting descriptor buffers" << shader->name << std::endl;
+        VulkanDescriptors::VulkanDescriptor* descriptor = descriptorManager->createDescriptor(shader->path, shader->stageFlags);
+        std::cout << "created descriptor with name: " << shader->path << " and stageFlags: " << shader->stageFlags << std::endl;
         shader->setDescriptorBuffers(descriptor, bufferCounts, globalBuffers, globalImageInfos);
 
-        std::cout << "switching flags: " << shader->stageFlags << std::endl;
         switch (shader->stageFlags) {
         case VK_SHADER_STAGE_COMPUTE_BIT: {
             std::vector<VkDescriptorSetLayout> layouts = descriptor->getLayouts();
@@ -230,5 +269,4 @@ void VulkanRenderGraph::compile() {
         }
         prev = shader;
     }
-    std::cout << "compiled shaders" << std::endl;
 }

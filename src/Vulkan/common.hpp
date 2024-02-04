@@ -54,6 +54,15 @@ static std::string getFilename(std::string filePath) {
     }
 }
 
+static std::string getFilenameNoExt(std::string filePath) {
+    try {
+        std::string fileNameWithExt = getFilename(filePath);
+        return fileNameWithExt.substr(0, filePath.find_last_of("."));
+    } catch (std::exception& e) {
+        throw std::runtime_error("failed to get file extension of: " + filePath);
+    }
+}
+
 static std::vector<char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 

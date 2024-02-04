@@ -21,7 +21,7 @@ class VulkanDescriptors {
         void setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo* bufferInfo);
         void setImageInfos(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>* imageInfos);
         std::vector<VkDescriptorSetLayout> getLayouts();
-        const std::unordered_map<uint32_t, VkDescriptorSet>& getSets() { return sets; }
+        const std::map<uint32_t, VkDescriptorSet>& getSets() { return sets; }
         void allocateSets();
         void update();
         //        VkDescriptorSetLayout getLayout() const { return layout; }
@@ -30,13 +30,15 @@ class VulkanDescriptors {
       private:
         VulkanDescriptors* descriptorManager;
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorSetLayoutBinding> bindings;
-        std::unordered_map<uint32_t, VkDescriptorSetLayout> layouts;
-        std::unordered_map<uint32_t, VkDescriptorSet> sets;
+        // Must be map to preserve setID ordering
+        // Required because final pipline layout set ordering must be sequential
+        std::map<uint32_t, VkDescriptorSetLayout> layouts;
+        std::map<uint32_t, VkDescriptorSet> sets;
         std::set<uint32_t> uniqueSetIDs;
         // FIXME
         // make this unique so bufferInfo can be overwritten
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo*> bufferInfos;
-        std::map<std::pair<uint32_t, uint32_t>, VkDescriptorImageInfo*> _imageInfos;
+        std::map<std::pair<uint32_t, uint32_t>, std::vector<VkDescriptorImageInfo>*> _imageInfos;
         void createLayout(uint32_t setID);
         VkShaderStageFlags _stageFlags;
     };

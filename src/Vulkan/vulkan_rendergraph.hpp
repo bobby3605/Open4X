@@ -42,8 +42,9 @@ class VulkanRenderGraph {
         std::vector<uint32_t> spirv;
 
         void createShaderModule();
-        VkShaderModule shaderModule;
+        VkShaderModule shaderModule = VK_NULL_HANDLE;
         VkPipelineShaderStageCreateInfo stageInfo{};
+        bool hasPushConstants = false;
 
         VkPushConstantRange pushConstantRange{};
         void setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts, bufferMap& globalBuffers,

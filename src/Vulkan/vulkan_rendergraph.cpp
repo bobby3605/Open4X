@@ -84,15 +84,22 @@ void VulkanRenderGraph::startFrame() {
 }
 
 bool VulkanRenderGraph::endFrame() {
+    std::cout << "ending frame" << std::endl;
     checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
     VkResult result = swapChain->submitCommandBuffers(&commandBuffers[swapChain->currentFrame()]);
+    std::cout << "frame ended, checking result" << std::endl;
+    /*
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        std::cout << "recreating swapChain" << std::endl;
         recreateSwapChain();
         // return true if framebuffer was resized
         return true;
     } else if (result != VK_SUCCESS) {
+        std::cout << "here" << std::endl;
         throw std::runtime_error("failed to present swap chain image");
     }
+    */
+    std::cout << "returning false from endFrame" << std::endl;
     return false;
 }
 
