@@ -1,8 +1,11 @@
 #include "vulkan_rendergraph.hpp"
 #include "Include/BaseTypes.h"
+#include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_pipeline.hpp"
+#include "vulkan_window.hpp"
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -19,73 +22,78 @@ static VkDescriptorType switchStorageType(glslang::TStorageQualifier storageType
     }
 }
 
-VulkanRenderGraph::VulkanRenderGraph(std::shared_ptr<VulkanDevice> device) {
-    _device = device;
+VulkanRenderGraph::VulkanRenderGraph(std::shared_ptr<VulkanDevice> device, VulkanWindow* window, std::shared_ptr<Settings> settings)
+    : _device{device}, _window{window}, _settings{settings} {
+    swapChain = new VulkanSwapChain(device, _window->getExtent());
+    createCommandBuffers();
     descriptorManager = std::make_shared<VulkanDescriptors>(device);
 }
 
-VulkanRenderGraph& VulkanRenderGraph::shader(std::string path, VkSpecializationInfo* specInfo) {
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> shader = std::make_shared<VulkanRenderGraph::VulkanShader>(path, specInfo);
-    shaders.push_back(shader);
-    renderOps.push_back(bindPipeline(shader));
-    renderOps.push_back(bindDescriptorSets(shader));
-    return *this;
+bool VulkanRenderGraph::render() {
+    startFrame();
+    recordRenderOps(getCurrentCommandBuffer());
+    return endFrame();
 }
 
-VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, uint32_t count) {
+void VulkanRenderGraph::createCommandBuffers() {
+    commandBuffers.resize(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = _device->getCommandPool();
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-    if (bufferCounts.count(name) == 0) {
-        bufferCounts[name] = count;
-    } else {
-        throw std::runtime_error("multiple buffer definitions for: " + name);
-    }
-    return *this;
+    checkResult(vkAllocateCommandBuffers(_device->device(), &allocInfo, commandBuffers.data()), "failed to create command buffers");
 }
 
-VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, std::shared_ptr<VulkanBuffer> buffer) {
-    globalBuffers[name] = buffer;
-    return *this;
-}
-
-std::vector<VkPushConstantRange> VulkanRenderGraph::getPushConstants(std::shared_ptr<VulkanRenderGraph::VulkanShader> shader) {
-    // TODO
-    // Multiple shaders for input
-    std::vector<VkPushConstantRange> pushConstants;
-    if (shader->pushConstantRange.size != 0) {
-        shader->pushConstantRange.offset = pushConstantOffset;
-        pushConstantOffset += shader->pushConstantRange.size;
-        pushConstants.push_back(shader->pushConstantRange);
-    }
-    return pushConstants;
-}
-
-void VulkanRenderGraph::addComputePipeline(std::shared_ptr<VulkanRenderGraph::VulkanShader> computeShader,
-                                           std::vector<VkDescriptorSetLayout>& layouts) {
-    pipelines[computeShader->name] =
-        std::make_shared<ComputePipeline>(_device, layouts, getPushConstants(computeShader), computeShader->stageInfo);
-}
-
-void VulkanRenderGraph::compile() {
-    for (auto shader : shaders) {
-
-        shader->compile();
-        shader->createShaderModule();
-
-        VulkanDescriptors::VulkanDescriptor* descriptor = descriptorManager->createDescriptor(shader->name, shader->stageFlags);
-        shader->setDescriptorBuffers(descriptor, bufferCounts, globalBuffers);
-
-        switch (shader->stageFlags) {
-        case VK_SHADER_STAGE_COMPUTE_BIT: {
-            std::vector<VkDescriptorSetLayout> layouts = descriptor->getLayouts();
-            addComputePipeline(shader, layouts);
-            break;
-        }
-            /*
-        case VK_SHADER_STAGE_VERTEX_BIT:
-            addGraphicsPipeline(shader, std::shared_ptr<VulkanShader> fragShader) break;
-            */
-        default:
-            throw std::runtime_error("Unknown shader type type during rendergraph compilation: " + std::to_string(shader->stageFlags));
+void VulkanRenderGraph::recreateSwapChain() {
+    // pause on minimization
+    if (_settings->pauseOnMinimization) {
+        int width = 0, height = 0;
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(_window->getGLFWwindow(), &width, &height);
+            glfwWaitEvents();
         }
     }
+
+    vkDeviceWaitIdle(_device->device());
+
+    swapChain = new VulkanSwapChain(_device, _window->getExtent(), swapChain);
 }
+
+void VulkanRenderGraph::startFrame() {
+    VkResult result = swapChain->acquireNextImage();
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        // TODO
+        // Do I need to run acquireNextImage after this?
+        recreateSwapChain();
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image");
+    }
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    vkResetCommandBuffer(getCurrentCommandBuffer(), 0);
+
+    checkResult(vkBeginCommandBuffer(getCurrentCommandBuffer(), &beginInfo), "failed to begin recording command buffer");
+}
+
+bool VulkanRenderGraph::endFrame() {
+    checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
+    VkResult result = swapChain->submitCommandBuffers(&commandBuffers[swapChain->currentFrame()]);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapChain();
+        // return true if framebuffer was resized
+        return true;
+    } else if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to present swap chain image");
+    }
+    return false;
+}
+
+void VulkanRenderGraph::bufferWrite(std::string name, void* data) { globalBuffers[name]->write(data); }

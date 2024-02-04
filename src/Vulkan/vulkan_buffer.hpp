@@ -27,7 +27,7 @@ class VulkanBuffer {
     void write(void* data);
     ~VulkanBuffer();
     VkDeviceSize size() { return _bufferInfo.range; }
-    VkDescriptorBufferInfo bufferInfo() { return _bufferInfo; }
+    VkDescriptorBufferInfo* bufferInfo() { return &_bufferInfo; }
     void* mapped() { return _mapped; }
     VkBuffer& buffer() { return _bufferInfo.buffer; }
     VkDeviceMemory& memory() { return _memory; }

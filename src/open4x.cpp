@@ -1,5 +1,6 @@
 #include "Vulkan/vulkan_descriptors.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
+#include "Vulkan/vulkan_rendergraph.hpp"
 #include <cstdint>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
@@ -54,13 +55,13 @@ Open4X::Open4X() {
     vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
     glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
-    vulkanDevice = new VulkanDevice(vulkanWindow);
+    vulkanDevice = std::make_shared<VulkanDevice>(vulkanWindow);
 }
 
 Open4X::~Open4X() {
 
-    delete vulkanRenderer;
-    delete vulkanDevice;
+    //    delete vulkanRenderer;
+    //    delete vulkanDevice;
     delete vulkanWindow;
 }
 
@@ -123,10 +124,13 @@ void Open4X::run() {
     vkCreateQueryPool(vulkanDevice->device(), &queryPoolInfo, nullptr, &queryPool);
     vkResetQueryPool(vulkanDevice->device(), queryPool, 0, queryCount);
 
-    VulkanDescriptors descriptorManager(vulkanDevice);
+    //    VulkanDescriptors descriptorManager(vulkanDevice);
 
-    VulkanObjects objects(vulkanDevice, &descriptorManager, settings);
+    VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
 
+    VulkanObjects objects(vulkanDevice, &renderGraph, settings);
+
+    /*
     std::vector<std::shared_ptr<VulkanBuffer>> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
     VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global", VK_SHADER_STAGE_VERTEX_BIT);
     for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
@@ -137,6 +141,7 @@ void Open4X::run() {
     globalDescriptor->update();
 
     vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws(), settings);
+    */
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -146,7 +151,7 @@ void Open4X::run() {
     float vFov = 45.0f;
     float nearClip = 0.0001f;
     float farClip = 1000.0f;
-    float aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+    float aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
 
     glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
@@ -178,6 +183,9 @@ void Open4X::run() {
         ubo.projView = proj * glm::inverse(cameraModel);
         ubo.camPos = camera->position();
 
+        renderGraph.bufferWrite("Globals", &ubo);
+
+        /*
         vulkanRenderer->startFrame();
         vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 0, queryCount);
 
@@ -203,9 +211,10 @@ void Open4X::run() {
         vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
 
         vulkanRenderer->endRendering();
+        */
 
-        if (vulkanRenderer->endFrame()) {
-            aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+        if (renderGraph.render()) {
+            aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
             proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
             fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }

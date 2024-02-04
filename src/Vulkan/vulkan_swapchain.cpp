@@ -7,15 +7,16 @@
 #include <cstdint>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-VulkanSwapChain::VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent)
+VulkanSwapChain::VulkanSwapChain(std::shared_ptr<VulkanDevice> deviceRef, VkExtent2D windowExtent)
     : device{deviceRef}, windowExtent{windowExtent}, oldSwapChain(VK_NULL_HANDLE) {
     init();
 }
 
-VulkanSwapChain::VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain)
+VulkanSwapChain::VulkanSwapChain(std::shared_ptr<VulkanDevice> deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain)
     : device{deviceRef}, windowExtent{windowExtent}, oldSwapChain(oldSwapChain->swapChain) {
     init();
     delete oldSwapChain;

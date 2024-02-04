@@ -22,8 +22,8 @@ class Open4X {
     VulkanObject* camera;
 
     VulkanWindow* vulkanWindow;
-    VulkanDevice* vulkanDevice;
-    VulkanRenderer* vulkanRenderer;
+    std::shared_ptr<VulkanDevice> vulkanDevice;
+    //    VulkanRenderer* vulkanRenderer;
 
     std::shared_ptr<VulkanObjects> objects;
 

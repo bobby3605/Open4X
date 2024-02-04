@@ -3,6 +3,7 @@
 
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
+#include "vulkan_swapchain.hpp"
 #include <cstdint>
 #include <glslang/MachineIndependent/Versions.h>
 #include <glslang/MachineIndependent/localintermediate.h>
@@ -24,7 +25,7 @@ class VulkanPipeline {
     static VkGraphicsPipelineCreateInfo defaultPipelineConfigInfo();
     VkPipeline pipeline() { return _pipeline; }
     VkPipelineLayout pipelineLayout() { return _pipelineLayout; }
-    virtual void bind();
+    //    virtual void bind();
 
   protected:
     void createGraphicsPipeline();
@@ -42,18 +43,19 @@ class VulkanPipeline {
     VkPipelineBindPoint _pipelineType;
 };
 
-class GraphicsPipeline : public virtual VulkanPipeline {
+class GraphicsPipeline : public VulkanPipeline {
   public:
-    GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VkGraphicsPipelineCreateInfo pipelineInfo, std::string vertShaderPath,
-                     std::string fragShaderPath);
-    void bind();
+    GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain, VkPipelineShaderStageCreateInfo vertInfo,
+                     VkPipelineShaderStageCreateInfo fragInfo, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                     std::vector<VkPushConstantRange>& pushConstants);
+    //   void bind();
 };
 
-class ComputePipeline : public virtual VulkanPipeline {
+class ComputePipeline : public VulkanPipeline {
   public:
     ComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
                     std::vector<VkPushConstantRange>& pushConstants, VkPipelineShaderStageCreateInfo stageInfo);
-    void bind();
+    //  void bind();
 };
 
 #endif // VULKAN_PIPELINE_H_

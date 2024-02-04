@@ -43,7 +43,7 @@ struct ComputePushConstants {
 
 class VulkanRenderer {
   public:
-    VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager,
+    VulkanRenderer(VulkanWindow* window, std::shared_ptr<VulkanDevice> deviceRef, VulkanDescriptors* descriptorManager,
                    const std::vector<VkDrawIndexedIndirectCommand>& drawCommands, std::shared_ptr<Settings> settingsPtr);
     ~VulkanRenderer();
     void recordCommandBuffer(uint32_t imageIndex);
@@ -76,7 +76,7 @@ class VulkanRenderer {
                        VkPipelineStageFlags2 dstStageMask);
     void debugBarrier();
 
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
     VulkanPipeline* graphicsPipeline;
     VulkanWindow* vulkanWindow;
     VulkanSwapChain* swapChain;

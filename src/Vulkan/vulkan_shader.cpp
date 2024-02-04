@@ -1,4 +1,3 @@
-#include "Include/BaseTypes.h"
 #include "common.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_pipeline.hpp"
@@ -46,8 +45,8 @@ static inline VkPipelineBindPoint flagToBindPoint(VkShaderStageFlagBits stageFla
 void VulkanRenderGraph::VulkanShader::createShaderModule() {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size() * sizeof(code[0]);
-    createInfo.pCode = code.data();
+    createInfo.codeSize = spirv.size() * sizeof(spirv[0]);
+    createInfo.pCode = spirv.data();
 
     checkResult(vkCreateShaderModule(_device->device(), &createInfo, nullptr, &shaderModule), "failed to create shader module");
 
@@ -74,7 +73,7 @@ void VulkanRenderGraph::VulkanShader::compile() {
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
-    std::vector<char> shaderCode = readFile(path);
+    std::vector<char> shaderCode = readFile(basePath + path);
     const char* shaderString = shaderCode.data();
     const int shaderLength = shaderCode.size();
     const char* shaderNames = path.c_str();
@@ -153,22 +152,26 @@ void VulkanRenderGraph::VulkanShader::compile() {
 }
 
 void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts,
-                                                           bufferMap& globalBuffers) {
+                                                           bufferMap& globalBuffers, imageInfosMap& globalImageInfos) {
     for (auto buffer : buffers) {
-        if (globalBuffers.count(buffer.name) == 0) {
+        if (buffer.getType()->getQualifier().isPushConstant()) {
+            // If push constant, set values and skip the rest
+            pushConstantRange.size = buffer.size;
+            pushConstantRange.stageFlags = stageFlags;
+            continue;
+        } else if (globalBuffers.count(buffer.name) == 0) {
             if (bufferCounts.count(buffer.name) != 0) {
                 switch (buffer.getType()->getQualifier().storage) {
                 case glslang::TStorageQualifier::EvqUniform:
-                    if (buffer.getType()->getQualifier().isPushConstant()) {
-                        pushConstantRange.size = buffer.size;
-                        pushConstantRange.stageFlags = stageFlags;
-                    } else {
-                        descriptor->addBinding(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
-                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-                        globalBuffers[buffer.name] = VulkanBuffer::UniformBuffer(_device, buffer.size * bufferCounts[buffer.name]);
-                    }
+                    std::cout << "adding uniform binding: " << buffer.getType()->getQualifier().layoutSet << ", " << buffer.getBinding()
+                              << std::endl;
+                    descriptor->addBinding(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
+                                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+                    globalBuffers[buffer.name] = VulkanBuffer::UniformBuffer(_device, buffer.size * bufferCounts[buffer.name]);
                     break;
                 case glslang::TStorageQualifier::EvqBuffer:
+                    std::cout << "adding storage binding: " << buffer.getType()->getQualifier().layoutSet << ", " << buffer.getBinding()
+                              << std::endl;
                     descriptor->addBinding(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
                                            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
                     // FIXME:
@@ -184,14 +187,25 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
                 throw std::runtime_error("missing buffer named: " + buffer.name + " for file: " + path);
             }
         }
+        // FIXME:
+        // Check if buffer or image/sampler and use setBuffer or setImageInfos
         // Don't need to check if globalBuffers[buffer.name] exists because an exception would have been thrown above if it doesn't exist
-        descriptor->setBuffer(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(), globalBuffers[buffer.name]->bufferInfo());
+        if (buffer.getType()->isImage()) {
+            descriptor->setImageInfos(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(), globalImageInfos[buffer.name]);
+        } else {
+            descriptor->setBuffer(buffer.getType()->getQualifier().layoutSet, buffer.getBinding(),
+                                  globalBuffers[buffer.name]->bufferInfo());
+        }
     }
     descriptor->allocateSets();
     descriptor->update();
 }
 
-VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, VkSpecializationInfo* specInfo) : path{path} {
+// TODO
+// Get specInfo from reflection, so only pData has to be passed
+// https://github.com/KhronosGroup/glslang/issues/2011
+VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, VkSpecializationInfo* specInfo, std::shared_ptr<VulkanDevice> device)
+    : path{path}, _device{device} {
     stageInfo.pSpecializationInfo = specInfo;
     name = getFilename(path);
 }

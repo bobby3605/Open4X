@@ -2,6 +2,7 @@
 #define VULKAN_SWAPCHAIN_H_
 
 #include "vulkan_device.hpp"
+#include <memory>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
@@ -9,8 +10,8 @@ class VulkanSwapChain {
   public:
     const static int MAX_FRAMES_IN_FLIGHT = 2;
 
-    VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent);
-    VulkanSwapChain(VulkanDevice* deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain);
+    VulkanSwapChain(std::shared_ptr<VulkanDevice> deviceRef, VkExtent2D windowExtent);
+    VulkanSwapChain(std::shared_ptr<VulkanDevice> deviceRef, VkExtent2D windowExtent, VulkanSwapChain* oldSwapChain);
     ~VulkanSwapChain();
     VkResult acquireNextImage();
     VkResult submitCommandBuffers(const VkCommandBuffer* buffer);
@@ -37,7 +38,7 @@ class VulkanSwapChain {
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     bool hasStencilComponent(VkFormat format);
 
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
     VkSwapchainKHR swapChain;
 
     VkFormat swapChainImageFormat;

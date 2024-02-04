@@ -1,6 +1,6 @@
 #version 460
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform Globals {
     mat4 projView;
     vec3 camPos;
 }

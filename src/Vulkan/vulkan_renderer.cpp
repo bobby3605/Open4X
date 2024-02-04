@@ -16,7 +16,7 @@
 #include <iostream>
 #include <stdexcept>
 
-VulkanRenderer::VulkanRenderer(VulkanWindow* window, VulkanDevice* deviceRef, VulkanDescriptors* descriptorManager,
+VulkanRenderer::VulkanRenderer(VulkanWindow* window, std::shared_ptr<VulkanDevice> deviceRef, VulkanDescriptors* descriptorManager,
                                const std::vector<VkDrawIndexedIndirectCommand>& drawCommands, std::shared_ptr<Settings> settingsPtr)
     : vulkanWindow{window}, device{deviceRef}, descriptorManager{descriptorManager}, settings{settingsPtr} {
     init(drawCommands);
@@ -59,7 +59,7 @@ void VulkanRenderer::bindPipeline(std::shared_ptr<VulkanPipeline> pipeline) {
 
     vkCmdBindPipeline(getCurrentCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline->pipeline());
 
-    bindDescriptorSets(pipeline);
+    //    bindDescriptorSets(pipeline);
 }
 
 void VulkanRenderer::bindComputePipeline(std::string name) {
@@ -90,6 +90,7 @@ void VulkanRenderer::recreateSwapChain() {
 // decouple objects from renderer
 void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndirectCommand>& drawCommands) {
 
+    /*
     std::vector<VkPushConstantRange> pushConstants(1);
     std::vector<VkDescriptorSetLayout> descriptorLayouts(1);
 
@@ -141,13 +142,16 @@ void VulkanRenderer::createCullingPipelines(const std::vector<VkDrawIndexedIndir
 
     pushConstants[0].size = sizeof(uint32_t);
     createComputePipeline(name, descriptorLayouts, pushConstants, &specInfo);
+    */
 }
 
 void VulkanRenderer::createComputePipeline(std::string name, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
                                            std::vector<VkPushConstantRange>& pushConstants, VkSpecializationInfo* specializationInfo) {
 
+    /*
     computePipelines[name] =
         std::make_shared<VulkanPipeline>(device, "assets/shaders/" + name + ".comp", descriptorLayouts, pushConstants, specializationInfo);
+        */
 }
 
 void VulkanRenderer::createPipeline() {
@@ -272,7 +276,7 @@ void VulkanRenderer::createPipeline() {
     renderingInfo.depthAttachmentFormat = swapChain->findDepthFormat();
     pipelineInfo.pNext = &renderingInfo;
 
-    graphicsPipeline = new VulkanPipeline(device, pipelineInfo);
+    //    graphicsPipeline = new VulkanPipeline(device, pipelineInfo);
 }
 
 void VulkanRenderer::createCommandBuffers() {
@@ -323,9 +327,11 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     bindComputePipeline(name);
 
+    /*
     // bind descriptors for cull_frustum_pass
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
+                      */
 
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
@@ -347,9 +353,11 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
 
     bindComputePipeline(name);
 
+    /*
     // bind descriptors for reduce_prefix_sum
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
+                      */
 
     vkCmdPushConstants(getCurrentCommandBuffer(), computePipelines[name]->pipelineLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
                        sizeof(frustumCullPushConstants), &frustumCullPushConstants);
@@ -378,9 +386,11 @@ void VulkanRenderer::cullDraws(const std::vector<VkDrawIndexedIndirectCommand>& 
     memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
                   VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
+    /*
     // bind descriptors for cull draw pass
     bindDescriptorSet(VK_PIPELINE_BIND_POINT_COMPUTE, computePipelines[name]->pipelineLayout(),
                       descriptorManager->descriptors[name]->getSets()[0]);
+                      */
 
     // push the draw indirect count
     drawCount = drawCommands.size();
@@ -420,11 +430,13 @@ void VulkanRenderer::beginRendering() {
     passInfo.pColorAttachments = &colorAttachment;
     passInfo.pDepthAttachment = &depthAttachment;
 
+    /*
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
 
     device->transitionImageLayout(swapChain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
+                                  */
 
     vkCmdBeginRendering(getCurrentCommandBuffer(), &passInfo);
 }
@@ -432,8 +444,10 @@ void VulkanRenderer::beginRendering() {
 void VulkanRenderer::endRendering() {
     vkCmdEndRendering(getCurrentCommandBuffer());
 
+    /*
     device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                   VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, getCurrentCommandBuffer());
+                                  */
 }
 
 void VulkanRenderer::startFrame() {

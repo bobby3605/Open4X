@@ -4,6 +4,7 @@
 #include "vulkan_device.hpp"
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <utility>
@@ -15,9 +16,10 @@ class VulkanDescriptors {
       public:
         VulkanDescriptor(VulkanDescriptors* descriptorManager, VkShaderStageFlags stageFlags);
         ~VulkanDescriptor();
-        void addBinding(uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID);
+        void addBinding(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos);
         void addBinding(uint32_t setID, uint32_t bindingID, VkDescriptorType type);
-        void setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo bufferInfo);
+        void setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo* bufferInfo);
+        void setImageInfos(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>* imageInfos);
         std::vector<VkDescriptorSetLayout> getLayouts();
         const std::unordered_map<uint32_t, VkDescriptorSet>& getSets() { return sets; }
         void allocateSets();
@@ -33,13 +35,13 @@ class VulkanDescriptors {
         std::set<uint32_t> uniqueSetIDs;
         // FIXME
         // make this unique so bufferInfo can be overwritten
-        std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo> bufferInfos;
+        std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo*> bufferInfos;
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorImageInfo*> _imageInfos;
         void createLayout(uint32_t setID);
         VkShaderStageFlags _stageFlags;
     };
 
-    VulkanDescriptors(VulkanDevice* deviceRef);
+    VulkanDescriptors(std::shared_ptr<VulkanDevice> deviceRef);
     ~VulkanDescriptors();
 
     VkDescriptorPool createPool();
@@ -65,7 +67,7 @@ class VulkanDescriptors {
     void createDescriptorSetLayout();
     void createDescriptorPool();
 
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
 
     VkDescriptorPool pool;
 };

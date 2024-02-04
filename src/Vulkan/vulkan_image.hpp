@@ -4,13 +4,14 @@
 #include "stb/stb_image.h"
 #include "vulkan_device.hpp"
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vulkan/vulkan.hpp>
 
 class VulkanImage {
   public:
-    VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
-    VulkanImage(VulkanDevice* device, std::string path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+    VulkanImage(std::shared_ptr<VulkanDevice> device, GLTF* model, uint32_t textureID, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+    VulkanImage(std::shared_ptr<VulkanDevice> device, std::string path, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
     ~VulkanImage();
 
     VkWriteDescriptorSet descriptorWrite{};
@@ -28,7 +29,7 @@ class VulkanImage {
     stbi_uc* pixels;
     std::vector<unsigned char> pixelBuffer;
 
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
     GLTF* model = nullptr;
     uint32_t _textureID;
 
@@ -45,14 +46,14 @@ class VulkanImage {
 
 class VulkanSampler {
   public:
-    VulkanSampler(VulkanDevice* device, GLTF* model, uint32_t samplerID, uint32_t mipLevels);
-    VulkanSampler(VulkanDevice* device, uint32_t mipLevels);
+    VulkanSampler(std::shared_ptr<VulkanDevice> device, GLTF* model, uint32_t samplerID, uint32_t mipLevels);
+    VulkanSampler(std::shared_ptr<VulkanDevice> device, uint32_t mipLevels);
     ~VulkanSampler();
     VkSampler const imageSampler() { return _imageSampler; }
     friend bool operator==(const VulkanSampler& s1, const VulkanSampler& s2);
 
   private:
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
     GLTF* model;
     uint32_t samplerID, mipLevels;
     VkSampler _imageSampler;

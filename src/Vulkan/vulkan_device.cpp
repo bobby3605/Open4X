@@ -500,17 +500,17 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLeve
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
                                                                                         VkImageLayout newLayout,
                                                                                         VkImageSubresourceRange subresourceRange) {
-    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, subresourceRange, commandBuffer);
+    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, subresourceRange)(commandBuffer);
     return *this;
 }
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
                                                                                         VkImageLayout newLayout, uint32_t mipLevels) {
-    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, mipLevels, commandBuffer);
+    vulkanDevice->transitionImageLayout(image, oldLayout, newLayout, mipLevels)(commandBuffer);
     return *this;
 }
 
-void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                         VkImageSubresourceRange subresourceRange, VkCommandBuffer commandBuffer) {
+RenderOp VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                             VkImageSubresourceRange subresourceRange) {
     VkImageMemoryBarrier2 barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.oldLayout = oldLayout;
@@ -521,11 +521,10 @@ void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
 
     barrier.subresourceRange = subresourceRange;
 
-    actuallyTransitionImageLayout(barrier, oldLayout, newLayout, commandBuffer);
+    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
 }
 
-void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels,
-                                         VkCommandBuffer commandBuffer) {
+RenderOp VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) {
     VkImageMemoryBarrier2 barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.oldLayout = oldLayout;
@@ -540,11 +539,10 @@ void VulkanDevice::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
-    actuallyTransitionImageLayout(barrier, oldLayout, newLayout, commandBuffer);
+    return actuallyTransitionImageLayout(barrier, oldLayout, newLayout);
 }
 
-void VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                 VkCommandBuffer commandBuffer) {
+RenderOp VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout) {
 
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
         barrier.srcAccessMask = VK_ACCESS_2_NONE;
@@ -581,13 +579,15 @@ void VulkanDevice::actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, 
         throw std::invalid_argument("unsupported layout transition");
     }
 
-    VkDependencyInfo dependencyInfo{};
-    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependencyInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-    dependencyInfo.imageMemoryBarrierCount = 1;
-    dependencyInfo.pImageMemoryBarriers = &barrier;
+    return [&, barrier](VkCommandBuffer commandBuffer) {
+        VkDependencyInfo dependencyInfo{};
+        dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependencyInfo.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        dependencyInfo.imageMemoryBarrierCount = 1;
+        dependencyInfo.pImageMemoryBarriers = &barrier;
 
-    vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+        vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+    };
 }
 
 VulkanDevice::singleTimeBuilder& VulkanDevice::singleTimeBuilder::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,

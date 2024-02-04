@@ -6,10 +6,12 @@
 #include "aabb.hpp"
 #include <array>
 #include <fstream>
+#include <functional>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <vulkan/vulkan.hpp>
 
 #ifdef NDEBUG
 #define checkResult(f, str)
@@ -21,6 +23,8 @@
         }                                                                                                                                  \
     }
 #endif
+
+typedef std::function<void(VkCommandBuffer)> RenderOp;
 
 // https://github.com/zeux/niagara/blob/master/src/shaders.h#L38
 inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }

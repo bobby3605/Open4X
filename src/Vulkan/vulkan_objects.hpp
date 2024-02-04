@@ -6,6 +6,7 @@
 #include "vulkan_device.hpp"
 #include "vulkan_object.hpp"
 #include "vulkan_renderer.hpp"
+#include "vulkan_rendergraph.hpp"
 #include <future>
 #include <map>
 #include <memory>
@@ -14,10 +15,9 @@
 
 class VulkanObjects {
   public:
-    VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings);
+    VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderGraph* rg, std::shared_ptr<Settings> settings);
     ~VulkanObjects();
-    void bind(VulkanRenderer* renderer);
-    void drawIndirect(VulkanRenderer* renderer);
+    void updateModels();
     VulkanObject* getObjectByName(std::string name);
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
     int totalInstanceCount() { return _totalInstanceCount; }

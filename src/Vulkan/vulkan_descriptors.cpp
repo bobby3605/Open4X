@@ -37,7 +37,8 @@ VkDescriptorType VulkanDescriptors::getType(VkBufferUsageFlags usageFlags) {
 }
 */
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos, uint32_t setID) {
+/*
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos) {
 
     VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 
@@ -57,6 +58,7 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t bindingID, std::ve
     _imageInfos.insert({{setID, bindingID}, imageInfos.data()});
     uniqueSetIDs.insert(setID);
 }
+*/
 
 void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, VkDescriptorType type) {
     VkDescriptorSetLayoutBinding binding{};
@@ -71,19 +73,40 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bi
     uniqueSetIDs.insert(setID);
 }
 
-void VulkanDescriptors::VulkanDescriptor::setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo bufferInfo) {
+void VulkanDescriptors::VulkanDescriptor::setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo* bufferInfo) {
     bufferInfos.insert({{setID, bindingID}, bufferInfo});
+}
+
+void VulkanDescriptors::VulkanDescriptor::setImageInfos(uint32_t setID, uint32_t bindingID,
+                                                        std::vector<VkDescriptorImageInfo>* imageInfos) {
+
+    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+
+    if (imageInfos->at(0).imageView != VK_NULL_HANDLE) {
+        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+    VkDescriptorSetLayoutBinding binding{};
+    binding.binding = bindingID;
+    binding.descriptorType = descriptorType;
+    binding.descriptorCount = imageInfos->size();
+    binding.pImmutableSamplers = nullptr;
+    binding.stageFlags = _stageFlags;
+
+    bindings.insert({{setID, bindingID}, binding});
+    _imageInfos.insert({{setID, bindingID}, imageInfos->data()});
 }
 
 void VulkanDescriptors::VulkanDescriptor::createLayout(uint32_t setID) {
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     std::vector<VkDescriptorSetLayoutBinding> _bindings;
     for (auto b : bindings) {
-        _bindings.push_back(b.second);
+        if (b.first.first == setID) {
+            _bindings.push_back(b.second);
+        }
     }
     layoutInfo.pBindings = _bindings.data();
+    layoutInfo.bindingCount = static_cast<uint32_t>(_bindings.size());
 
     VkDescriptorSetLayout layout;
     checkResult(vkCreateDescriptorSetLayout(descriptorManager->device->device(), &layoutInfo, nullptr, &layout),
@@ -92,7 +115,7 @@ void VulkanDescriptors::VulkanDescriptor::createLayout(uint32_t setID) {
 }
 
 std::vector<VkDescriptorSetLayout> VulkanDescriptors::VulkanDescriptor::getLayouts() {
-    std::vector<VkDescriptorSetLayout> flatLayouts(layouts.size());
+    std::vector<VkDescriptorSetLayout> flatLayouts;
     for (auto layout : layouts) {
         flatLayouts.push_back(layout.second);
     }
@@ -107,7 +130,7 @@ void VulkanDescriptors::VulkanDescriptor::allocateSets() {
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorManager->pool;
     allocInfo.descriptorSetCount = uniqueSetIDs.size();
-    std::vector<VkDescriptorSetLayout> tmpLayouts(uniqueSetIDs.size());
+    std::vector<VkDescriptorSetLayout> tmpLayouts;
     for (auto layout : layouts) {
         tmpLayouts.push_back(layout.second);
     }
@@ -124,33 +147,41 @@ void VulkanDescriptors::VulkanDescriptor::allocateSets() {
 }
 
 void VulkanDescriptors::VulkanDescriptor::update() {
-    for (auto it : sets) {
-        std::vector<VkWriteDescriptorSet> descriptorWrites(bindings.size());
-        for (uint32_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex) {
-            descriptorWrites[bindingIndex].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[bindingIndex].dstSet = it.second;
-            descriptorWrites[bindingIndex].dstBinding = bindings[{it.first, bindingIndex}].binding;
-            descriptorWrites[bindingIndex].dstArrayElement = 0;
-            descriptorWrites[bindingIndex].descriptorType = bindings[{it.first, bindingIndex}].descriptorType;
-            descriptorWrites[bindingIndex].descriptorCount = bindings[{it.first, bindingIndex}].descriptorCount;
-            switch (bindings[{it.first, bindingIndex}].descriptorType) {
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                descriptorWrites[bindingIndex].pBufferInfo = &bufferInfos[{it.first, bindingIndex}];
-                break;
-            case VK_DESCRIPTOR_TYPE_SAMPLER:
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-                descriptorWrites[bindingIndex].pImageInfo = _imageInfos[{it.first, bindingIndex}];
-                break;
-            default:
-                throw std::runtime_error("unknown descriptor type");
-            }
+    std::vector<VkWriteDescriptorSet> descriptorWrites;
+    for (auto binding : bindings) {
+        uint32_t setIndex = binding.first.first;
+        uint32_t bindingIndex = binding.first.second;
+        VkDescriptorSetLayoutBinding& actualBinding = binding.second;
+
+        assert(bindingIndex == actualBinding.binding);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = sets.at(setIndex);
+        descriptorWrite.dstBinding = actualBinding.binding;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = actualBinding.descriptorType;
+        // FIXME:
+        // support more than 1 descriptor count
+        descriptorWrite.descriptorCount = 1;
+        switch (actualBinding.descriptorType) {
+        case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            descriptorWrite.pBufferInfo = bufferInfos.at({setIndex, bindingIndex});
+            break;
+        case VK_DESCRIPTOR_TYPE_SAMPLER:
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            descriptorWrite.pImageInfo = _imageInfos.at({setIndex, bindingIndex});
+            break;
+        default:
+            throw std::runtime_error("unknown descriptor type");
         }
-        vkUpdateDescriptorSets(descriptorManager->device->device(), bindings.size(), descriptorWrites.data(), 0, nullptr);
+        descriptorWrites.push_back(descriptorWrite);
     }
+    vkUpdateDescriptorSets(descriptorManager->device->device(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
-VulkanDescriptors::VulkanDescriptors(VulkanDevice* deviceRef) : device{deviceRef} { pool = createPool(); }
+VulkanDescriptors::VulkanDescriptors(std::shared_ptr<VulkanDevice> deviceRef) : device{deviceRef} { pool = createPool(); }
 
 VulkanDescriptors::VulkanDescriptor* VulkanDescriptors::createDescriptor(std::string name, VkShaderStageFlags stageFlags) {
     VulkanDescriptor* tmp = new VulkanDescriptor(this, stageFlags);
