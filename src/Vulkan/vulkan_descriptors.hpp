@@ -17,8 +17,7 @@ class VulkanDescriptors {
         VulkanDescriptor(VulkanDescriptors* descriptorManager, VkShaderStageFlags stageFlags);
         ~VulkanDescriptor();
         void addBinding(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos);
-        void addBinding(uint32_t setID, uint32_t bindingID, VkDescriptorType type);
-        void setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo* bufferInfo);
+        void addBinding(uint32_t setID, uint32_t bindingID, std::shared_ptr<VulkanBuffer> buffer);
         void setImageInfos(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>* imageInfos);
         std::vector<VkDescriptorSetLayout> getLayouts();
         const std::map<uint32_t, VkDescriptorSet>& getSets() { return sets; }
@@ -52,7 +51,7 @@ class VulkanDescriptors {
 
     static VkDescriptorType getType(VkBufferUsageFlags usageFlags);
 
-    static inline const std::vector<std::pair<VkBufferUsageFlags, VkDescriptorType>> usageToTypes = {
+    static inline const std::map<VkBufferUsageFlags, VkDescriptorType> usageToTypes = {
         {VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER},
         {VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER},
         {VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},

@@ -108,8 +108,8 @@ VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, std::shared_ptr<V
     return *this;
 }
 
-VulkanRenderGraph& VulkanRenderGraph::imageInfos(std::string name, std::vector<VkDescriptorImageInfo>& imageInfos) {
-    globalImageInfos[name] = &imageInfos;
+VulkanRenderGraph& VulkanRenderGraph::imageInfos(std::string name, std::vector<VkDescriptorImageInfo>* imageInfos) {
+    globalImageInfos[name] = imageInfos;
     return *this;
 }
 

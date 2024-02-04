@@ -21,7 +21,6 @@ VulkanDescriptors::VulkanDescriptor::~VulkanDescriptor() {
     }
 }
 
-/*
 // TODO
 // Find a faster way to extract the valid buffer usage flags
 // Flags like indirect need to be removed before the map can work properly
@@ -35,7 +34,6 @@ VkDescriptorType VulkanDescriptors::getType(VkBufferUsageFlags usageFlags) {
     // Print hex string
     throw std::runtime_error("Failed to find descriptor type for usage flags: " + std::to_string(usageFlags));
 }
-*/
 
 /*
 void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos) {
@@ -60,22 +58,19 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bi
 }
 */
 
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, VkDescriptorType type) {
+void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, std::shared_ptr<VulkanBuffer> buffer) {
+
     VkDescriptorSetLayoutBinding binding{};
     binding.binding = bindingID;
-    binding.descriptorType = type;
+    binding.descriptorType = getType(buffer->usageFlags());
     binding.descriptorCount = 1;
     binding.pImmutableSamplers = nullptr;
     std::cout << "adding binding: " << setID << ", " << bindingID << " with stage flags: " << _stageFlags << std::endl;
     binding.stageFlags = _stageFlags;
 
     bindings.insert({{setID, bindingID}, binding});
-
+    bufferInfos.insert({{setID, bindingID}, buffer->bufferInfo()});
     uniqueSetIDs.insert(setID);
-}
-
-void VulkanDescriptors::VulkanDescriptor::setBuffer(uint32_t setID, uint32_t bindingID, VkDescriptorBufferInfo* bufferInfo) {
-    bufferInfos.insert({{setID, bindingID}, bufferInfo});
 }
 
 void VulkanDescriptors::VulkanDescriptor::setImageInfos(uint32_t setID, uint32_t bindingID,

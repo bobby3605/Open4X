@@ -453,11 +453,11 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertexBuffer, indexBuffer);
     rg->buffer("Globals", 1).buffer("Materials", ssboBuffers->materialBuffer()).buffer("CulledInstanceIndices", _totalInstanceCount);
 
-    rg->imageInfos("samplers", samplerInfos);
-    rg->imageInfos("images", imageInfos);
-    rg->imageInfos("normals", normalMapInfos);
-    rg->imageInfos("metallicRoughnesses", metallicRoughnessMapInfos);
-    rg->imageInfos("aos", aoMapInfos);
+    rg->imageInfos("samplers", &samplerInfos);
+    rg->imageInfos("images", &imageInfos);
+    rg->imageInfos("normals", &normalMapInfos);
+    rg->imageInfos("metallicRoughnesses", &metallicRoughnessMapInfos);
+    rg->imageInfos("aos", &aoMapInfos);
 
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
     rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));

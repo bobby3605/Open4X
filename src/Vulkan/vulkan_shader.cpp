@@ -1,3 +1,4 @@
+#include "SPIRV-Cross/spirv_cross.hpp"
 #include "common.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_pipeline.hpp"
@@ -9,6 +10,7 @@
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <memory>
 #include <spirv-tools/libspirv.h>
+#include <spirv-tools/libspirv.hpp>
 #include <spirv-tools/optimizer.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
@@ -121,6 +123,7 @@ void VulkanRenderGraph::VulkanShader::compile() {
         throw std::runtime_error("Shader IO mapping failed for: " + path);
     }
 
+    /*
     if (shaderProgram.buildReflection(EShReflectionSeparateBuffers)) {
         std::cout << "Dumping shader reflection for: " << path << std::endl;
         shaderProgram.dumpReflection();
@@ -140,6 +143,7 @@ void VulkanRenderGraph::VulkanShader::compile() {
     } else {
         throw std::runtime_error("Failed to build reflection for: " + path);
     }
+    */
 
     glslang::SpvOptions options;
 
@@ -162,7 +166,100 @@ void VulkanRenderGraph::VulkanShader::compile() {
 
 void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts,
                                                            bufferMap& globalBuffers, imageInfosMap& globalImageInfos) {
+    // Generate reflection with spirv-cross
+    spirv_cross::Compiler comp(spirv);
+    spirv_cross::ShaderResources res = comp.get_shader_resources();
 
+    for (const spirv_cross::Resource& resource : res.storage_buffers) {
+        uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+        uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+        std::string name = resource.name;
+        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+        // Get size of array if it has 1 element,
+        // so size of the array type, like sizeof(array[0])
+        size_t size = comp.get_declared_struct_size_runtime_array(type, 1);
+        std::cout << "Got storage buffer: " << name << " at: " << set << ", " << binding << " with size: " << size << std::endl;
+
+        // TODO
+        // Find a better way to handle this so it doesn't get repeated
+        uint32_t bufferExists = globalBuffers.count(name) == 1;
+        uint32_t bufferHasCount = bufferCounts.count(name) == 1;
+        // NOTE:
+        // might be a better way to do this logic
+        bool createBuffer = !bufferExists && bufferHasCount;
+        // If buffer neither exists nor has a count
+        // throw a runtime error
+        if (!bufferExists && !bufferHasCount) {
+            throw std::runtime_error("missing buffer named: '" + name + " for file: " + path);
+        } else if (createBuffer) {
+            // FIXME:
+            // Add a way to set memory flags from the interface
+            globalBuffers[name] = VulkanBuffer::StorageBuffer(_device, size * bufferCounts.at(name), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        }
+        descriptor->addBinding(set, binding, globalBuffers.at(name));
+    }
+    for (const spirv_cross::Resource& resource : res.uniform_buffers) {
+        uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+        uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+        std::string name = resource.name;
+        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+        size_t size = comp.get_declared_struct_size(type);
+        std::cout << "Got uniform buffer: " << name << " at: " << set << ", " << binding << " with size: " << size << std::endl;
+
+        uint32_t bufferExists = globalBuffers.count(name) == 1;
+        uint32_t bufferHasCount = bufferCounts.count(name) == 1;
+        // NOTE:
+        // might be a better way to do this logic
+        bool createBuffer = !bufferExists && bufferHasCount;
+        // If buffer neither exists nor has a count
+        // throw a runtime error
+        if (!bufferExists && !bufferHasCount) {
+            throw std::runtime_error("missing buffer named: '" + name + " for file: " + path);
+        } else if (createBuffer) {
+            std::cout << "creating buffer with name: " << name << std::endl;
+            // FIXME:
+            // Add a way to set memory flags from the interface
+            globalBuffers[name] = VulkanBuffer::UniformBuffer(_device, size * bufferCounts.at(name));
+        }
+        descriptor->addBinding(set, binding, globalBuffers.at(name));
+    }
+    for (const spirv_cross::Resource& resource : res.separate_samplers) {
+        uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+        uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+        std::string name = resource.name;
+        std::cout << "Got separate sampler: " << name << " at: " << set << ", " << binding << std::endl;
+
+        if (globalImageInfos.count(name) == 1) {
+            descriptor->setImageInfos(set, binding, globalImageInfos[name]);
+        } else {
+            throw std::runtime_error("missing image info named: '" + name + "' for file: " + path);
+        }
+    }
+    for (const spirv_cross::Resource& resource : res.separate_images) {
+        uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+        uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+        std::string name = resource.name;
+        std::cout << "Got separate image: " << name << " at: " << set << ", " << binding << std::endl;
+        if (globalImageInfos.count(name) == 1) {
+            descriptor->setImageInfos(set, binding, globalImageInfos[name]);
+        } else {
+            throw std::runtime_error("missing image info named: '" + name + "' for file: " + path);
+        }
+    }
+    for (const spirv_cross::Resource& resource : res.push_constant_buffers) {
+        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+        size_t size = comp.get_declared_struct_size(type);
+        std::string name = resource.name;
+        std::cout << "Got push constant: " << name << " with size: " << size << std::endl;
+        pushConstantRange.size = size;
+        pushConstantRange.stageFlags = stageFlags;
+        hasPushConstants = true;
+    }
+
+    descriptor->allocateSets();
+    descriptor->update();
+
+    /*
     for (auto buffer : buffers) {
         auto type = buffer.getType();
         auto qualifier = buffer.getType()->getQualifier();
@@ -202,9 +299,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
             case glslang::TStorageQualifier::EvqUniform:
                 std::cout << "got unifrom buffer" << std::endl;
                 descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                if (qualifier.layoutSet == 63) {
-                    qualifier.layoutSet = 0;
-                }
                 if (createBuffer) {
                     globalBuffers[buffer.name] = VulkanBuffer::UniformBuffer(_device, buffer.size * bufferCounts[buffer.name]);
                 }
@@ -232,6 +326,7 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
 
     descriptor->allocateSets();
     descriptor->update();
+    */
 }
 
 // TODO
