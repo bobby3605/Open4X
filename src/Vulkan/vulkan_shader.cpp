@@ -31,8 +31,6 @@ static std::pair<EShLanguage, VkShaderStageFlagBits> getStage(std::string shader
 }
 
 static inline VkPipelineBindPoint flagToBindPoint(VkShaderStageFlagBits stageFlags) {
-    // TODO
-    // Only run this switch once, not every frame
     switch (stageFlags) {
     case VK_SHADER_STAGE_VERTEX_BIT:
     case VK_SHADER_STAGE_FRAGMENT_BIT:

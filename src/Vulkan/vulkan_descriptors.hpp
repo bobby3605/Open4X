@@ -34,8 +34,6 @@ class VulkanDescriptors {
         std::map<uint32_t, VkDescriptorSetLayout> layouts;
         std::map<uint32_t, VkDescriptorSet> sets;
         std::set<uint32_t> uniqueSetIDs;
-        // FIXME
-        // make this unique so bufferInfo can be overwritten
         std::map<std::pair<uint32_t, uint32_t>, VkDescriptorBufferInfo*> bufferInfos;
         std::map<std::pair<uint32_t, uint32_t>, std::vector<VkDescriptorImageInfo>*> _imageInfos;
         void createLayout(uint32_t setID);
