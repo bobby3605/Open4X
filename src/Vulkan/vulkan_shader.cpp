@@ -240,10 +240,9 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
             uniqueConstantIds.insert(constant.constant_id);
             const spirv_cross::SPIRType& type = comp.get_type(value.constant_type);
             size_t size = type.width / 8;
-
             VkSpecializationMapEntry entry{};
             entry.constantID = constant.constant_id;
-            entry.size = type.width / 8;
+            entry.size = size;
             entry.offset = offset;
             offset += entry.size;
             specEntries.push_back(entry);
