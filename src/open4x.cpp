@@ -116,34 +116,9 @@ void Open4X::run() {
 
     loadSettings();
 
-    const uint32_t queryCount = 4;
-    VkQueryPoolCreateInfo queryPoolInfo{};
-    queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
-    queryPoolInfo.queryCount = queryCount;
-
-    VkQueryPool queryPool;
-    vkCreateQueryPool(vulkanDevice->device(), &queryPoolInfo, nullptr, &queryPool);
-    vkResetQueryPool(vulkanDevice->device(), queryPool, 0, queryCount);
-
-    //    VulkanDescriptors descriptorManager(vulkanDevice);
-
     VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
 
     VulkanObjects objects(vulkanDevice, &renderGraph, settings);
-
-    /*
-    std::vector<std::shared_ptr<VulkanBuffer>> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global", VK_SHADER_STAGE_VERTEX_BIT);
-    for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        uniformBuffers[i] = VulkanBuffer::UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor->addBinding(0, uniformBuffers[i], i);
-    }
-    globalDescriptor->allocateSets(2);
-    globalDescriptor->update();
-
-    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws(), settings);
-    */
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -199,11 +174,14 @@ void Open4X::run() {
         //        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         if (settings->showFPS) {
+            const uint32_t queryCount = 4;
             std::vector<uint64_t> queryResults(queryCount);
-            const bool wait = false;
+            const bool wait = true;
             // FIXME:
             // workaround for disabling waiting on some gpus
-            vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
+            // TODO:
+            // One query pool per frame
+            vkGetQueryPoolResults(vulkanDevice->device(), objects.queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
                                   queryResults.data(), sizeof(queryResults[0]),
                                   VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
 
@@ -223,5 +201,4 @@ void Open4X::run() {
     }
     vkDeviceWaitIdle(vulkanDevice->device());
     delete camera;
-    vkDestroyQueryPool(vulkanDevice->device(), queryPool, nullptr);
 }

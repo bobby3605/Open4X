@@ -415,6 +415,7 @@ VulkanObject* VulkanObjects::getObjectByName(std::string name) {
 }
 
 VulkanObjects::~VulkanObjects() {
+    vkDestroyQueryPool(device->device(), queryPool, nullptr);
     for (auto object : objects) {
         delete object;
     }

@@ -23,6 +23,7 @@ class VulkanObjects {
     int totalInstanceCount() { return _totalInstanceCount; }
     std::shared_ptr<SSBOBuffers> ssboBuffers;
     ComputePushConstants computePushConstants{};
+    VkQueryPool queryPool;
 
   private:
     std::shared_ptr<VulkanBuffer> vertexBuffer;
@@ -48,7 +49,6 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> metallicRoughnessMapInfos;
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
-    VkQueryPool queryPool;
     uint32_t drawCount;
 
     std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
