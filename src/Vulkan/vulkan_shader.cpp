@@ -143,13 +143,14 @@ void VulkanRenderGraph::VulkanShader::compile() {
     }
 }
 
-void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts,
-                                                           bufferMap& globalBuffers, imageInfosMap& globalImageInfos) {
+void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor,
+                                                           bufferCreateInfoMap& bufferCreateInfos, bufferMap& globalBuffers,
+                                                           imageInfosMap& globalImageInfos) {
     // Generate reflection with spirv-cross
     spirv_cross::Compiler comp(spirv);
     spirv_cross::ShaderResources res = comp.get_shader_resources();
 
-    for (const spirv_cross::Resource& resource : res.storage_buffers) {
+    auto loadBuffer = [&](const spirv_cross::Resource& resource, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
@@ -158,10 +159,8 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         // so size of the array type, like sizeof(array[0])
         size_t size = comp.get_declared_struct_size_runtime_array(type, 1);
 
-        // TODO
-        // Find a better way to handle this so it doesn't get repeated
         uint32_t bufferExists = globalBuffers.count(name) == 1;
-        uint32_t bufferHasCount = bufferCounts.count(name) == 1;
+        uint32_t bufferHasCount = bufferCreateInfos.count(name) == 1;
         // NOTE:
         // might be a better way to do this logic
         bool createBuffer = !bufferExists && bufferHasCount;
@@ -170,34 +169,26 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         if (!bufferExists && !bufferHasCount) {
             throw std::runtime_error("missing buffer named: '" + name + " for file: " + path);
         } else if (createBuffer) {
-            // FIXME:
-            // Add a way to set memory flags from the interface
-            globalBuffers[name] = VulkanBuffer::StorageBuffer(_device, size * bufferCounts.at(name), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            uint32_t count;
+            VkBufferUsageFlags additionalUsage;
+            VkMemoryPropertyFlags additionalProperties;
+            std::tie(count, additionalUsage, additionalProperties) = bufferCreateInfos.at(name);
+            usage |= additionalUsage;
+            properties |= additionalProperties;
+            globalBuffers[name] = std::make_shared<VulkanBuffer>(_device, size * count, usage, properties);
+            if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+                globalBuffers.at(name)->map();
+            }
         }
         descriptor->addBinding(set, binding, globalBuffers.at(name));
+    };
+
+    for (const spirv_cross::Resource& resource : res.storage_buffers) {
+        loadBuffer(resource, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
     for (const spirv_cross::Resource& resource : res.uniform_buffers) {
-        uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
-        uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
-        std::string name = resource.name;
-        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
-        size_t size = comp.get_declared_struct_size_runtime_array(type, 1);
-
-        uint32_t bufferExists = globalBuffers.count(name) == 1;
-        uint32_t bufferHasCount = bufferCounts.count(name) == 1;
-        // NOTE:
-        // might be a better way to do this logic
-        bool createBuffer = !bufferExists && bufferHasCount;
-        // If buffer neither exists nor has a count
-        // throw a runtime error
-        if (!bufferExists && !bufferHasCount) {
-            throw std::runtime_error("missing buffer named: '" + name + " for file: " + path);
-        } else if (createBuffer) {
-            // FIXME:
-            // Add a way to set memory flags from the interface
-            globalBuffers[name] = VulkanBuffer::UniformBuffer(_device, size * bufferCounts.at(name));
-        }
-        descriptor->addBinding(set, binding, globalBuffers.at(name));
+        loadBuffer(resource, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
     for (const spirv_cross::Resource& resource : res.separate_samplers) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);

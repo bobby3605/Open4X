@@ -275,20 +275,16 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->buffer("DrawCommands", indirectDrawsBuffer)
         .buffer("CulledMaterialIndices", ssboBuffers->culledMaterialIndicesBuffer())
         .buffer("MaterialIndices", ssboBuffers->materialIndicesBuffer())
-        .buffer("CulledDrawCommands", sizeof(indirectDraws[0]) * indirectDraws.size(),
-                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        .buffer("CulledDrawIndirectCount", sizeof(uint32_t),
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        .buffer("CulledDrawCommands", indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, 0)
+        .buffer("CulledDrawIndirectCount", 1, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, 0)
         .buffer("CulledInstanceIndices", _totalInstanceCount)
         .buffer("Globals", 1)
         .buffer("Materials", ssboBuffers->materialBuffer())
         .buffer("Instances", ssboBuffers->instanceIndicesBuffer())
         .buffer("Objects", ssboBuffers->ssboBuffer())
         .buffer("PrefixSum", _totalInstanceCount)
-        .buffer("PartialSums", sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+        .buffer("PartialSums", getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
         // NOTE:
         // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
         // adding 32 - 1 ensures correct rounding

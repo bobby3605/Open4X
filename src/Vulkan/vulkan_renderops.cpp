@@ -83,25 +83,24 @@ RenderOp VulkanRenderGraph::pushConstants(std::shared_ptr<VulkanShader> shader, 
     return [=](VkCommandBuffer commandBuffer) {
         vkCmdPushConstants(commandBuffer, pipelines[getFilenameNoExt(shader->name)]->pipelineLayout(), shader->stageFlags,
                            shader->pushConstantRange.offset, shader->pushConstantRange.size, data);
-        /*
-        std::cout << "uploading push constant data[0]: " << reinterpret_cast<uint32_t*>(data)[0]
-                  << " size: " << shader->pushConstantRange.size << " offset: " << shader->pushConstantRange.offset << std::endl;
-                  */
     };
 }
 
-RenderOp VulkanRenderGraph::fillBufferOp(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t value) {
-    return [=](VkCommandBuffer commandBuffer) { vkCmdFillBuffer(commandBuffer, buffer, offset, size, value); };
+RenderOp VulkanRenderGraph::fillBufferOp(std::string bufferName, VkDeviceSize offset, VkDeviceSize size, uint32_t value) {
+    bufferMap* buffers = &globalBuffers;
+    return [=](VkCommandBuffer commandBuffer) { vkCmdFillBuffer(commandBuffer, buffers->at(bufferName)->buffer(), offset, size, value); };
 }
 
 RenderOp VulkanRenderGraph::dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
     return [=](VkCommandBuffer commandBuffer) { vkCmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ); };
 }
 
-RenderOp VulkanRenderGraph::drawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer,
+RenderOp VulkanRenderGraph::drawIndexedIndirectCount(std::string bufferName, VkDeviceSize offset, std::string countBufferName,
                                                      VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) {
+    bufferMap* buffers = &globalBuffers;
     return [=](VkCommandBuffer commandBuffer) {
-        vkCmdDrawIndexedIndirectCount(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+        vkCmdDrawIndexedIndirectCount(commandBuffer, buffers->at(bufferName)->buffer(), offset, buffers->at(countBufferName)->buffer(),
+                                      countBufferOffset, maxDrawCount, stride);
     };
 }
 

@@ -16,7 +16,7 @@ class VulkanRenderGraph {
   public:
     typedef std::unordered_map<std::string, std::shared_ptr<VulkanBuffer>> bufferMap;
     typedef std::unordered_map<std::string, std::vector<VkDescriptorImageInfo>*> imageInfosMap;
-    typedef std::unordered_map<std::string, uint32_t> bufferCountMap;
+    typedef std::unordered_map<std::string, std::tuple<uint32_t, VkBufferUsageFlags, VkMemoryPropertyFlags>> bufferCreateInfoMap;
     struct ShaderOptions {
         void* pushConstantData = VK_NULL_HANDLE;
         void* specData = VK_NULL_HANDLE;
@@ -51,8 +51,8 @@ class VulkanRenderGraph {
         std::vector<VkSpecializationMapEntry> specEntries;
         bool hasSpecConstants = false;
 
-        void setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts, bufferMap& globalBuffers,
-                                  imageInfosMap& globalImageInfos);
+        void setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCreateInfoMap& bufferCounts,
+                                  bufferMap& globalBuffers, imageInfosMap& globalImageInfos);
         friend class VulkanRenderGraph;
     };
 
@@ -61,7 +61,8 @@ class VulkanRenderGraph {
     VulkanRenderGraph& shader(std::string vertPath, std::string fragPath, ShaderOptions vertOptions, ShaderOptions fragOptions,
                               std::shared_ptr<VulkanBuffer> vertexBuffer, std::shared_ptr<VulkanBuffer> indexBuffer);
     VulkanRenderGraph& buffer(std::string name, uint32_t count);
-    VulkanRenderGraph& buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    VulkanRenderGraph& buffer(std::string name, uint32_t count, VkBufferUsageFlags additionalUsage,
+                              VkMemoryPropertyFlags additionalProperties);
     VulkanRenderGraph& buffer(std::string name, std::shared_ptr<VulkanBuffer> buffer);
     VulkanRenderGraph& imageInfos(std::string name, std::vector<VkDescriptorImageInfo>* imageInfos);
     VulkanRenderGraph& fillBuffer(std::string name, VkDeviceSize offset, VkDeviceSize size, uint32_t value);
@@ -98,7 +99,7 @@ class VulkanRenderGraph {
     std::unordered_map<std::string, std::shared_ptr<VulkanPipeline>> pipelines;
     //    std::vector<std::shared_ptr<GraphicsPipeline>> graphicsPipelines;
     bufferMap globalBuffers;
-    bufferCountMap bufferCounts;
+    bufferCreateInfoMap bufferCreateInfos;
     imageInfosMap globalImageInfos;
     std::vector<std::shared_ptr<VulkanShader>> shaders;
 
@@ -116,10 +117,10 @@ class VulkanRenderGraph {
     RenderOp bindPipeline(std::shared_ptr<VulkanRenderGraph::VulkanShader> shader);
     RenderOp bindDescriptorSets(std::shared_ptr<VulkanShader> shader);
     RenderOp pushConstants(std::shared_ptr<VulkanShader> shader, void* data);
-    RenderOp fillBufferOp(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t value);
+    RenderOp fillBufferOp(std::string bufferName, VkDeviceSize offset, VkDeviceSize size, uint32_t value);
     RenderOp dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
-    RenderOp drawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset,
-                                      uint32_t maxDrawCount, uint32_t stride);
+    RenderOp drawIndexedIndirectCount(std::string bufferName, VkDeviceSize offset, std::string countBufferName,
+                                      VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
     RenderOp startRendering();
     RenderOp endRendering();
     RenderOp writeTimestamp(VkPipelineStageFlags2 stageFlags, VkQueryPool queryPool, uint32_t query);

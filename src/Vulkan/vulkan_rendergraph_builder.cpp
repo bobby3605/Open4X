@@ -61,18 +61,17 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string f
 }
 
 VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, uint32_t count) {
-    if (bufferCounts.count(name) == 0) {
-        bufferCounts[name] = count;
-    } else {
-        throw std::runtime_error("multiple buffer definitions for: " + name);
-    }
+    buffer(name, count, 0, 0);
     return *this;
 }
 
-VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage,
-                                             VkMemoryPropertyFlags properties) {
-    std::shared_ptr<VulkanBuffer> newBuffer = std::make_shared<VulkanBuffer>(_device, size, usage, properties);
-    buffer(name, newBuffer);
+VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, uint32_t count, VkBufferUsageFlags additionalUsage,
+                                             VkMemoryPropertyFlags additionalProperties) {
+    if (bufferCreateInfos.count(name) == 0) {
+        bufferCreateInfos[name] = {count, additionalUsage, additionalProperties};
+    } else {
+        throw std::runtime_error("multiple buffer definitions for: " + name);
+    }
     return *this;
 }
 
@@ -87,18 +86,15 @@ VulkanRenderGraph& VulkanRenderGraph::imageInfos(std::string name, std::vector<V
 }
 
 VulkanRenderGraph& VulkanRenderGraph::fillBuffer(std::string bufferName, VkDeviceSize offset, VkDeviceSize size, uint32_t value) {
-    if (globalBuffers.count(bufferName) == 0) {
+    if (globalBuffers.count(bufferName) == 0 && bufferCreateInfos.count(bufferName) == 0) {
         throw std::runtime_error("fillBuffer: buffer " + bufferName + " not found");
     }
-    renderOps.push_back(fillBufferOp(globalBuffers[bufferName]->buffer(), offset, size, value));
+    renderOps.push_back(fillBufferOp(bufferName, offset, size, value));
     return *this;
 }
 
 VulkanRenderGraph& VulkanRenderGraph::setBuffer(std::string bufferName, uint32_t value) {
-    if (globalBuffers.count(bufferName) == 0) {
-        throw std::runtime_error("setBuffer: buffer " + bufferName + " not found");
-    }
-    fillBuffer(bufferName, 0, globalBuffers[bufferName]->size(), value);
+    fillBuffer(bufferName, 0, VK_WHOLE_SIZE, value);
     return *this;
 }
 
@@ -130,8 +126,7 @@ VulkanRenderGraph& VulkanRenderGraph::debugBarrier() {
 
 VulkanRenderGraph& VulkanRenderGraph::drawIndirect(std::string buffer, VkDeviceSize offset, std::string countBuffer,
                                                    VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) {
-    renderOps.push_back(drawIndexedIndirectCount(globalBuffers[buffer]->buffer(), offset, globalBuffers[countBuffer]->buffer(),
-                                                 countBufferOffset, maxDrawCount, stride));
+    renderOps.push_back(drawIndexedIndirectCount(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride));
     // FIXME:
     // Find a better way to manage start and end rendering
     renderOps.push_back(endRendering());
@@ -215,7 +210,7 @@ void VulkanRenderGraph::compile() {
         // These re-used buffers only need to be bound once
         // Total set bindings might have to be identical though, so maybe this won't work
         VulkanDescriptors::VulkanDescriptor* descriptor = descriptorManager->createDescriptor(shader->path, shader->stageFlags);
-        shader->setDescriptorBuffers(descriptor, bufferCounts, globalBuffers, globalImageInfos);
+        shader->setDescriptorBuffers(descriptor, bufferCreateInfos, globalBuffers, globalImageInfos);
 
         switch (shader->stageFlags) {
         case VK_SHADER_STAGE_COMPUTE_BIT: {
