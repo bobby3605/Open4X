@@ -8,8 +8,7 @@
 
 VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ,
                                              ShaderOptions shaderOptions) {
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> shader =
-        std::make_shared<VulkanRenderGraph::VulkanShader>(computePath, shaderOptions.specializationInfo, _device);
+    std::shared_ptr<VulkanRenderGraph::VulkanShader> shader = std::make_shared<VulkanRenderGraph::VulkanShader>(computePath, _device);
     shaders.push_back(shader);
     renderOps.push_back(bindPipeline(shader));
     renderOps.push_back(bindDescriptorSets(shader));
@@ -19,6 +18,7 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t g
         // Only push constants if the data pointer has changed between shaders
         renderOps.push_back(pushConstants(shader, shaderOptions.pushConstantData));
     }
+    shader->specInfo.pData = shaderOptions.specData;
     renderOps.push_back(dispatch(groupCountX, groupCountY, groupCountZ));
     return *this;
 }
@@ -26,10 +26,8 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t g
 VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string fragPath, ShaderOptions vertOptions,
                                              ShaderOptions fragOptions, std::shared_ptr<VulkanBuffer> vertexBuffer,
                                              std::shared_ptr<VulkanBuffer> indexBuffer) {
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> vert =
-        std::make_shared<VulkanRenderGraph::VulkanShader>(vertPath, vertOptions.specializationInfo, _device);
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> frag =
-        std::make_shared<VulkanRenderGraph::VulkanShader>(fragPath, fragOptions.specializationInfo, _device);
+    std::shared_ptr<VulkanRenderGraph::VulkanShader> vert = std::make_shared<VulkanRenderGraph::VulkanShader>(vertPath, _device);
+    std::shared_ptr<VulkanRenderGraph::VulkanShader> frag = std::make_shared<VulkanRenderGraph::VulkanShader>(fragPath, _device);
     shaders.push_back(vert);
     shaders.push_back(frag);
     renderOps.push_back(startRendering());
@@ -52,21 +50,13 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string f
         // Only push constants if the data pointer has changed between shaders
         renderOps.push_back(pushConstants(frag, fragOptions.pushConstantData));
     }
-    renderOps.push_back(bindIndexBuffer(indexBuffer));
-    /*
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> shader =
-        std::make_shared<VulkanRenderGraph::VulkanShader>(path, shaderOptions.specializationInfo);
-    shaders.push_back(shader);
-    renderOps.push_back(bindPipeline(shader));
-    renderOps.push_back(bindDescriptorSets(shader));
-    ShaderOptions defaultOptions{};
-    if (shaderOptions.pushConstantData != defaultOptions.pushConstantData) {
-        // TODO
-        // Only push constants if the data pointer has changed between shaders
-        renderOps.push_back(pushConstants(shader, shaderOptions.pushConstantData));
+    if (vert->hasSpecConstants) {
+        vert->specInfo.pData = vertOptions.specData;
     }
-    renderOps.push_back(dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ));
-    */
+    if (frag->hasSpecConstants) {
+        frag->specInfo.pData = fragOptions.specData;
+    }
+    renderOps.push_back(bindIndexBuffer(indexBuffer));
     return *this;
 }
 

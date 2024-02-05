@@ -54,7 +54,7 @@ void VulkanRenderGraph::resetViewScissor(VkCommandBuffer commandBuffer) {
 }
 bool VulkanRenderGraph::render() {
     startFrame();
-    // TODO
+    // FIXME:
     // only do this if the swapChain extent changed
     resetViewScissor(getCurrentCommandBuffer());
     recordRenderOps(getCurrentCommandBuffer());

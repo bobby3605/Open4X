@@ -709,6 +709,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     deviceFeatures.features.samplerAnisotropy = VK_TRUE;
     deviceFeatures.features.sampleRateShading = sampleShading;
     deviceFeatures.features.multiDrawIndirect = VK_TRUE;
+    deviceFeatures.features.shaderFloat64 = VK_TRUE;
 
     deviceFeatures.pNext = &vk11_features;
     vk11_features.pNext = &vk12_features;
@@ -759,7 +760,8 @@ bool VulkanDevice::checkFeatures(VkPhysicalDevice device) {
            vk11_featuresCheck.shaderDrawParameters && vk12_featuresCheck.runtimeDescriptorArray &&
            vk12_featuresCheck.shaderSampledImageArrayNonUniformIndexing && vk13_featuresCheck.dynamicRendering &&
            vk13_featuresCheck.synchronization2 && vk12_featuresCheck.drawIndirectCount && vk12_featuresCheck.hostQueryReset &&
-           vk12_featuresCheck.scalarBlockLayout && vk13_featuresCheck.subgroupSizeControl && vk13_featuresCheck.maintenance4;
+           vk12_featuresCheck.scalarBlockLayout && vk13_featuresCheck.subgroupSizeControl && vk13_featuresCheck.maintenance4 &&
+           supportedFeaturesCheck.features.shaderFloat64;
 }
 
 void VulkanDevice::setDebugName(VkObjectType type, uint64_t handle, std::string name) {

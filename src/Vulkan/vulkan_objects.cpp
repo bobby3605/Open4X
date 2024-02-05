@@ -273,23 +273,6 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    std::vector<VkSpecializationMapEntry> specEntries(2);
-    specEntries[0].constantID = 0;
-    specEntries[0].offset = offsetof(SpecData, local_size_x);
-    specEntries[0].size = sizeof(SpecData::local_size_x);
-    specEntries[1].constantID = 1;
-    specEntries[1].offset = offsetof(SpecData, subgroup_size);
-    specEntries[1].size = sizeof(SpecData::subgroup_size);
-
-    VkSpecializationInfo specInfo{};
-    specInfo.mapEntryCount = specEntries.size();
-    specInfo.pMapEntries = specEntries.data();
-    specInfo.dataSize = sizeof(specData);
-    specInfo.pData = &specData;
-
-    specData.local_size_x = device->maxComputeWorkGroupInvocations();
-    specData.subgroup_size = device->maxSubgroupSize();
-
     computePushConstants.totalInstanceCount = _totalInstanceCount;
 
     const uint32_t queryCount = 4;
@@ -304,8 +287,11 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->queryReset(queryPool, 0, queryCount);
 
     VulkanRenderGraph::ShaderOptions shaderOptions{};
-    shaderOptions.specializationInfo = &specInfo;
     shaderOptions.pushConstantData = &computePushConstants;
+
+    specData.local_size_x = device->maxComputeWorkGroupInvocations();
+    specData.subgroup_size = device->maxSubgroupSize();
+    shaderOptions.specData = &specData;
 
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
     // ensure previous frame vertex read completed before writing

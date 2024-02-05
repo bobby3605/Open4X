@@ -19,12 +19,12 @@ class VulkanRenderGraph {
     typedef std::unordered_map<std::string, uint32_t> bufferCountMap;
     struct ShaderOptions {
         void* pushConstantData = VK_NULL_HANDLE;
-        VkSpecializationInfo* specializationInfo = VK_NULL_HANDLE;
+        void* specData = VK_NULL_HANDLE;
     };
     VulkanRenderGraph(std::shared_ptr<VulkanDevice> device, VulkanWindow* window, std::shared_ptr<Settings> settings);
     class VulkanShader {
       public:
-        VulkanShader(std::string path, VkSpecializationInfo* specInfo, std::shared_ptr<VulkanDevice> device);
+        VulkanShader(std::string path, std::shared_ptr<VulkanDevice> device);
         ~VulkanShader();
 
       protected:
@@ -44,9 +44,13 @@ class VulkanRenderGraph {
         void createShaderModule();
         VkShaderModule shaderModule = VK_NULL_HANDLE;
         VkPipelineShaderStageCreateInfo stageInfo{};
-        bool hasPushConstants = false;
 
         VkPushConstantRange pushConstantRange{};
+        bool hasPushConstants = false;
+        VkSpecializationInfo specInfo{};
+        std::vector<VkSpecializationMapEntry> specEntries;
+        bool hasSpecConstants = false;
+
         void setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCountMap& bufferCounts, bufferMap& globalBuffers,
                                   imageInfosMap& globalImageInfos);
         friend class VulkanRenderGraph;

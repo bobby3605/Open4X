@@ -1,8 +1,10 @@
 #include "SPIRV-Cross/spirv_cross.hpp"
 #include "common.hpp"
+#include "spirv_common.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_pipeline.hpp"
 #include "vulkan_rendergraph.hpp"
+#include <cstdint>
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/MachineIndependent/Versions.h>
 #include <glslang/MachineIndependent/localintermediate.h>
@@ -227,6 +229,33 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         pushConstantRange.offset = 0;
         hasPushConstants = true;
     }
+    std::set<uint32_t> uniqueConstantIds;
+    uint32_t offset = 0;
+    for (const spirv_cross::SpecializationConstant& constant : comp.get_specialization_constants()) {
+        hasSpecConstants = true;
+        const spirv_cross::SPIRConstant& value = comp.get_constant(constant.id);
+        // Only add unique entries
+        // Sometimes the constant ids are repeated, for example if it's used as a local size
+        if (uniqueConstantIds.count(constant.constant_id) == 0) {
+            uniqueConstantIds.insert(constant.constant_id);
+            const spirv_cross::SPIRType& type = comp.get_type(value.constant_type);
+            size_t size = type.width / 8;
+
+            VkSpecializationMapEntry entry{};
+            entry.constantID = constant.constant_id;
+            entry.size = type.width / 8;
+            entry.offset = offset;
+            offset += entry.size;
+            specEntries.push_back(entry);
+        }
+    }
+    if (hasSpecConstants) {
+        stageInfo.pSpecializationInfo = &specInfo;
+        specInfo.mapEntryCount = specEntries.size();
+        specInfo.pMapEntries = specEntries.data();
+        // offset should be the total size of the spec constants by the end of the loop
+        specInfo.dataSize = offset;
+    }
 
     descriptor->allocateSets();
     descriptor->update();
@@ -235,9 +264,7 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
 // TODO
 // Get specInfo from reflection, so only pData has to be passed
 // https://github.com/KhronosGroup/glslang/issues/2011
-VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, VkSpecializationInfo* specInfo, std::shared_ptr<VulkanDevice> device)
-    : path{path}, _device{device} {
-    stageInfo.pSpecializationInfo = specInfo;
+VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, std::shared_ptr<VulkanDevice> device) : path{path}, _device{device} {
     name = getFilename(path);
 }
 
