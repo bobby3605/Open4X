@@ -261,9 +261,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
     descriptor->update();
 }
 
-// TODO
-// Get specInfo from reflection, so only pData has to be passed
-// https://github.com/KhronosGroup/glslang/issues/2011
 VulkanRenderGraph::VulkanShader::VulkanShader(std::string path, std::shared_ptr<VulkanDevice> device) : path{path}, _device{device} {
     name = getFilename(path);
 }
