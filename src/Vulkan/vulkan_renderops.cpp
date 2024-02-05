@@ -83,6 +83,10 @@ RenderOp VulkanRenderGraph::pushConstants(std::shared_ptr<VulkanShader> shader, 
     return [=](VkCommandBuffer commandBuffer) {
         vkCmdPushConstants(commandBuffer, pipelines[getFilenameNoExt(shader->name)]->pipelineLayout(), shader->stageFlags,
                            shader->pushConstantRange.offset, shader->pushConstantRange.size, data);
+        /*
+        std::cout << "uploading push constant data[0]: " << reinterpret_cast<uint32_t*>(data)[0]
+                  << " size: " << shader->pushConstantRange.size << " offset: " << shader->pushConstantRange.offset << std::endl;
+                  */
     };
 }
 

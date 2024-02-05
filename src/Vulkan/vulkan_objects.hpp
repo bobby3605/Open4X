@@ -22,6 +22,7 @@ class VulkanObjects {
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
     int totalInstanceCount() { return _totalInstanceCount; }
     std::shared_ptr<SSBOBuffers> ssboBuffers;
+    ComputePushConstants computePushConstants{};
 
   private:
     std::shared_ptr<VulkanBuffer> vertexBuffer;
@@ -48,10 +49,20 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
     VkQueryPool queryPool;
+    uint32_t drawCount;
+
+    std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
+
+    std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
 
     std::shared_ptr<VulkanDevice> device;
 
     VulkanDescriptors* descriptorManager;
+
+    struct SpecData {
+        uint32_t local_size_x;
+        uint32_t subgroup_size;
+    } specData;
 };
 
 #endif // VULKAN_OBJECTS_H_

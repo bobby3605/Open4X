@@ -54,7 +54,6 @@ void VulkanRenderGraph::VulkanShader::createShaderModule() {
 
     stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stageInfo.stage = stageFlags;
-    std::cout << "created shader module with name: " << name << " and stageFlags: " << stageInfo.stage << std::endl;
     stageInfo.module = shaderModule;
     stageInfo.pName = _entryPoint.c_str();
 }
@@ -123,34 +122,12 @@ void VulkanRenderGraph::VulkanShader::compile() {
         throw std::runtime_error("Shader IO mapping failed for: " + path);
     }
 
-    /*
-    if (shaderProgram.buildReflection(EShReflectionSeparateBuffers)) {
-        std::cout << "Dumping shader reflection for: " << path << std::endl;
-        shaderProgram.dumpReflection();
-        buffers.reserve(shaderProgram.getNumBufferBlocks() + shaderProgram.getNumUniformBlocks());
-        for (uint32_t i = 0; i < shaderProgram.getNumUniformBlocks(); ++i) {
-            buffers.push_back(shaderProgram.getUniformBlock(i));
-        }
-        for (uint32_t i = 0; i < shaderProgram.getNumUniformVariables(); ++i) {
-            buffers.push_back(shaderProgram.getUniform(i));
-        }
-        for (uint32_t i = 0; i < shaderProgram.getNumBufferBlocks(); ++i) {
-            buffers.push_back(shaderProgram.getBufferBlock(i));
-        }
-        for (uint32_t i = 0; i < shaderProgram.getNumBufferVariables(); ++i) {
-            buffers.push_back(shaderProgram.getBufferVariable(i));
-        }
-    } else {
-        throw std::runtime_error("Failed to build reflection for: " + path);
-    }
-    */
-
     glslang::SpvOptions options;
 
     glslang::GlslangToSpv(*shaderProgram.getIntermediate(stage), spirv, &options);
     glslang::FinalizeProcess();
 
-    bool optimize = false;
+    bool optimize = true;
     if (optimize) {
         // NOTE:
         // Must be consistent with compiler envClient and envTarget versions
@@ -178,7 +155,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         // Get size of array if it has 1 element,
         // so size of the array type, like sizeof(array[0])
         size_t size = comp.get_declared_struct_size_runtime_array(type, 1);
-        std::cout << "Got storage buffer: " << name << " at: " << set << ", " << binding << " with size: " << size << std::endl;
 
         // TODO
         // Find a better way to handle this so it doesn't get repeated
@@ -203,8 +179,7 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
         const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
-        size_t size = comp.get_declared_struct_size(type);
-        std::cout << "Got uniform buffer: " << name << " at: " << set << ", " << binding << " with size: " << size << std::endl;
+        size_t size = comp.get_declared_struct_size_runtime_array(type, 1);
 
         uint32_t bufferExists = globalBuffers.count(name) == 1;
         uint32_t bufferHasCount = bufferCounts.count(name) == 1;
@@ -216,7 +191,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         if (!bufferExists && !bufferHasCount) {
             throw std::runtime_error("missing buffer named: '" + name + " for file: " + path);
         } else if (createBuffer) {
-            std::cout << "creating buffer with name: " << name << std::endl;
             // FIXME:
             // Add a way to set memory flags from the interface
             globalBuffers[name] = VulkanBuffer::UniformBuffer(_device, size * bufferCounts.at(name));
@@ -227,7 +201,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
-        std::cout << "Got separate sampler: " << name << " at: " << set << ", " << binding << std::endl;
 
         if (globalImageInfos.count(name) == 1) {
             descriptor->setImageInfos(set, binding, globalImageInfos[name]);
@@ -239,7 +212,6 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
-        std::cout << "Got separate image: " << name << " at: " << set << ", " << binding << std::endl;
         if (globalImageInfos.count(name) == 1) {
             descriptor->setImageInfos(set, binding, globalImageInfos[name]);
         } else {
@@ -250,83 +222,14 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
         const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
         size_t size = comp.get_declared_struct_size(type);
         std::string name = resource.name;
-        std::cout << "Got push constant: " << name << " with size: " << size << std::endl;
         pushConstantRange.size = size;
         pushConstantRange.stageFlags = stageFlags;
+        pushConstantRange.offset = 0;
         hasPushConstants = true;
     }
 
     descriptor->allocateSets();
     descriptor->update();
-
-    /*
-    for (auto buffer : buffers) {
-        auto type = buffer.getType();
-        auto qualifier = buffer.getType()->getQualifier();
-        if (type->getBasicType() == glslang::EbtSampler) {
-            if (globalImageInfos.count(buffer.name) == 1) {
-                descriptor->setImageInfos(qualifier.layoutSet, buffer.getBinding(), globalImageInfos[buffer.name]);
-            } else {
-                throw std::runtime_error("missing image info named: '" + buffer.name + "' for file: " + path);
-            }
-        } else if (qualifier.isPushConstant()) {
-            hasPushConstants = true;
-            // If push constant, set values and skip the rest
-            pushConstantRange.size = buffer.size;
-            pushConstantRange.stageFlags = stageFlags;
-        } else if (qualifier.isUniformOrBuffer()) {
-            // Check if is a uniform push constant, and skip
-            if (buffer.getBinding() == -1) {
-                continue;
-            }
-            auto storageType = qualifier.storage;
-            VkDescriptorType descriptorType;
-            // If the buffer hasn't been created yet,
-            // and a count has been specified,
-            // create the buffer
-            uint32_t bufferExists = globalBuffers.count(buffer.name) == 1;
-            uint32_t bufferHasCount = bufferCounts.count(buffer.name) == 1;
-            // NOTE:
-            // might be a better way to do this logic
-            bool createBuffer = !bufferExists && bufferHasCount;
-            // If buffer neither exists nor has a count
-            // throw a runtime error
-            if (!bufferExists && !bufferHasCount) {
-                throw std::runtime_error("missing buffer named: '" + buffer.name +
-                                         "' with basic type: " + std::to_string(type->getBasicType()) + " for file: " + path);
-            }
-            switch (storageType) {
-            case glslang::TStorageQualifier::EvqUniform:
-                std::cout << "got unifrom buffer" << std::endl;
-                descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                if (createBuffer) {
-                    globalBuffers[buffer.name] = VulkanBuffer::UniformBuffer(_device, buffer.size * bufferCounts[buffer.name]);
-                }
-                break;
-            case glslang::TStorageQualifier::EvqBuffer:
-                std::cout << "got storage buffer" << std::endl;
-                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                if (createBuffer) {
-                    // FIXME:
-                    // Add a way to set memory flags from the interface
-                    globalBuffers[buffer.name] =
-                        VulkanBuffer::StorageBuffer(_device, buffer.size * bufferCounts[buffer.name], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-                }
-                break;
-            default:
-                throw std::runtime_error("Unknown storage buffer type when creating descriptor buffers: " +
-                                         std::to_string(qualifier.storage));
-            }
-            std::cout << "Adding binding for buffer: " << buffer.name << std::endl;
-            std::cout << "Type: " << descriptorType << std::endl;
-            descriptor->addBinding(qualifier.layoutSet, buffer.getBinding(), descriptorType);
-            descriptor->setBuffer(qualifier.layoutSet, buffer.getBinding(), globalBuffers[buffer.name]->bufferInfo());
-        }
-    }
-
-    descriptor->allocateSets();
-    descriptor->update();
-    */
 }
 
 // TODO

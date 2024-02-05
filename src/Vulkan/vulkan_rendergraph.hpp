@@ -84,6 +84,7 @@ class VulkanRenderGraph {
     void addComputePipeline(std::shared_ptr<VulkanShader> computeShader, std::vector<VkDescriptorSetLayout>& layouts);
     void addGraphicsPipeline(std::shared_ptr<VulkanShader> vertShader, std::shared_ptr<VulkanShader> fragShader);
     std::vector<VkPushConstantRange> getPushConstants(std::shared_ptr<VulkanRenderGraph::VulkanShader> shader);
+    void resetViewScissor(VkCommandBuffer commandBuffer);
 
     std::shared_ptr<VulkanDescriptors> descriptorManager;
     std::shared_ptr<VulkanDevice> _device;

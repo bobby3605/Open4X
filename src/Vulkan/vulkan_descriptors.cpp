@@ -35,29 +35,6 @@ VkDescriptorType VulkanDescriptors::getType(VkBufferUsageFlags usageFlags) {
     throw std::runtime_error("Failed to find descriptor type for usage flags: " + std::to_string(usageFlags));
 }
 
-/*
-void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, std::vector<VkDescriptorImageInfo>& imageInfos) {
-
-    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-
-    if (imageInfos[0].imageView != VK_NULL_HANDLE) {
-        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    }
-
-    VkDescriptorSetLayoutBinding binding{};
-    binding.binding = bindingID;
-    binding.descriptorType = descriptorType;
-    binding.descriptorCount = imageInfos.size();
-    binding.pImmutableSamplers = nullptr;
-    binding.stageFlags = _stageFlags;
-
-    bindings.insert({{setID, bindingID}, binding});
-
-    _imageInfos.insert({{setID, bindingID}, imageInfos.data()});
-    uniqueSetIDs.insert(setID);
-}
-*/
-
 void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bindingID, std::shared_ptr<VulkanBuffer> buffer) {
 
     VkDescriptorSetLayoutBinding binding{};
@@ -65,7 +42,6 @@ void VulkanDescriptors::VulkanDescriptor::addBinding(uint32_t setID, uint32_t bi
     binding.descriptorType = getType(buffer->usageFlags());
     binding.descriptorCount = 1;
     binding.pImmutableSamplers = nullptr;
-    std::cout << "adding binding: " << setID << ", " << bindingID << " with stage flags: " << _stageFlags << std::endl;
     binding.stageFlags = _stageFlags;
 
     bindings.insert({{setID, bindingID}, binding});
@@ -86,7 +62,6 @@ void VulkanDescriptors::VulkanDescriptor::setImageInfos(uint32_t setID, uint32_t
     binding.descriptorType = descriptorType;
     binding.descriptorCount = imageInfos->size();
     binding.pImmutableSamplers = nullptr;
-    std::cout << "adding image binding: " << setID << ", " << bindingID << " with stage flags: " << _stageFlags << std::endl;
     binding.stageFlags = _stageFlags;
 
     bindings.insert({{setID, bindingID}, binding});
@@ -101,8 +76,6 @@ void VulkanDescriptors::VulkanDescriptor::createLayout(uint32_t setID) {
     for (auto b : bindings) {
         if (b.first.first == setID) {
             _bindings.push_back(b.second);
-            std::cout << "adding binding: " << _bindings.back().binding << " with stage flags: " << _bindings.back().stageFlags
-                      << " to layout creation" << std::endl;
         }
     }
     layoutInfo.pBindings = _bindings.data();
@@ -118,16 +91,13 @@ std::vector<VkDescriptorSetLayout> VulkanDescriptors::VulkanDescriptor::getLayou
     std::vector<VkDescriptorSetLayout> flatLayouts;
     for (auto layout : layouts) {
         flatLayouts.push_back(layout.second);
-        std::cout << "appending layout with setID: " << layout.first << std::endl;
     }
     return flatLayouts;
 }
 
 void VulkanDescriptors::VulkanDescriptor::allocateSets() {
     for (auto uniqueSetID : uniqueSetIDs) {
-        std::cout << "creating layout with set id: " << uniqueSetID << std::endl;
         createLayout(uniqueSetID);
-        std::cout << "creating set" << std::endl;
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorManager->pool;

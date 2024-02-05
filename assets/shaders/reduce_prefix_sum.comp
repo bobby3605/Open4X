@@ -25,7 +25,7 @@ layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };
 layout(set = 0, binding = 1) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 2) readonly buffer PartialSums { uint partialSums[]; };
 layout(set = 0, binding = 3) readonly buffer ActiveLanes { uint activeLanes[]; };
-layout(set = 0, binding = 4) writeonly buffer VisibleInstances { uint visibleInstances[]; };
+layout(set = 0, binding = 4) writeonly buffer CulledInstanceIndices { uint culledInstanceIndices[]; };
 
 // Prefix sum implementation from
 // https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
@@ -77,6 +77,6 @@ void main() {
     uint laneData = activeLanes[gl_GlobalInvocationID.x / 32];
     uint mask = 1 << (gl_SubgroupInvocationID % 32);
     if ((laneData & mask) != 0) {
-        visibleInstances[prefixSum[gl_GlobalInvocationID.x] - 1] = instances[gl_GlobalInvocationID.x];
+        culledInstanceIndices[prefixSum[gl_GlobalInvocationID.x] - 1] = instances[gl_GlobalInvocationID.x];
     }
 }

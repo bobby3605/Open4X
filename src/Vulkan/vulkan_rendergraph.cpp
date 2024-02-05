@@ -29,8 +29,34 @@ VulkanRenderGraph::VulkanRenderGraph(std::shared_ptr<VulkanDevice> device, Vulka
     descriptorManager = std::make_shared<VulkanDescriptors>(device);
 }
 
+void VulkanRenderGraph::resetViewScissor(VkCommandBuffer commandBuffer) {
+    // Reset viewport and scissor
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.width = swapChain->getExtent().width;
+#ifdef FLIP_VIEWPORT
+    viewport.y = swapChain->getExtent().height;
+    viewport.height = -(float)swapChain->getExtent().height;
+#else
+    viewport.y = 0.0f;
+    viewport.height = swapChain->getExtent().height;
+#endif
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    setViewportOp(viewport)(getCurrentCommandBuffer());
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChain->getExtent();
+
+    setScissorOp(scissor)(getCurrentCommandBuffer());
+}
 bool VulkanRenderGraph::render() {
     startFrame();
+    // TODO
+    // only do this if the swapChain extent changed
+    resetViewScissor(getCurrentCommandBuffer());
     recordRenderOps(getCurrentCommandBuffer());
     return endFrame();
 }
@@ -84,22 +110,15 @@ void VulkanRenderGraph::startFrame() {
 }
 
 bool VulkanRenderGraph::endFrame() {
-    std::cout << "ending frame" << std::endl;
     checkResult(vkEndCommandBuffer(getCurrentCommandBuffer()), "failed to end command buffer");
     VkResult result = swapChain->submitCommandBuffers(&commandBuffers[swapChain->currentFrame()]);
-    std::cout << "frame ended, checking result" << std::endl;
-    /*
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        std::cout << "recreating swapChain" << std::endl;
         recreateSwapChain();
         // return true if framebuffer was resized
         return true;
     } else if (result != VK_SUCCESS) {
-        std::cout << "here" << std::endl;
         throw std::runtime_error("failed to present swap chain image");
     }
-    */
-    std::cout << "returning false from endFrame" << std::endl;
     return false;
 }
 

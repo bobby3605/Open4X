@@ -268,55 +268,10 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    /*
-    VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-    materialDescriptor->addBinding(0, samplerInfos);
-    materialDescriptor->addBinding(1, imageInfos);
-    materialDescriptor->addBinding(2, normalMapInfos);
-    materialDescriptor->addBinding(3, metallicRoughnessMapInfos);
-    materialDescriptor->addBinding(4, aoMapInfos);
-
-    materialDescriptor->allocateSets();
-    materialDescriptor->update();
-    */
-
-    /*
-    VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
-
-    culledInstanceIndicesBuffer =
-        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    objectDescriptor->addBinding(0, ssboBuffers->ssboBuffer());
-    objectDescriptor->addBinding(1, ssboBuffers->materialBuffer());
-    objectDescriptor->addBinding(2, culledInstanceIndicesBuffer);
-    objectDescriptor->addBinding(3, ssboBuffers->culledMaterialIndicesBuffer());
-
-    objectDescriptor->allocateSets();
-    objectDescriptor->update();
-    */
-
-    /*
-    VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor =
-        descriptorManager->createDescriptor("cull_frustum_pass", VK_SHADER_STAGE_COMPUTE_BIT);
-        */
-
-    // prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     partialSumsBuffer = std::make_shared<VulkanBuffer>(
         device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    // NOTE:
-    // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
-    /*
-    activeLanesBuffer =
-        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount / 32, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        */
-
-    struct SpecData {
-        uint32_t local_size_x;
-        uint32_t subgroup_size;
-    } specData;
 
     std::vector<VkSpecializationMapEntry> specEntries(2);
     specEntries[0].constantID = 0;
@@ -335,9 +290,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     specData.local_size_x = device->maxComputeWorkGroupInvocations();
     specData.subgroup_size = device->maxSubgroupSize();
 
-    ComputePushConstants computePushConstants{};
     computePushConstants.totalInstanceCount = _totalInstanceCount;
-    // fillComputePushConstants(computePushConstants);
 
     const uint32_t queryCount = 4;
     VkQueryPoolCreateInfo queryPoolInfo{};
@@ -359,65 +312,39 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     rg->shader("cull_frustum_pass.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-               1, 1, shaderOptions)
-        .buffer("Instances", ssboBuffers->instanceIndicesBuffer())
+               1, 1, shaderOptions);
+    rg->buffer("Instances", ssboBuffers->instanceIndicesBuffer())
         .buffer("Objects", ssboBuffers->ssboBuffer())
         .buffer("PrefixSum", _totalInstanceCount)
         .buffer("PartialSums", partialSumsBuffer)
-        .buffer("ActiveLanes", _totalInstanceCount / 32);
+        // NOTE:
+        // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
+        // adding 32 - 1 ensures correct rounding
+        .buffer("ActiveLanes", (_totalInstanceCount + (32 - 1)) / 32);
     // wait until the frustum culling is done
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-    /*
-    cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
-    cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
-    cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
-    cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
-    cullFrustumDescriptor->addBinding(4, activeLanesBuffer);
-    */
-
-    /*
-    VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
-        descriptorManager->createDescriptor("reduce_prefix_sum", VK_SHADER_STAGE_COMPUTE_BIT);
-
-    reduceDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
-    reduceDescriptor->addBinding(1, prefixSumBuffer);
-    reduceDescriptor->addBinding(2, partialSumsBuffer);
-    reduceDescriptor->addBinding(3, activeLanesBuffer);
-    reduceDescriptor->addBinding(4, culledInstanceIndicesBuffer);
-    */
 
     rg->shader("reduce_prefix_sum.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-               1, 1, shaderOptions)
-        .buffer("VisibleInstances", _totalInstanceCount);
+               1, 1, shaderOptions);
+    rg->buffer("CulledInstanceIndices", _totalInstanceCount);
     // wait until finished
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    /*
-    VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
-        descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
-        */
     // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
     indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
                                                      VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-    /*
-    cullDrawDescriptor->addBinding(0, indirectDrawsBuffer);
-    cullDrawDescriptor->addBinding(3, prefixSumBuffer);
-    cullDrawDescriptor->addBinding(4, ssboBuffers->materialIndicesBuffer());
-    cullDrawDescriptor->addBinding(5, ssboBuffers->culledMaterialIndicesBuffer());
-    */
 
     // TODO
     // automatically detemine the usage flags
     // separate buffers and single buffer variables
     // single buffer variables don't need to be given a count
     // they do need to be named, so that drawIndirect can use it
-    std::shared_ptr<VulkanBuffer> culledDrawIndirectCount = std::make_shared<VulkanBuffer>(
-        device, sizeof(uint32_t),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    culledDrawIndirectCount = std::make_shared<VulkanBuffer>(device, sizeof(uint32_t),
+                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     rg->buffer("CulledDrawIndirectCount", culledDrawIndirectCount);
     // ensure previous frame vertex read completed before zeroing out buffer
@@ -426,18 +353,18 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
 
     rg->setBuffer("CulledDrawIndirectCount", 0);
 
-    uint32_t drawCount = indirectDraws.size();
+    drawCount = indirectDraws.size();
     shaderOptions.pushConstantData = &drawCount;
     // barrier until the CulledDrawIndirectCount buffer has been cleared
     rg->memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
                       VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(
-        device, sizeof(indirectDraws[0]) * indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    culledDrawCommandsBuffer = std::make_shared<VulkanBuffer>(device, sizeof(indirectDraws[0]) * indirectDraws.size(),
+                                                              VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions)
-        .buffer("DrawCommands", indirectDrawsBuffer)
+    rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions);
+    rg->buffer("DrawCommands", indirectDrawsBuffer)
         .buffer("CulledMaterialIndices", ssboBuffers->culledMaterialIndicesBuffer())
         .buffer("MaterialIndices", ssboBuffers->materialIndicesBuffer())
         .buffer("CulledDrawCommands", culledDrawCommandsBuffer);
@@ -451,7 +378,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     VulkanRenderGraph::ShaderOptions fragOptions{};
 
     rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertexBuffer, indexBuffer);
-    rg->buffer("Globals", 1).buffer("Materials", ssboBuffers->materialBuffer()).buffer("CulledInstanceIndices", _totalInstanceCount);
+    rg->buffer("Globals", 1).buffer("Materials", ssboBuffers->materialBuffer());
 
     rg->imageInfos("samplers", &samplerInfos);
     rg->imageInfos("images", &imageInfos);
@@ -463,7 +390,6 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
     rg->compile();
-    std::cout << "done compiling" << std::endl;
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "

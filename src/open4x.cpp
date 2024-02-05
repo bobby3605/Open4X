@@ -1,6 +1,7 @@
 #include "Vulkan/vulkan_descriptors.hpp"
 #include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_rendergraph.hpp"
+#include <chrono>
 #include <cstdint>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
@@ -9,6 +10,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -155,9 +157,8 @@ void Open4X::run() {
 
     glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
-    ComputePushConstants computePushConstants{};
-    computePushConstants.totalInstanceCount = objects.totalInstanceCount();
-    fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
+    objects.computePushConstants.totalInstanceCount = objects.totalInstanceCount();
+    fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
 
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
@@ -165,7 +166,6 @@ void Open4X::run() {
     float titleFrametime = 0.0f;
     std::string title;
     while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
-        std::cout << "starting new render loop" << std::endl;
         glfwPollEvents();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -186,52 +186,26 @@ void Open4X::run() {
 
         renderGraph.bufferWrite("Globals", &ubo);
 
-        /*
-        vulkanRenderer->startFrame();
-        vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 0, queryCount);
+        setComputePushConstantsCamera(objects.computePushConstants, camera);
 
-        uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
-
-        setComputePushConstantsCamera(computePushConstants, camera);
-
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
-        vulkanRenderer->cullDraws(objects.draws(), computePushConstants);
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
-
-        vulkanRenderer->beginRendering();
-
-        vulkanRenderer->bindPipeline();
-
-        vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(),
-                                          descriptorManager.descriptors["global"]->getSets()[vulkanRenderer->getCurrentFrame()]);
-
-        objects.bind(vulkanRenderer);
-
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
-        objects.drawIndirect(vulkanRenderer);
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
-
-        vulkanRenderer->endRendering();
-        */
+        objects.updateModels();
 
         if (renderGraph.render()) {
             aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
             proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
-            fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
+            fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
 
+        //        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         if (settings->showFPS) {
-            std::cout << "getting query results" << std::endl;
             std::vector<uint64_t> queryResults(queryCount);
-            const bool intel = false;
+            const bool wait = false;
             // FIXME:
-            // workaround for waiting on intel gpus
-            // It fails on amd gpus if wait bit is enabled,
-            // but fails on intel if it's disabled
+            // workaround for disabling waiting on some gpus
             vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
                                   queryResults.data(), sizeof(queryResults[0]),
-                                  VK_QUERY_RESULT_64_BIT | (intel ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
-            std::cout << "got query results" << std::endl;
+                                  VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
 
             float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
             float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
