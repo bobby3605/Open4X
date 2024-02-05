@@ -61,6 +61,7 @@ class VulkanRenderGraph {
     VulkanRenderGraph& shader(std::string vertPath, std::string fragPath, ShaderOptions vertOptions, ShaderOptions fragOptions,
                               std::shared_ptr<VulkanBuffer> vertexBuffer, std::shared_ptr<VulkanBuffer> indexBuffer);
     VulkanRenderGraph& buffer(std::string name, uint32_t count);
+    VulkanRenderGraph& buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
     VulkanRenderGraph& buffer(std::string name, std::shared_ptr<VulkanBuffer> buffer);
     VulkanRenderGraph& imageInfos(std::string name, std::vector<VkDescriptorImageInfo>* imageInfos);
     VulkanRenderGraph& fillBuffer(std::string name, VkDeviceSize offset, VkDeviceSize size, uint32_t value);

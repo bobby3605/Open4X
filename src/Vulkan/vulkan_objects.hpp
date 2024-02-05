@@ -29,11 +29,6 @@ class VulkanObjects {
     std::shared_ptr<VulkanBuffer> vertexBuffer;
     std::shared_ptr<VulkanBuffer> indexBuffer;
     std::shared_ptr<VulkanBuffer> indirectDrawsBuffer;
-    std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
-    std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
-    std::shared_ptr<VulkanBuffer> partialSumsBuffer;
-    std::shared_ptr<VulkanBuffer> prefixSumBuffer;
-    std::shared_ptr<VulkanBuffer> activeLanesBuffer;
     std::vector<VulkanObject*> objects;
     std::vector<std::future<VulkanObject*>> futureObjects;
     std::vector<VulkanModel*> animatedModels;
@@ -50,10 +45,6 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
     uint32_t drawCount;
-
-    std::shared_ptr<VulkanBuffer> culledDrawIndirectCount;
-
-    std::shared_ptr<VulkanBuffer> culledDrawCommandsBuffer;
 
     std::shared_ptr<VulkanDevice> device;
 

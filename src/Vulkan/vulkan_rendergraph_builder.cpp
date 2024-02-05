@@ -69,6 +69,13 @@ VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, uint32_t count) {
     return *this;
 }
 
+VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage,
+                                             VkMemoryPropertyFlags properties) {
+    std::shared_ptr<VulkanBuffer> newBuffer = std::make_shared<VulkanBuffer>(_device, size, usage, properties);
+    buffer(name, newBuffer);
+    return *this;
+}
+
 VulkanRenderGraph& VulkanRenderGraph::buffer(std::string name, std::shared_ptr<VulkanBuffer> buffer) {
     globalBuffers[name] = buffer;
     return *this;
