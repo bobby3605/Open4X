@@ -11,6 +11,8 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 VkSamplerAddressMode switchWrap(uint32_t wrap) {
     switch (wrap) {

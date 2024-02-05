@@ -1,5 +1,4 @@
 #include "Vulkan/vulkan_descriptors.hpp"
-#include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_rendergraph.hpp"
 #include <chrono>
 #include <cstdint>

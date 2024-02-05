@@ -6,7 +6,6 @@
 #include "Vulkan/vulkan_model.hpp"
 #include "Vulkan/vulkan_object.hpp"
 #include "Vulkan/vulkan_objects.hpp"
-#include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 #include "glTF/GLTF.hpp"
 #include <chrono>

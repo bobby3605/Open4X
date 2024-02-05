@@ -1,6 +1,5 @@
 #include "vulkan_device.hpp"
 #include "common.hpp"
-#include "vulkan_renderer.hpp"
 #include "vulkan_window.hpp"
 #include <cstdint>
 #include <cstring>

@@ -6,7 +6,6 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include "vulkan_model.hpp"
 #include "vulkan_node.hpp"
-#include "vulkan_renderer.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -32,7 +31,6 @@ class VulkanObject {
     uint32_t firstInstanceID = -1;
     void updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
-    void draw(VulkanRenderer* renderer);
     std::shared_ptr<VulkanModel> model;
 
     std::optional<VulkanNode*> findNode(int nodeID);

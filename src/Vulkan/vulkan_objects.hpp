@@ -5,13 +5,30 @@
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_object.hpp"
-#include "vulkan_renderer.hpp"
 #include "vulkan_rendergraph.hpp"
 #include <future>
 #include <map>
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
+struct ComputePushConstants {
+    uint32_t totalInstanceCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    uint32_t pad0;
+    glm::vec3 X;
+    uint32_t pad1;
+    glm::vec3 Y;
+    uint32_t pad2;
+    glm::vec3 Z;
+    uint32_t pad3;
+    glm::vec3 camPos;
+};
 
 class VulkanObjects {
   public:

@@ -7,7 +7,6 @@
 #include "vulkan_image.hpp"
 #include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
-#include "vulkan_renderer.hpp"
 #include <algorithm>
 #include <chrono>
 #include <execution>
