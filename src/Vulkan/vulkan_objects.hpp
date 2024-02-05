@@ -28,7 +28,6 @@ class VulkanObjects {
   private:
     std::shared_ptr<VulkanBuffer> vertexBuffer;
     std::shared_ptr<VulkanBuffer> indexBuffer;
-    std::shared_ptr<VulkanBuffer> indirectDrawsBuffer;
     std::vector<VulkanObject*> objects;
     std::vector<std::future<VulkanObject*>> futureObjects;
     std::vector<VulkanModel*> animatedModels;

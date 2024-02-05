@@ -268,11 +268,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
-    indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-    rg->buffer("DrawCommands", indirectDrawsBuffer)
+    rg->buffer("DrawCommands", indirectDraws, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
         .buffer("CulledMaterialIndices", ssboBuffers->culledMaterialIndicesBuffer())
         .buffer("MaterialIndices", ssboBuffers->materialIndicesBuffer())
         .buffer("CulledDrawCommands", indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, 0)
