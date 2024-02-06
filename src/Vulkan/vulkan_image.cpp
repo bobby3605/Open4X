@@ -8,8 +8,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 VkSamplerAddressMode switchWrap(uint32_t wrap) {
     switch (wrap) {
@@ -103,7 +106,7 @@ bool VulkanImage::readImage(std::string path) {
     }
 }
 
-VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, VkFormat format)
+VulkanImage::VulkanImage(std::shared_ptr<VulkanDevice> device, GLTF* model, uint32_t textureID, VkFormat format)
     : device{device}, model{model}, _textureID{textureID}, _format{format} {
     uint32_t sourceID = model->textures[textureID].source;
 
@@ -162,7 +165,7 @@ VulkanImage::VulkanImage(VulkanDevice* device, GLTF* model, uint32_t textureID, 
     }
 }
 
-VulkanImage::VulkanImage(VulkanDevice* device, std::string path, VkFormat format) : device{device}, _format{format} {
+VulkanImage::VulkanImage(std::shared_ptr<VulkanDevice> device, std::string path, VkFormat format) : device{device}, _format{format} {
     pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     if (!pixels) {
         throw std::runtime_error("failed to load texture image");
@@ -207,7 +210,7 @@ VulkanImage::~VulkanImage() {
     vkFreeMemory(device->device(), _imageMemory, nullptr);
 }
 
-VulkanSampler::VulkanSampler(VulkanDevice* device, GLTF* model, uint32_t samplerID, uint32_t mipLevels)
+VulkanSampler::VulkanSampler(std::shared_ptr<VulkanDevice> device, GLTF* model, uint32_t samplerID, uint32_t mipLevels)
     : device{device}, model{model}, samplerID{samplerID}, mipLevels{mipLevels} {
 
     VkSamplerCreateInfo samplerInfo{};
@@ -243,7 +246,7 @@ VulkanSampler::VulkanSampler(VulkanDevice* device, GLTF* model, uint32_t sampler
     checkResult(vkCreateSampler(device->device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
 }
 
-VulkanSampler::VulkanSampler(VulkanDevice* device, uint32_t mipLevels) : device{device}, mipLevels{mipLevels} {
+VulkanSampler::VulkanSampler(std::shared_ptr<VulkanDevice> device, uint32_t mipLevels) : device{device}, mipLevels{mipLevels} {
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

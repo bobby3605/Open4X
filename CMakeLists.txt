@@ -2,25 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 project(Open4X)
 
-file(GLOB SHADERS
-  assets/shaders/*.vert
-  assets/shaders/*.frag
-  assets/shaders/*.comp
-  )
-
-foreach(shader IN LISTS SHADERS)
-  get_filename_component(FILENAME ${shader} NAME)
-  add_custom_command(
-    COMMAND
-      glslc --target-env=vulkan1.2 ${shader} -o assets/shaders/${FILENAME}.spv
-    OUTPUT
-      assets/shaders/${FILENAME}.spv
-    )
-    list(APPEND SPV_SHADERS assets/shaders/${FILENAME}.spv)
-endforeach()
-
-add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
-
 file(GLOB SOURCES
   src/*.hpp
   src/*.cpp
@@ -32,10 +13,23 @@ file(GLOB SOURCES
 
 add_executable(Open4X ${SOURCES})
 
+set(ALLOW_EXTERNAL_SPIRV_TOOLS ON)
+add_subdirectory(external/glslang/glslang/)
+add_subdirectory(external/SPIRV-Cross/SPIRV-Cross/)
+
 target_include_directories(Open4X PUBLIC
   external/rapidjson/rapidjson/include
   external/stb
+  external/glslang/glslang/glslang
+  external/glslang/glslang/SPIRV
+  external/SPIRV-Cross/
 )
+
+# glslang libraries
+# TODO
+# static build, don't use system libraries
+# include static spirv-tools
+target_link_libraries(Open4X PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)

@@ -1,7 +1,6 @@
 #include "vulkan_object.hpp"
 #include "../glTF/AccessorLoader.hpp"
 #include "vulkan_buffer.hpp"
-#include "vulkan_renderer.hpp"
 #include <chrono>
 #include <cstdint>
 #include <glm/fwd.hpp>

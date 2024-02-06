@@ -7,7 +7,6 @@
 #include "vulkan_image.hpp"
 #include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
-#include "vulkan_renderer.hpp"
 #include <algorithm>
 #include <chrono>
 #include <execution>
@@ -19,8 +18,8 @@
 #include <random>
 #include <vulkan/vulkan_core.h>
 
-VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings)
-    : device{device}, descriptorManager{descriptorManager} {
+VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderGraph* rg, std::shared_ptr<Settings> settings)
+    : device{device} {
     _totalInstanceCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     // Load models
@@ -45,8 +44,7 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         // For some reason, !filePath.is_regular_file() isn't short circuiting
         // so it will try to get the file extension of a directory if these are in the same if statement
         if (filePath.exists() && filePath.is_regular_file()) {
-            if ((GLTF::getFileExtension(filePath.path()).compare(".gltf") == 0) ||
-                (GLTF::getFileExtension(filePath.path()).compare(".glb") == 0)) {
+            if ((getFileExtension(filePath.path()).compare("gltf") == 0) || (getFileExtension(filePath.path()).compare("glb") == 0)) {
                 futureModels.push_back(std::async(std::launch::async, [filePath, fileNum, this]() {
                     return std::make_shared<VulkanModel>(filePath.path(), fileNum, ssboBuffers);
                 }));
@@ -269,98 +267,107 @@ VulkanObjects::VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptor
         aoMapInfos[it->second] = reinterpret_cast<VulkanImage*>(it->first)->imageInfo;
     }
 
-    VulkanDescriptors::VulkanDescriptor* materialDescriptor = descriptorManager->createDescriptor("material", VK_SHADER_STAGE_FRAGMENT_BIT);
+    rg->buffer("DrawCommands", indirectDraws, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+        .buffer("CulledMaterialIndices", ssboBuffers->culledMaterialIndicesBuffer())
+        .buffer("MaterialIndices", ssboBuffers->materialIndicesBuffer())
+        .buffer("CulledDrawCommands", indirectDraws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, 0)
+        .buffer("CulledDrawIndirectCount", 1, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, 0)
+        .buffer("CulledInstanceIndices", _totalInstanceCount)
+        .buffer("Globals", 1)
+        .buffer("Materials", ssboBuffers->materialBuffer())
+        .buffer("Instances", ssboBuffers->instanceIndicesBuffer())
+        .buffer("Objects", ssboBuffers->ssboBuffer())
+        .buffer("PrefixSum", _totalInstanceCount)
+        .buffer("PartialSums", getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+        // NOTE:
+        // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
+        // adding 32 - 1 ensures correct rounding
+        .buffer("ActiveLanes", (_totalInstanceCount + (32 - 1)) / 32);
 
-    materialDescriptor->addBinding(0, samplerInfos);
-    materialDescriptor->addBinding(1, imageInfos);
-    materialDescriptor->addBinding(2, normalMapInfos);
-    materialDescriptor->addBinding(3, metallicRoughnessMapInfos);
-    materialDescriptor->addBinding(4, aoMapInfos);
+    computePushConstants.totalInstanceCount = _totalInstanceCount;
 
-    materialDescriptor->allocateSets();
-    materialDescriptor->update();
+    const uint32_t queryCount = 4;
+    VkQueryPoolCreateInfo queryPoolInfo{};
+    queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    queryPoolInfo.queryCount = queryCount;
 
-    VulkanDescriptors::VulkanDescriptor* objectDescriptor = descriptorManager->createDescriptor("object", VK_SHADER_STAGE_VERTEX_BIT);
+    vkCreateQueryPool(device->device(), &queryPoolInfo, nullptr, &queryPool);
+    vkResetQueryPool(device->device(), queryPool, 0, queryCount);
 
-    culledInstanceIndicesBuffer =
-        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    rg->queryReset(queryPool, 0, queryCount);
 
-    objectDescriptor->addBinding(0, ssboBuffers->ssboBuffer());
-    objectDescriptor->addBinding(1, ssboBuffers->materialBuffer());
-    objectDescriptor->addBinding(2, culledInstanceIndicesBuffer);
-    objectDescriptor->addBinding(3, ssboBuffers->culledMaterialIndicesBuffer());
+    VulkanRenderGraph::ShaderOptions shaderOptions{};
+    shaderOptions.pushConstantData = &computePushConstants;
 
-    objectDescriptor->allocateSets();
-    objectDescriptor->update();
+    specData.local_size_x = device->maxComputeWorkGroupInvocations();
+    specData.subgroup_size = device->maxSubgroupSize();
+    shaderOptions.specData = &specData;
 
-    VulkanDescriptors::VulkanDescriptor* cullFrustumDescriptor =
-        descriptorManager->createDescriptor("cull_frustum_pass", VK_SHADER_STAGE_COMPUTE_BIT);
+    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
+    // ensure previous frame vertex read completed before writing
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+    rg->shader("cull_frustum_pass.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
+               1, 1, shaderOptions);
+    // wait until the frustum culling is done
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    prefixSumBuffer = VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    partialSumsBuffer = std::make_shared<VulkanBuffer>(
-        device, sizeof(uint32_t) * getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    // NOTE:
-    // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
-    activeLanesBuffer =
-        VulkanBuffer::StorageBuffer(device, sizeof(uint32_t) * _totalInstanceCount / 32, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    rg->shader("reduce_prefix_sum.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
+               1, 1, shaderOptions);
+    // wait until finished
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    cullFrustumDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
-    cullFrustumDescriptor->addBinding(1, ssboBuffers->ssboBuffer());
-    cullFrustumDescriptor->addBinding(2, prefixSumBuffer);
-    cullFrustumDescriptor->addBinding(3, partialSumsBuffer);
-    cullFrustumDescriptor->addBinding(4, activeLanesBuffer);
+    // ensure previous frame vertex read completed before zeroing out buffer
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                      VK_PIPELINE_STAGE_2_COPY_BIT);
 
-    VulkanDescriptors::VulkanDescriptor* reduceDescriptor =
-        descriptorManager->createDescriptor("reduce_prefix_sum", VK_SHADER_STAGE_COMPUTE_BIT);
+    rg->setBuffer("CulledDrawIndirectCount", 0);
 
-    reduceDescriptor->addBinding(0, ssboBuffers->instanceIndicesBuffer());
-    reduceDescriptor->addBinding(1, prefixSumBuffer);
-    reduceDescriptor->addBinding(2, partialSumsBuffer);
-    reduceDescriptor->addBinding(3, activeLanesBuffer);
-    reduceDescriptor->addBinding(4, culledInstanceIndicesBuffer);
+    drawCount = indirectDraws.size();
+    shaderOptions.pushConstantData = &drawCount;
+    // barrier until the CulledDrawIndirectCount buffer has been cleared
+    rg->memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
+                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    VulkanDescriptors::VulkanDescriptor* cullDrawDescriptor =
-        descriptorManager->createDescriptor("cull_draw_pass", VK_SHADER_STAGE_COMPUTE_BIT);
-    // NOTE: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT for compute shader to read from it
-    indirectDrawsBuffer = VulkanBuffer::StagedBuffer(device, (void*)indirectDraws.data(), sizeof(indirectDraws[0]) * indirectDraws.size(),
-                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions);
+    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
 
-    cullDrawDescriptor->addBinding(0, indirectDrawsBuffer);
-    cullDrawDescriptor->addBinding(3, prefixSumBuffer);
-    cullDrawDescriptor->addBinding(4, ssboBuffers->materialIndicesBuffer());
-    cullDrawDescriptor->addBinding(5, ssboBuffers->culledMaterialIndicesBuffer());
+    // wait until culling is completed
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                      VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+
+    VulkanRenderGraph::ShaderOptions vertOptions{};
+    VulkanRenderGraph::ShaderOptions fragOptions{};
+
+    rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertexBuffer, indexBuffer);
+
+    rg->imageInfos("samplers", &samplerInfos);
+    rg->imageInfos("images", &imageInfos);
+    rg->imageInfos("normals", &normalMapInfos);
+    rg->imageInfos("metallicRoughnesses", &metallicRoughnessMapInfos);
+    rg->imageInfos("aos", &aoMapInfos);
+
+    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
+    rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
+    rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
+    rg->compile();
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::cout << "Loaded " << objects.size() << " objects in "
               << std::chrono::duration<float, std::chrono::milliseconds::period>(endTime - startTime).count() << "ms" << std::endl;
 }
 
-void VulkanObjects::bind(VulkanRenderer* renderer) {
-    VkBuffer vertexBuffers[] = {vertexBuffer->buffer()};
-    VkDeviceSize offsets[] = {0};
-
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 1,
-                                descriptorManager->descriptors["material"]->getSets()[0]);
-    renderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->graphicsPipelineLayout(), 2,
-                                descriptorManager->descriptors["object"]->getSets()[0]);
-
-    vkCmdBindVertexBuffers(renderer->getCurrentCommandBuffer(), 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(renderer->getCurrentCommandBuffer(), indexBuffer->buffer(), 0, VK_INDEX_TYPE_UINT32);
-}
-
-void VulkanObjects::drawIndirect(VulkanRenderer* renderer) {
+void VulkanObjects::updateModels() {
     for (VulkanModel* model : animatedModels) {
         model->updateAnimations();
     }
     for (VulkanObject* object : animatedObjects) {
         object->updateModelMatrix(ssboBuffers);
     }
-
-    vkCmdDrawIndexedIndirectCount(renderer->getCurrentCommandBuffer(), renderer->culledDrawCommandsBuffer->buffer(), 0,
-                                  renderer->culledDrawIndirectCount->buffer(), 0, indirectDraws.size(), sizeof(indirectDraws[0]));
 }
 
 VulkanObject* VulkanObjects::getObjectByName(std::string name) {
@@ -373,6 +380,7 @@ VulkanObject* VulkanObjects::getObjectByName(std::string name) {
 }
 
 VulkanObjects::~VulkanObjects() {
+    vkDestroyQueryPool(device->device(), queryPool, nullptr);
     for (auto object : objects) {
         delete object;
     }

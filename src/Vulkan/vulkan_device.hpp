@@ -1,6 +1,7 @@
 #ifndef VULKAN_DEVICE_H_
 #define VULKAN_DEVICE_H_
 
+#include "common.hpp"
 #include "vulkan_window.hpp"
 #include <cstdint>
 #include <memory>
@@ -62,18 +63,16 @@ class VulkanDevice {
 
     VkCommandPool createCommandPool(VkCommandPoolCreateFlags flags);
 
-    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels,
-                               VkCommandBuffer commandBuffer);
-    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageSubresourceRange subresourceRange,
-                               VkCommandBuffer commandBuffer);
+    RenderOp transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+    RenderOp transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                   VkImageSubresourceRange subresourceRange);
 
     float timestampPeriod() const { return _timestampPeriod; }
 
     void setDebugName(VkObjectType type, uint64_t handle, std::string name);
 
   private:
-    void actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                       VkCommandBuffer commandBuffer);
+    RenderOp actuallyTransitionImageLayout(VkImageMemoryBarrier2 barrier, VkImageLayout oldLayout, VkImageLayout newLayout);
     PFN_vkSetDebugUtilsObjectNameEXT setDebugUtilsObjectName;
 
   public:

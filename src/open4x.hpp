@@ -6,7 +6,6 @@
 #include "Vulkan/vulkan_model.hpp"
 #include "Vulkan/vulkan_object.hpp"
 #include "Vulkan/vulkan_objects.hpp"
-#include "Vulkan/vulkan_renderer.hpp"
 #include "Vulkan/vulkan_window.hpp"
 #include "glTF/GLTF.hpp"
 #include <chrono>
@@ -22,8 +21,8 @@ class Open4X {
     VulkanObject* camera;
 
     VulkanWindow* vulkanWindow;
-    VulkanDevice* vulkanDevice;
-    VulkanRenderer* vulkanRenderer;
+    std::shared_ptr<VulkanDevice> vulkanDevice;
+    //    VulkanRenderer* vulkanRenderer;
 
     std::shared_ptr<VulkanObjects> objects;
 

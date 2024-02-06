@@ -1,5 +1,6 @@
 #include "Vulkan/vulkan_descriptors.hpp"
-#include "Vulkan/vulkan_renderer.hpp"
+#include "Vulkan/vulkan_rendergraph.hpp"
+#include <chrono>
 #include <cstdint>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
@@ -8,6 +9,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -54,13 +56,13 @@ Open4X::Open4X() {
     vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
     glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
-    vulkanDevice = new VulkanDevice(vulkanWindow);
+    vulkanDevice = std::make_shared<VulkanDevice>(vulkanWindow);
 }
 
 Open4X::~Open4X() {
 
-    delete vulkanRenderer;
-    delete vulkanDevice;
+    //    delete vulkanRenderer;
+    //    delete vulkanDevice;
     delete vulkanWindow;
 }
 
@@ -113,30 +115,9 @@ void Open4X::run() {
 
     loadSettings();
 
-    const uint32_t queryCount = 4;
-    VkQueryPoolCreateInfo queryPoolInfo{};
-    queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    queryPoolInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
-    queryPoolInfo.queryCount = queryCount;
+    VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
 
-    VkQueryPool queryPool;
-    vkCreateQueryPool(vulkanDevice->device(), &queryPoolInfo, nullptr, &queryPool);
-    vkResetQueryPool(vulkanDevice->device(), queryPool, 0, queryCount);
-
-    VulkanDescriptors descriptorManager(vulkanDevice);
-
-    VulkanObjects objects(vulkanDevice, &descriptorManager, settings);
-
-    std::vector<std::shared_ptr<VulkanBuffer>> uniformBuffers(VulkanSwapChain::MAX_FRAMES_IN_FLIGHT);
-    VulkanDescriptors::VulkanDescriptor* globalDescriptor = descriptorManager.createDescriptor("global", VK_SHADER_STAGE_VERTEX_BIT);
-    for (int i = 0; i < VulkanSwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
-        uniformBuffers[i] = VulkanBuffer::UniformBuffer(vulkanDevice, sizeof(UniformBufferObject));
-        globalDescriptor->addBinding(0, uniformBuffers[i], i);
-    }
-    globalDescriptor->allocateSets(2);
-    globalDescriptor->update();
-
-    vulkanRenderer = new VulkanRenderer(vulkanWindow, vulkanDevice, &descriptorManager, objects.draws(), settings);
+    VulkanObjects objects(vulkanDevice, &renderGraph, settings);
 
     camera = new VulkanObject();
     //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
@@ -146,13 +127,12 @@ void Open4X::run() {
     float vFov = 45.0f;
     float nearClip = 0.0001f;
     float farClip = 1000.0f;
-    float aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+    float aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
 
     glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
-    ComputePushConstants computePushConstants{};
-    computePushConstants.totalInstanceCount = objects.totalInstanceCount();
-    fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
+    objects.computePushConstants.totalInstanceCount = objects.totalInstanceCount();
+    fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
 
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
@@ -178,42 +158,31 @@ void Open4X::run() {
         ubo.projView = proj * glm::inverse(cameraModel);
         ubo.camPos = camera->position();
 
-        vulkanRenderer->startFrame();
-        vkCmdResetQueryPool(vulkanRenderer->getCurrentCommandBuffer(), queryPool, 0, queryCount);
+        renderGraph.bufferWrite("Globals", &ubo);
 
-        uniformBuffers[vulkanRenderer->getCurrentFrame()]->write(&ubo);
+        setComputePushConstantsCamera(objects.computePushConstants, camera);
 
-        setComputePushConstantsCamera(computePushConstants, camera);
+        objects.updateModels();
 
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 0);
-        vulkanRenderer->cullDraws(objects.draws(), computePushConstants);
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
-
-        vulkanRenderer->beginRendering();
-
-        vulkanRenderer->bindPipeline();
-
-        vulkanRenderer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanRenderer->graphicsPipelineLayout(), 0,
-                                          descriptorManager.descriptors["global"]->getSets()[vulkanRenderer->getCurrentFrame()]);
-
-        objects.bind(vulkanRenderer);
-
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
-        objects.drawIndirect(vulkanRenderer);
-        vkCmdWriteTimestamp2(vulkanRenderer->getCurrentCommandBuffer(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
-
-        vulkanRenderer->endRendering();
-
-        if (vulkanRenderer->endFrame()) {
-            aspectRatio = vulkanRenderer->getSwapChainExtent().width / (float)vulkanRenderer->getSwapChainExtent().height;
+        if (renderGraph.render()) {
+            aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
             proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
-            fillComputePushConstants(computePushConstants, vFov, aspectRatio, nearClip, farClip);
+            fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
 
+        //        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         if (settings->showFPS) {
+            const uint32_t queryCount = 4;
             std::vector<uint64_t> queryResults(queryCount);
-            vkGetQueryPoolResults(vulkanDevice->device(), queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                                  queryResults.data(), sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+            const bool wait = true;
+            // FIXME:
+            // workaround for disabling waiting on some gpus
+            // TODO:
+            // One query pool per frame
+            vkGetQueryPoolResults(vulkanDevice->device(), objects.queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
+                                  queryResults.data(), sizeof(queryResults[0]),
+                                  VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
 
             float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
             float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
@@ -231,5 +200,4 @@ void Open4X::run() {
     }
     vkDeviceWaitIdle(vulkanDevice->device());
     delete camera;
-    vkDestroyQueryPool(vulkanDevice->device(), queryPool, nullptr);
 }

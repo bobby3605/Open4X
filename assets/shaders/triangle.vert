@@ -1,10 +1,9 @@
 #version 460
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform Globals {
     mat4 projView;
     vec3 camPos;
-}
-ubo;
+};
 
 struct ObjectData {
     vec3 translation;
@@ -25,13 +24,10 @@ struct MaterialData {
     float occlusionStrength;
 };
 
-layout(std140, set = 2, binding = 0) readonly buffer Objects { ObjectData objects[]; };
-
-layout(std140, set = 2, binding = 1) readonly buffer Materials { MaterialData materials[]; };
-
-layout(set = 2, binding = 2) readonly buffer CulledInstanceIndices { uint culledInstanceIndices[]; };
-
-layout(set = 2, binding = 3) readonly buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
+layout(std140, set = 1, binding = 0) readonly buffer Objects { ObjectData objects[]; };
+layout(std140, set = 1, binding = 1) readonly buffer Materials { MaterialData materials[]; };
+layout(set = 1, binding = 2) readonly buffer CulledInstanceIndices { uint culledInstanceIndices[]; };
+layout(set = 1, binding = 3) readonly buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 texCoord;
@@ -47,7 +43,7 @@ layout(location = 5) out uint metallicRoughnessIndex;
 layout(location = 6) out uint aoIndex;
 layout(location = 7) out vec3 WorldPos;
 layout(location = 8) out vec3 Normal;
-layout(location = 9) out vec3 camPos;
+layout(location = 9) out vec3 camPosOut;
 layout(location = 10) out float normalScale;
 layout(location = 11) out float metallicFactor;
 layout(location = 12) out float roughnessFactor;
@@ -69,7 +65,7 @@ void main() {
     // only supports uniform scaling
     vec4 vertPos = vec4(rotate_vertex_position(inPosition, object.rotation) * object.scale.x + object.translation, 1.0);
 
-    gl_Position = ubo.projView * vertPos;
+    gl_Position = projView * vertPos;
 
     baseColorFactor = material.baseColorFactor;
 
@@ -87,5 +83,5 @@ void main() {
     fragTexCoord = texCoord;
     WorldPos = vec3(vertPos);
     Normal = normal;
-    camPos = ubo.camPos;
+    camPosOut = camPos;
 }

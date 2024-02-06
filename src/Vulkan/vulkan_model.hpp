@@ -3,17 +3,16 @@
 
 #include "../glTF/GLTF.hpp"
 #include "vulkan_descriptors.hpp"
-#include "vulkan_renderer.hpp"
 #include <cstdint>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "glm/gtx/string_cast.hpp"
 #include "vulkan_buffer.hpp"
+#include "vulkan_node.hpp"
 #include <glm/glm.hpp>
 #include <set>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
-#include "vulkan_node.hpp"
 
 class VulkanModel {
   public:
@@ -35,6 +34,5 @@ class VulkanModel {
     std::vector<VulkanNode*> animatedNodes;
     uint32_t _totalInstanceCounter = 0;
 };
-
 
 #endif // VULKAN_MODEL_H_

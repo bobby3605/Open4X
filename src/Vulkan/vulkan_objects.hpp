@@ -5,33 +5,46 @@
 #include "vulkan_descriptors.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_object.hpp"
-#include "vulkan_renderer.hpp"
+#include "vulkan_rendergraph.hpp"
 #include <future>
 #include <map>
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
+struct ComputePushConstants {
+    uint32_t totalInstanceCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    uint32_t pad0;
+    glm::vec3 X;
+    uint32_t pad1;
+    glm::vec3 Y;
+    uint32_t pad2;
+    glm::vec3 Z;
+    uint32_t pad3;
+    glm::vec3 camPos;
+};
+
 class VulkanObjects {
   public:
-    VulkanObjects(VulkanDevice* device, VulkanDescriptors* descriptorManager, std::shared_ptr<Settings> settings);
+    VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderGraph* rg, std::shared_ptr<Settings> settings);
     ~VulkanObjects();
-    void bind(VulkanRenderer* renderer);
-    void drawIndirect(VulkanRenderer* renderer);
+    void updateModels();
     VulkanObject* getObjectByName(std::string name);
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
     int totalInstanceCount() { return _totalInstanceCount; }
     std::shared_ptr<SSBOBuffers> ssboBuffers;
+    ComputePushConstants computePushConstants{};
+    VkQueryPool queryPool;
 
   private:
     std::shared_ptr<VulkanBuffer> vertexBuffer;
     std::shared_ptr<VulkanBuffer> indexBuffer;
-    std::shared_ptr<VulkanBuffer> indirectDrawsBuffer;
-    std::shared_ptr<VulkanBuffer> culledIndirectDrawsBuffer;
-    std::shared_ptr<VulkanBuffer> culledInstanceIndicesBuffer;
-    std::shared_ptr<VulkanBuffer> partialSumsBuffer;
-    std::shared_ptr<VulkanBuffer> prefixSumBuffer;
-    std::shared_ptr<VulkanBuffer> activeLanesBuffer;
     std::vector<VulkanObject*> objects;
     std::vector<std::future<VulkanObject*>> futureObjects;
     std::vector<VulkanModel*> animatedModels;
@@ -47,10 +60,16 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> metallicRoughnessMapInfos;
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
+    uint32_t drawCount;
 
-    VulkanDevice* device;
+    std::shared_ptr<VulkanDevice> device;
 
     VulkanDescriptors* descriptorManager;
+
+    struct SpecData {
+        uint32_t local_size_x;
+        uint32_t subgroup_size;
+    } specData;
 };
 
 #endif // VULKAN_OBJECTS_H_
