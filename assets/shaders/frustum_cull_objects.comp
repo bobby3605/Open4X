@@ -63,6 +63,8 @@ bool obbWithinPlane(OBB obb, Plane p) {
 }
 
 bool isVisible(OBB obb) {
+    // TODO
+    // Break up this loop with gl_GlobalInvocationID.y
     for (uint i = 0; i < 6; ++i) {
         if (obbWithinPlane(obb, frustum.planes[i])) {
             return true;
