@@ -8,6 +8,7 @@
 #include "vulkan_node.hpp"
 #include "vulkan_object.hpp"
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <execution>
 #include <filesystem>
@@ -158,7 +159,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
                 // adding remainder to last batch
                 batchObjects.reserve(batchSize + (batch == (threadCount - 1) ? extra : 0));
                 for (int objectIndex = 0; objectIndex < (batchSize + (batch == (threadCount - 1) ? extra : 0)); ++objectIndex) {
-                    batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath, true));
+                    batchObjects.push_back(new VulkanObject(vulkanModel, ssboBuffers, filePath));
                     std::shared_ptr<GLTF> model = objects.back()->model->model;
                     if (model->animations.size() > 0) {
                         batchAnimatedObjects.push_back(batchObjects.back());
@@ -175,6 +176,8 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     for (int i = 0; i < futures.size(); ++i) {
         std::pair<std::vector<VulkanObject*>, std::vector<VulkanObject*>> batchObjectsPair = futures[i].get();
         objects.insert(std::end(objects), std::begin(batchObjectsPair.first), std::end(batchObjectsPair.first));
+        // FIXME:
+        // batchAnimatedObjects
         animatedObjects.insert(std::end(animatedObjects), std::begin(batchObjectsPair.second), std::end(batchObjectsPair.second));
     }
 
@@ -236,8 +239,22 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     std::sort(indirectDraws.begin(), indirectDraws.end(),
               [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 
-    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(),
-                  [this](auto&& object) { object->updateModelMatrix(ssboBuffers); });
+    objectCullingData = VulkanBuffer::StorageBuffer(device, objects.size() * sizeof(ObjectCullData));
+    ObjectCullData* objectCullingDataMapped = reinterpret_cast<ObjectCullData*>(objectCullingData->mapped());
+
+    std::atomic<int32_t> i = 0;
+    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(), [this, &i, objectCullingDataMapped](auto&& object) {
+        int32_t index = i.fetch_add(1);
+        object->updateModelMatrix(ssboBuffers);
+        // FIXME:
+        // Do this whenever the object changes
+        // Objects can be in random order, as long as parameters are set properly
+        // FIXME:
+        // There's some issue with instance IDs
+        objectCullingDataMapped[index].obb = object->obb;
+        objectCullingDataMapped[index].firstInstanceID = object->firstInstanceID;
+        objectCullingDataMapped[index].instanceCount = object->model->totalInstanceCount();
+    });
 
     vertexBuffer = VulkanBuffer::StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
                                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
@@ -283,9 +300,9 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         // NOTE:
         // / 32 because ballot returns a uvec4, each uint in the vector is 32 bits long
         // adding 32 - 1 ensures correct rounding
-        .buffer("ActiveLanes", (_totalInstanceCount + (32 - 1)) / 32);
-
-    computePushConstants.totalInstanceCount = _totalInstanceCount;
+        .buffer("ActiveLanes", (_totalInstanceCount + (32 - 1)) / 32)
+        .buffer("ObjectCullingData", objectCullingData)
+        .buffer("VisibilityBuffer", _totalInstanceCount);
 
     const uint32_t queryCount = 4;
     VkQueryPoolCreateInfo queryPoolInfo{};
@@ -299,7 +316,6 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->queryReset(queryPool, 0, queryCount);
 
     VulkanRenderGraph::ShaderOptions shaderOptions{};
-    shaderOptions.pushConstantData = &computePushConstants;
 
     specData.local_size_x = device->maxComputeWorkGroupInvocations();
     specData.subgroup_size = device->maxSubgroupSize();
@@ -309,14 +325,22 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     // ensure previous frame vertex read completed before writing
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-    rg->shader("cull_frustum_pass.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-               1, 1, shaderOptions);
+
+    frustumCullPushConstants.totalObjectCount = objects.size();
+    shaderOptions.pushConstantData = &frustumCullPushConstants;
+    rg->shader("frustum_cull_objects.comp", getGroupCount(objects.size(), device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions);
+    //  ensure frustum_cull_objects write completed
+    rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+    shaderOptions.pushConstantData = &_totalInstanceCount;
+
+    rg->shader("prefix_sum_first_pass.comp", getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()), 1, 1,
+               shaderOptions);
     // wait until the frustum culling is done
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    rg->shader("reduce_prefix_sum.comp", getGroupCount(computePushConstants.totalInstanceCount, device->maxComputeWorkGroupInvocations()),
-               1, 1, shaderOptions);
+    rg->shader("reduce_prefix_sum.comp", getGroupCount(_totalInstanceCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions);
     // wait until finished
     rg->memoryBarrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);

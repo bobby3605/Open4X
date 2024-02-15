@@ -1,7 +1,7 @@
 {
     "objects": {
-        "extraObjectCount": 10
-        ,"randLimit": 3
+        "extraObjectCount": 10000000
+        ,"randLimit": 1000
     },
     "misc": {
         "showFPS": true

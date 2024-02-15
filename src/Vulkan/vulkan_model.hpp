@@ -22,6 +22,9 @@ class VulkanModel {
     std::unordered_map<int, std::shared_ptr<VulkanMesh>> meshIDMap;
     std::unordered_map<int, int> materialIDMap;
     AABB aabb;
+    // NOTE:
+    // This is only the instance count of a single instance of the model
+    // Not the total count of all instances of the model
     uint32_t const totalInstanceCount() { return _totalInstanceCounter; }
     void addInstance(uint32_t firstInstanceID, std::shared_ptr<SSBOBuffers> ssboBuffers);
     void uploadModelMatrix(uint32_t firstInstanceID, glm::mat4 modelMatrix, std::shared_ptr<SSBOBuffers> ssboBuffers);

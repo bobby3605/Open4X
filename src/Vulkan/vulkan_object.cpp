@@ -15,8 +15,7 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 
-VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
-                           bool duplicate)
+VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name)
     : model{model} {
     _name = new char[name.size()];
     for (int i = 0; i < name.size(); ++i) {
@@ -26,6 +25,7 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<S
     // Preallocates instance ids from the total instance ids in the model
     firstInstanceID = ssboBuffers->uniqueInstanceID.fetch_add(model->totalInstanceCount(), std::memory_order_relaxed);
     model->addInstance(firstInstanceID, ssboBuffers);
+    updateOBB();
 }
 
 VulkanObject::~VulkanObject() {
@@ -35,6 +35,15 @@ VulkanObject::~VulkanObject() {
 }
 
 VulkanObject::VulkanObject() {}
+
+// TODO:
+// Do this faster
+void VulkanObject::updateOBB() {
+    // FIXME:
+    // Support animations
+    obb = model->aabb.toOBB(rotation());
+    obb.center += position();
+}
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {
     _position = newPosition;
@@ -90,6 +99,7 @@ void VulkanObject::updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
         glm::mat4 modelMatrix =
             glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
         model->uploadModelMatrix(firstInstanceID, modelMatrix, ssboBuffers);
+        updateOBB();
         _isBufferValid = 1;
     }
 }

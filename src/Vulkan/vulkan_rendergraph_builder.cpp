@@ -12,6 +12,9 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t g
     shaders.push_back(shader);
     renderOps.push_back(bindPipeline(shader));
     renderOps.push_back(bindDescriptorSets(shader));
+    // FIXME:
+    // Use shader->hasPushConstants
+    // Can't move push constant reflection out of setDescriptorBuffers because spirv_tools::Compiler doesn't have a default constructor
     ShaderOptions defaultOptions{};
     if (shaderOptions.pushConstantData != defaultOptions.pushConstantData) {
         // TODO
@@ -200,10 +203,8 @@ void VulkanRenderGraph::addGraphicsPipeline(std::shared_ptr<VulkanRenderGraph::V
 void VulkanRenderGraph::compile() {
     std::shared_ptr<VulkanShader> prev;
     for (auto shader : shaders) {
-
         shader->compile();
         shader->createShaderModule();
-
         // TODO
         // Share buffers between stages with the same descriptor
         // For example, culling compute shaders re-use buffers between stages

@@ -1,0 +1,89 @@
+#version 460
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 0;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct OBB {
+    vec3 center;
+    vec3 half_extents;
+    vec3 directionU;
+    vec3 directionV;
+    vec3 directionW;
+};
+
+struct ObjectCullData {
+    OBB obb;
+    uint firstInstanceID;
+    uint instanceCount;
+};
+
+struct Plane {
+    vec3 normal;
+    float distance;
+};
+
+struct Frustum {
+    // NOTE:
+    // This could be 4, because testing the near and far planes might be irrelevant
+    // TODO:
+    // Test to see if there's a significant improvement by skipping the near and far planes
+    Plane planes[6];
+};
+
+layout(push_constant) uniform constants {
+    Frustum frustum;
+    uint totalObjectCount;
+};
+
+layout(set = 0, binding = 0) readonly buffer ObjectCullingData { ObjectCullData objects[]; };
+layout(set = 0, binding = 1) writeonly buffer VisibilityBuffer { bool visibilityBuffer[]; };
+
+bool obbWithinPlane(OBB obb, Plane p) {
+    // Real time rendering fourth edition, 22.10
+    float e = obb.half_extents.x * abs(dot(plane.normal, obb.directionU)) + obb.half_extents.y * abs(dot(plane.normal, obb.directionV)) +
+              obb.half_extents.z * abs(dot(plane.normal, obb.directionW));
+    float s = dot(obb.center, plane.normal) + plane.distance;
+
+    if (s - e > 0) {
+        return false;
+    } else {
+        return true;
+    }
+    /*
+    // TODO
+    // Support intersection
+    if (s - e > 0) {
+        return false;
+    } else if (s + e < 0) {
+        return true;
+    }
+    // intersect
+    return true;
+    */
+}
+
+bool isVisible(OBB obb) {
+    for (uint i = 0; i < 6; ++i) {
+        if (obbWithinPlane(obb, frustum.planes[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void main() {
+    // Per object
+    uint index = gl_GlobalInvocationID.x;
+    if (index < totalObjectCount) {
+        ObjectCullData object = objects[index];
+        bool visible = isVisible(object.obb);
+        // TODO
+        // Improve this
+        // Only fast for low instance/primitive count models
+        // TODO
+        // Save memory by packing bools
+        for (uint i = 0; i < object.instanceCount; ++i) {
+            visibilityBuffer[object.firstInstanceID + i] = visible;
+        }
+    }
+}

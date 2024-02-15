@@ -10,6 +10,8 @@ VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum, std::shared_ptr
         }
 
         for (const auto node : rootNodes) {
+            // aabb is a reference to VulkanModel::aabb
+            // this gets the maximum and minimum extents for the model
             node->updateAABB(glm::mat4(1.0f), aabb);
         }
 

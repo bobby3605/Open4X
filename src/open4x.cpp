@@ -2,7 +2,9 @@
 #include "Vulkan/vulkan_rendergraph.hpp"
 #include <chrono>
 #include <cstdint>
+#include <glm/ext/quaternion_common.hpp>
 #include <glm/ext/scalar_constants.hpp>
+#include <glm/geometric.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
 #include <glm/trigonometric.hpp>
 #include <iomanip>
@@ -26,6 +28,7 @@
 #include <cstring>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_access.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -66,52 +69,31 @@ Open4X::~Open4X() {
     delete vulkanWindow;
 }
 
-// Modified from:
-// https://github.com/travisvroman/kohi/blob/main/engine/src/math/kmath.c
-glm::vec4 plane_3d_create(glm::vec3 p1, glm::vec3 norm) {
-    glm::vec3 normal = glm::normalize(norm);
-    float distance = glm::dot(normal, p1);
-    return {normal, distance};
-}
+void setFrustum(Frustum& frustum, glm::mat4 projView) {
+    // http://www.lighthouse3d.com/tutorials/view-frustum-culling/clip-space-approach-extracting-the-planes/
+    // Lighthouse 3d is a little confusing, and makes it seem like you want the MVP of the camera, or possibly the object,
+    // but the following says to use the projView matrix
+    // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter6/frustum.html
 
-Frustum frustum_create(const glm::vec3 position, const glm::vec3 forward, const glm::vec3 right, const glm::vec3 up, float aspect,
-                       float fov, float near, float far) {
-    Frustum f;
+    glm::vec4 row1 = glm::row(projView, 0);
+    glm::vec4 row2 = glm::row(projView, 1);
+    glm::vec4 row3 = glm::row(projView, 2);
+    glm::vec4 row4 = glm::row(projView, 3);
 
-    float half_v = far * tanf(fov * 0.5f);
-    float half_h = half_v * aspect;
-    glm::vec3 fwd = forward;
-    glm::vec3 forward_far = fwd * far;
-
-    // Top, bottom, right, left, far, near
-    f.sides[0] = plane_3d_create((fwd * near) + position, fwd);
-    f.sides[1] = plane_3d_create(position + forward_far, fwd * -1.0f);
-    f.sides[2] = plane_3d_create(position, glm::cross(up, forward_far + (right * half_h)));
-    f.sides[3] = plane_3d_create(position, glm::cross(forward_far - (right * half_h), up));
-    f.sides[4] = plane_3d_create(position, glm::cross(right, (forward_far - (up * half_v))));
-    f.sides[5] = plane_3d_create(position, glm::cross((forward_far + (up * half_v)), right));
-
-    return f;
-}
-
-void fillComputePushConstants(ComputePushConstants& computePushConstants, float vFov, float aspectRatio, float nearClip, float farClip) {
-    computePushConstants.nearD = nearClip;
-    computePushConstants.farD = farClip;
-    computePushConstants.ratio = aspectRatio;
-
-    vFov *= glm::pi<double>() / 360.0;
-    computePushConstants.tang = glm::tan(vFov);
-    computePushConstants.sphereFactorY = 1.0 / glm::cos(vFov);
-
-    float angleX = glm::atan(computePushConstants.tang * aspectRatio);
-    computePushConstants.sphereFactorX = 1.0 / glm::cos(angleX);
-}
-
-void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, VulkanObject* camera) {
-    computePushConstants.camPos = camera->position();
-    computePushConstants.Z = glm::normalize(camera->rotation() * VulkanObject::forwardVector);
-    computePushConstants.X = glm::normalize(camera->rotation() * VulkanObject::rightVector);
-    computePushConstants.Y = glm::normalize(camera->rotation() * VulkanObject::upVector);
+    auto planeFromVec4 = [](glm::vec4 vec) {
+        Plane p;
+        p.normal = vec;
+        float length = glm::length(p.normal);
+        p.normal = glm::normalize(p.normal);
+        p.distance = vec.w / length;
+        return p;
+    };
+    frustum.planes[0] = planeFromVec4(row4 + row1);
+    frustum.planes[1] = planeFromVec4(row4 - row1);
+    frustum.planes[2] = planeFromVec4(row4 + row2);
+    frustum.planes[3] = planeFromVec4(row4 - row2);
+    frustum.planes[4] = planeFromVec4(row4 + row3);
+    frustum.planes[5] = planeFromVec4(row4 - row3);
 }
 
 void Open4X::loadSettings() {
@@ -159,9 +141,6 @@ void Open4X::run() {
 
     glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
-    objects.computePushConstants.totalInstanceCount = objects.totalInstanceCount();
-    fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
-
     auto startTime = std::chrono::high_resolution_clock::now();
     std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
               << "ms" << std::endl;
@@ -188,17 +167,13 @@ void Open4X::run() {
 
         renderGraph.bufferWrite("Globals", &ubo);
 
-        setComputePushConstantsCamera(objects.computePushConstants, camera);
-
         objects.updateModels();
-        objects.computePushConstants.frustum =
-            frustum_create(camera->position(), camera->rotation() * camera->forwardVector, camera->rotation() * camera->rightVector,
-                           camera->rotation() * camera->upVector, aspectRatio, vFov, nearClip, farClip);
+
+        setFrustum(objects.frustumCullPushConstants.camFrustum, ubo.projView);
 
         if (renderGraph.render()) {
             aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
             proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
-            fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
         }
 
         //        std::this_thread::sleep_for(std::chrono::seconds(1));

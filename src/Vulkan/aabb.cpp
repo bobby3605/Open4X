@@ -32,7 +32,7 @@ void AABB::update(AABB newBounds) {
 void AABB::update(glm::vec4 newBounds) { update(glm::vec3(newBounds)); }
 
 glm::vec3 AABB::length() {
-    if(!lengthCached){
+    if (!lengthCached) {
         _length = {_max.x - _min.x, _max.y - _min.y, _max.z - _min.z};
         lengthCached = 1;
     }
@@ -40,9 +40,21 @@ glm::vec3 AABB::length() {
 }
 
 glm::vec3 AABB::centerpoint() {
-    if(!centerpointCached) {
+    if (!centerpointCached) {
         _centerpoint = {_max.x - length().x / 2, _max.y - length().y / 2, _max.z - length().z / 2};
         centerpointCached = 1;
     }
     return _centerpoint;
+}
+
+OBB AABB::toOBB(glm::quat rotation) {
+    OBB obb;
+    obb.center = (max() + min()) * 0.5f;
+    obb.half_extents = (max() - min()) * 0.5f;
+    // TODO
+    // directions might need to be normalized, but probably not
+    obb.directionU = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+    obb.directionV = rotation * glm::vec3(0.0f, -1.0f, 0.0f);
+    obb.directionW = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    return obb;
 }

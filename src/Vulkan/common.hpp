@@ -84,7 +84,7 @@ struct Plane {
 };
 
 struct Frustum {
-    std::array<glm::vec4, 6> sides;
+    Plane planes[6];
 };
 
 #endif // COMMON_H_

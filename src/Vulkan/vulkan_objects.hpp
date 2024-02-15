@@ -12,26 +12,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-struct ComputePushConstants {
-    uint32_t totalInstanceCount;
-    float nearD;
-    float farD;
-    float ratio;
-    float sphereFactorX;
-    float sphereFactorY;
-    float tang;
-    uint32_t pad0;
-    glm::vec3 X;
-    uint32_t pad1;
-    glm::vec3 Y;
-    uint32_t pad2;
-    glm::vec3 Z;
-    uint32_t pad3;
-    glm::vec3 camPos;
-    uint32_t pad4;
-    Frustum frustum;
-};
-
 class VulkanObjects {
   public:
     VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderGraph* rg, std::shared_ptr<Settings> settings);
@@ -41,7 +21,12 @@ class VulkanObjects {
     const std::vector<VkDrawIndexedIndirectCommand>& draws() const { return indirectDraws; }
     int totalInstanceCount() { return _totalInstanceCount; }
     std::shared_ptr<SSBOBuffers> ssboBuffers;
-    ComputePushConstants computePushConstants{};
+
+    struct FrustumCullPushConstants {
+        Frustum camFrustum{};
+        uint32_t totalObjectCount;
+    } frustumCullPushConstants;
+
     VkQueryPool queryPool;
 
   private:
@@ -63,6 +48,8 @@ class VulkanObjects {
     std::vector<VkDescriptorImageInfo> aoMapInfos;
     int _totalInstanceCount;
     uint32_t drawCount;
+
+    std::shared_ptr<VulkanBuffer> objectCullingData;
 
     std::shared_ptr<VulkanDevice> device;
 

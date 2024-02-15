@@ -30,7 +30,7 @@ VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_m
         // Not every node has a mesh
         // Only nodes with a mesh need to be uploaded
         // So only nodes with a mesh get an instance id
-        ++instanceCounter;
+        instanceCounter += mesh->primitives.size();
     }
     children.reserve(model->nodes[nodeID].children.size());
     for (int childNodeID : model->nodes[nodeID].children) {

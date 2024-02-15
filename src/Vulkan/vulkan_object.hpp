@@ -9,10 +9,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+struct ObjectCullData {
+    OBB obb;
+    uint32_t firstInstanceID;
+    uint32_t instanceCount;
+    uint32_t pad2;
+    uint32_t pad3;
+};
+
 class VulkanObject {
   public:
-    VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name,
-                 bool duplicate = false);
+    VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<SSBOBuffers> ssboBuffers, std::string const& name);
     VulkanObject();
     ~VulkanObject();
     std::string const name() { return _name; }
@@ -27,6 +34,7 @@ class VulkanObject {
     void y(float newY);
     void z(float newZ);
     glm::mat4 const modelMatrix() { return _modelMatrix; }
+    void updateOBB();
     void draw();
     uint32_t firstInstanceID = -1;
     void updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
@@ -73,6 +81,11 @@ class VulkanObject {
 
     float moveSpeed{6.0f};
     float lookSpeed{2.0f};
+
+  protected:
+    OBB obb;
+
+    friend class VulkanObjects;
 };
 
 #endif // VULKAN_OBJECT_H_

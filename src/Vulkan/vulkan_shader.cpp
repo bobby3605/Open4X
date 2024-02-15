@@ -127,7 +127,7 @@ void VulkanRenderGraph::VulkanShader::compile() {
     glslang::GlslangToSpv(*shaderProgram.getIntermediate(stage), spirv, &options);
     glslang::FinalizeProcess();
 
-    bool optimize = true;
+    bool optimize = false;
     if (optimize) {
         // NOTE:
         // Must be consistent with compiler envClient and envTarget versions
@@ -179,6 +179,7 @@ void VulkanRenderGraph::VulkanShader::setDescriptorBuffers(VulkanDescriptors::Vu
             }
         }
         descriptor->addBinding(set, binding, globalBuffers.at(name));
+        _device->setDebugName(VK_OBJECT_TYPE_BUFFER, (uint64_t)globalBuffers.at(name)->buffer(), name);
     };
 
     for (const spirv_cross::Resource& resource : res.storage_buffers) {

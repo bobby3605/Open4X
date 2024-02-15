@@ -9,16 +9,6 @@ layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform constants {
     uint totalInstanceCount;
-    float nearD;
-    float farD;
-    float ratio;
-    float sphereFactorX;
-    float sphereFactorY;
-    float tang;
-    vec3 X;
-    vec3 Y;
-    vec3 Z;
-    vec3 camPos;
 };
 
 layout(set = 0, binding = 0) readonly buffer Instances { uint instances[]; };

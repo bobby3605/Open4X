@@ -29,7 +29,7 @@ target_include_directories(Open4X PUBLIC
 # TODO
 # static build, don't use system libraries
 # include static spirv-tools
-target_link_libraries(Open4X PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp)
+target_link_libraries(Open4X PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp spirv-cross-reflect)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
