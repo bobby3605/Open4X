@@ -42,7 +42,8 @@ void VulkanObject::updateOBB() {
     // FIXME:
     // Support animations
     obb = model->aabb.toOBB(rotation());
-    obb.center += position();
+    obb.max += position();
+    obb.min += position();
 }
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {

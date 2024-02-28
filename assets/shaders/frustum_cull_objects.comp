@@ -4,8 +4,8 @@ layout(constant_id = 0) const uint LOCAL_SIZE_X = 0;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 struct OBB {
-    vec3 center;
-    vec3 half_extents;
+    vec3 min;
+    vec3 max;
     vec3 directionU;
     vec3 directionV;
     vec3 directionW;
@@ -38,39 +38,55 @@ layout(push_constant) uniform constants {
 layout(set = 0, binding = 0) readonly buffer ObjectCullingData { ObjectCullData objects[]; };
 layout(set = 0, binding = 1) writeonly buffer VisibilityBuffer { bool visibilityBuffer[]; };
 
-bool obbWithinPlane(OBB obb, Plane p) {
-    // Real time rendering fourth edition, 22.10
-    float e = obb.half_extents.x * abs(dot(plane.normal, obb.directionU)) + obb.half_extents.y * abs(dot(plane.normal, obb.directionV)) +
-              obb.half_extents.z * abs(dot(plane.normal, obb.directionW));
-    float s = dot(obb.center, plane.normal) + plane.distance;
-
-    if (s - e > 0) {
-        return false;
-    } else {
-        return true;
+vec3 get_p_vertex(vec3 normal, vec3 minVec, vec3 maxVec) {
+    vec3 p = minVec;
+    if (normal.x >= 0) {
+        p.x = maxVec.x;
     }
-    /*
-    // TODO
-    // Support intersection
-    if (s - e > 0) {
-        return false;
-    } else if (s + e < 0) {
-        return true;
+    if (normal.y >= 0) {
+        p.y = maxVec.y;
     }
-    // intersect
-    return true;
-    */
+    if (normal.z >= 0) {
+        p.z = maxVec.z;
+    }
+    return p;
 }
 
-bool isVisible(OBB obb) {
-    // TODO
-    // Break up this loop with gl_GlobalInvocationID.y
+vec3 get_n_vertex(vec3 normal, vec3 minVec, vec3 maxVec) {
+    vec3 n = maxVec;
+    if (normal.x >= 0) {
+        n.x = minVec.x;
+    }
+    if (normal.y >= 0) {
+        n.y = minVec.y;
+    }
+    if (normal.z >= 0) {
+        n.z = minVec.z;
+    }
+    return n;
+}
+
+vec3 projectNormalized(vec3 u, vec3 v) { return dot(v, u) * v; }
+
+float planeDistance(Plane p, vec3 x) { return p.distance + dot(p.normal, x); }
+
+uint pnTest(OBB obb) {
+    // http://www.lighthouse3d.com/tutorials/view-frustum-culling/geometric-approach-testing-boxes-ii/
+    vec3 normal;
+    uint result = 2;
     for (uint i = 0; i < 6; ++i) {
-        if (obbWithinPlane(obb, frustum.planes[i])) {
-            return true;
+        Plane p = frustum.planes[i];
+        normal.x = projectNormalized(p.normal, obb.directionU).x;
+        normal.y = projectNormalized(p.normal, obb.directionV).y;
+        normal.z = projectNormalized(p.normal, obb.directionW).z;
+
+        if (planeDistance(p, get_p_vertex(normal, obb.min, obb.max)) < 0) {
+            return 0;
+        } else if (planeDistance(p, get_n_vertex(normal, obb.min, obb.max)) < 0) {
+            result = 1;
         }
     }
-    return false;
+    return result;
 }
 
 void main() {
@@ -78,7 +94,7 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index < totalObjectCount) {
         ObjectCullData object = objects[index];
-        bool visible = isVisible(object.obb);
+        bool visible = pnTest(object.obb) > 0;
         // TODO
         // Improve this
         // Only fast for low instance/primitive count models

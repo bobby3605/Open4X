@@ -49,12 +49,10 @@ glm::vec3 AABB::centerpoint() {
 
 OBB AABB::toOBB(glm::quat rotation) {
     OBB obb;
-    obb.center = (max() + min()) * 0.5f;
-    obb.half_extents = (max() - min()) * 0.5f;
-    // TODO
-    // directions might need to be normalized, but probably not
-    obb.directionU = rotation * glm::vec3(1.0f, 0.0f, 0.0f);
+    obb.min = min();
+    obb.max = max();
+    obb.directionU = rotation * glm::vec3(-1.0f, 0.0f, 0.0f);
     obb.directionV = rotation * glm::vec3(0.0f, -1.0f, 0.0f);
-    obb.directionW = rotation * glm::vec3(0.0f, 0.0f, 1.0f);
+    obb.directionW = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
     return obb;
 }
