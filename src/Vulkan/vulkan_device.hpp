@@ -117,10 +117,10 @@ class VulkanDevice {
     static const VkBool32 msaaEnable = VK_FALSE;
     static const VkBool32 sampleShading = VK_FALSE;
     bool checkFeatures(VkPhysicalDevice device);
-    VkPhysicalDeviceFeatures2 deviceFeatures;
-    VkPhysicalDeviceVulkan11Features vk11_features;
-    VkPhysicalDeviceVulkan12Features vk12_features;
-    VkPhysicalDeviceVulkan13Features vk13_features;
+    VkPhysicalDeviceFeatures2 deviceFeatures{};
+    VkPhysicalDeviceVulkan11Features vk11_features{};
+    VkPhysicalDeviceVulkan12Features vk12_features{};
+    VkPhysicalDeviceVulkan13Features vk13_features{};
     uint32_t _maxSubgroupSize;
     uint32_t _maxComputeWorkGroupInvocations;
 
