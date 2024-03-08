@@ -316,9 +316,6 @@ void VulkanDevice::pickPhysicalDevice() {
     for (const auto& device : devices) {
         if (isDeviceSuitable(device)) {
             physicalDevice = device;
-            VkPhysicalDeviceProperties prop{};
-            vkGetPhysicalDeviceProperties(physicalDevice, &prop);
-            std::cout << "Using device: " << prop.deviceID << " " << prop.deviceName << std::endl;
             if (msaaEnable == VK_TRUE)
                 msaaSamples = getMaxUsableSampleCount();
             std::cout << "MSAA Samples: " << msaaSamples << std::endl;
@@ -728,6 +725,7 @@ VulkanDevice::VulkanDevice(VulkanWindow* window) : window{window} {
     properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     properties2.pNext = &vk13_properties;
     vkGetPhysicalDeviceProperties2(physicalDevice, &properties2);
+    std::cout << "Using device: " << properties2.properties.deviceID << " " << properties2.properties.deviceName << std::endl;
     _maxSubgroupSize = vk13_properties.maxSubgroupSize;
     createLogicalDevice();
     commandPool_ = createCommandPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
