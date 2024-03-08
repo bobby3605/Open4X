@@ -316,6 +316,9 @@ void VulkanDevice::pickPhysicalDevice() {
     for (const auto& device : devices) {
         if (isDeviceSuitable(device)) {
             physicalDevice = device;
+            VkPhysicalDeviceProperties prop{};
+            vkGetPhysicalDeviceProperties(physicalDevice, &prop);
+            std::cout << "Using device: " << prop.deviceID << " " << prop.deviceName << std::endl;
             if (msaaEnable == VK_TRUE)
                 msaaSamples = getMaxUsableSampleCount();
             std::cout << "MSAA Samples: " << msaaSamples << std::endl;
