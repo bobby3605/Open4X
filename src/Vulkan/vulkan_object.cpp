@@ -41,9 +41,10 @@ VulkanObject::VulkanObject() {}
 void VulkanObject::updateOBB() {
     // FIXME:
     // Support animations
+    // FIXME:
+    // Probably doesn't support scaling (positionOffset)
     obb = model->aabb.toOBB(rotation());
-    obb.max += position();
-    obb.min += position();
+    obb.center += position();
 }
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {

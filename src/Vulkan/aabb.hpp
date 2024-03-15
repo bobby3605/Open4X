@@ -7,9 +7,9 @@
 #include <glm/gtc/quaternion.hpp>
 
 struct OBB {
-    glm::vec3 min;
+    glm::vec3 center;
     uint32_t pad;
-    glm::vec3 max;
+    glm::vec3 half_extents;
     uint32_t pad1;
     glm::vec3 directionU;
     uint32_t pad2;

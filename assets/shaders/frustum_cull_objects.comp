@@ -4,8 +4,8 @@ layout(constant_id = 0) const uint LOCAL_SIZE_X = 0;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 struct OBB {
-    vec3 min;
-    vec3 max;
+    vec3 center;
+    vec3 half_extents;
     vec3 directionU;
     vec3 directionV;
     vec3 directionW;
@@ -74,15 +74,17 @@ uint pnTest(OBB obb) {
     // http://www.lighthouse3d.com/tutorials/view-frustum-culling/geometric-approach-testing-boxes-ii/
     vec3 normal;
     uint result = 2;
+    vec3 minVec = obb.center - obb.half_extents;
+    vec3 maxVec = obb.center + obb.half_extents;
     for (uint i = 0; i < 6; ++i) {
         Plane p = frustum.planes[i];
         normal.x = projectNormalized(p.normal, obb.directionU).x;
         normal.y = projectNormalized(p.normal, obb.directionV).y;
         normal.z = projectNormalized(p.normal, obb.directionW).z;
 
-        if (planeDistance(p, get_p_vertex(normal, obb.min, obb.max)) < 0) {
+        if (planeDistance(p, get_p_vertex(normal, minVec, maxVec)) < 0) {
             return 0;
-        } else if (planeDistance(p, get_n_vertex(normal, obb.min, obb.max)) < 0) {
+        } else if (planeDistance(p, get_n_vertex(normal, minVec, maxVec)) < 0) {
             result = 1;
         }
     }
