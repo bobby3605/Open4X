@@ -386,10 +386,12 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
 
+    /*
     VulkanRenderGraph::ShaderOptions lineVertOptions{};
     VulkanRenderGraph::ShaderOptions lineFragOptions{};
 
     rg->shader("line.vert", "line.frag", lineVertOptions, lineFragOptions, vertexBuffer, indexBuffer);
+    */
 
     rg->compile();
 
