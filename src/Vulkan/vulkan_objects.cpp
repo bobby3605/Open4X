@@ -262,6 +262,12 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     indexBuffer =
         VulkanBuffer::StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
+    const glm::vec3 boxVertices[] = {{0.5, 0.5, 0.5},  {0.5, 0.5, -0.5},  {0.5, -0.5, 0.5},  {0.5, -0.5, -0.5},
+                                     {-0.5, 0.5, 0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}};
+
+    const glm::vec<2, uint32_t> boxLines[] = {{0, 1}, {0, 2}, {0, 4}, {1, 5}, {1, 3}, {2, 3},
+                                              {3, 7}, {2, 6}, {4, 5}, {4, 6}, {5, 7}, {7, 6}};
+
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
     for (auto it = ssboBuffers->uniqueSamplersMap.begin(); it != ssboBuffers->uniqueSamplersMap.end(); ++it) {
@@ -379,6 +385,12 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 2);
     rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
+
+    VulkanRenderGraph::ShaderOptions lineVertOptions{};
+    VulkanRenderGraph::ShaderOptions lineFragOptions{};
+
+    rg->shader("line.vert", "line.frag", lineVertOptions, lineFragOptions, vertexBuffer, indexBuffer);
+
     rg->compile();
 
     auto endTime = std::chrono::high_resolution_clock::now();
