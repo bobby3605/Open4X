@@ -26,40 +26,18 @@ VulkanRenderGraph& VulkanRenderGraph::shader(std::string computePath, uint32_t g
     return *this;
 }
 
-VulkanRenderGraph& VulkanRenderGraph::shader(std::string vertPath, std::string fragPath, ShaderOptions vertOptions,
-                                             ShaderOptions fragOptions, std::shared_ptr<VulkanBuffer> vertexBuffer,
-                                             std::shared_ptr<VulkanBuffer> indexBuffer) {
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> vert = std::make_shared<VulkanRenderGraph::VulkanShader>(vertPath, _device);
-    std::shared_ptr<VulkanRenderGraph::VulkanShader> frag = std::make_shared<VulkanRenderGraph::VulkanShader>(fragPath, _device);
-    shaders.push_back(vert);
-    shaders.push_back(frag);
-    renderOps.push_back(startRendering());
+VulkanRenderGraph& VulkanRenderGraph::startRendering() {
+    renderOps.push_back(startRenderingOp());
+    return *this;
+}
 
-    renderOps.push_back(bindPipeline(vert));
-    // FIXME:
-    // Find better way to name descriptor sets,
-    // possibly by pipeline name
-    renderOps.push_back(bindDescriptorSets(vert));
-    renderOps.push_back(bindDescriptorSets(frag));
-    ShaderOptions defaultOptions{};
-    if (vertOptions.pushConstantData != defaultOptions.pushConstantData) {
-        // TODO
-        // Only push constants if the data pointer has changed between shaders
-        renderOps.push_back(pushConstants(vert, vertOptions.pushConstantData));
-    }
-    renderOps.push_back(bindVertexBuffer(vertexBuffer));
-    if (fragOptions.pushConstantData != defaultOptions.pushConstantData) {
-        // TODO
-        // Only push constants if the data pointer has changed between shaders
-        renderOps.push_back(pushConstants(frag, fragOptions.pushConstantData));
-    }
-    if (vert->hasSpecConstants) {
-        vert->specInfo.pData = vertOptions.specData;
-    }
-    if (frag->hasSpecConstants) {
-        frag->specInfo.pData = fragOptions.specData;
-    }
-    renderOps.push_back(bindIndexBuffer(indexBuffer));
+VulkanRenderGraph& VulkanRenderGraph::endRendering() {
+    renderOps.push_back(endRenderingOp());
+    return *this;
+}
+
+VulkanRenderGraph& VulkanRenderGraph::outputTransition() {
+    renderOps.push_back(outputTransitionOp());
     return *this;
 }
 
@@ -132,7 +110,13 @@ VulkanRenderGraph& VulkanRenderGraph::drawIndirect(std::string buffer, VkDeviceS
     renderOps.push_back(drawIndexedIndirectCount(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride));
     // FIXME:
     // Find a better way to manage start and end rendering
-    renderOps.push_back(endRendering());
+    //    renderOps.push_back(endRendering());
+    return *this;
+}
+
+VulkanRenderGraph& VulkanRenderGraph::drawIndirect(std::string buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) {
+    renderOps.push_back(drawIndexedIndirect(buffer, offset, drawCount, stride));
+    //   renderOps.push_back(endRendering());
     return *this;
 }
 
@@ -196,8 +180,9 @@ void VulkanRenderGraph::addGraphicsPipeline(std::shared_ptr<VulkanRenderGraph::V
     if (fragShader->hasPushConstants) {
         pushConstants.push_back(fragShader->pushConstantRange);
     }
-    pipelines[getFilenameNoExt(vertShader->name)] =
-        std::make_shared<GraphicsPipeline>(_device, swapChain, vertShader->stageInfo, fragShader->stageInfo, layouts, pushConstants);
+
+    pipelines[getFilenameNoExt(vertShader->name)] = std::make_shared<GraphicsPipeline>(
+        _device, swapChain, vertShader->stageInfo, fragShader->stageInfo, layouts, pushConstants, vertShader->topology);
 }
 
 void VulkanRenderGraph::compile() {

@@ -50,6 +50,7 @@ class VulkanRenderGraph {
         VkSpecializationInfo specInfo{};
         std::vector<VkSpecializationMapEntry> specEntries;
         bool hasSpecConstants = false;
+        VkPrimitiveTopology topology;
 
         void setDescriptorBuffers(VulkanDescriptors::VulkanDescriptor* descriptor, bufferCreateInfoMap& bufferCounts,
                                   bufferMap& globalBuffers, imageInfosMap& globalImageInfos);
@@ -58,8 +59,55 @@ class VulkanRenderGraph {
 
     VulkanRenderGraph& shader(std::string computePath, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ,
                               ShaderOptions shaderOptions);
+    template <typename VT, typename IT>
     VulkanRenderGraph& shader(std::string vertPath, std::string fragPath, ShaderOptions vertOptions, ShaderOptions fragOptions,
-                              std::shared_ptr<VulkanBuffer> vertexBuffer, std::shared_ptr<VulkanBuffer> indexBuffer);
+                              std::vector<VT> vertices, std::vector<IT> indices) {
+        std::shared_ptr<VulkanRenderGraph::VulkanShader> vert = std::make_shared<VulkanRenderGraph::VulkanShader>(vertPath, _device);
+        std::shared_ptr<VulkanRenderGraph::VulkanShader> frag = std::make_shared<VulkanRenderGraph::VulkanShader>(fragPath, _device);
+        shaders.push_back(vert);
+        shaders.push_back(frag);
+        //        renderOps.push_back(startRendering());
+
+        renderOps.push_back(bindPipeline(vert));
+        // FIXME:
+        // Find better way to name descriptor sets,
+        // possibly by pipeline name
+        renderOps.push_back(bindDescriptorSets(vert));
+        renderOps.push_back(bindDescriptorSets(frag));
+        ShaderOptions defaultOptions{};
+        if (vertOptions.pushConstantData != defaultOptions.pushConstantData) {
+            // TODO
+            // Only push constants if the data pointer has changed between shaders
+            renderOps.push_back(pushConstants(vert, vertOptions.pushConstantData));
+        }
+        std::string pipeline_name = getFilenameNoExt(vert->name);
+
+        // TODO:
+        // Better way of doing this
+        if (pipeline_name == "triangle") {
+            vert->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        } else if (pipeline_name == "box") {
+            vert->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        }
+
+        buffer(pipeline_name + "_vertex_buffer", vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        buffer(pipeline_name + "_index_buffer", indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+        renderOps.push_back(bindVertexBuffer(pipeline_name + "_vertex_buffer"));
+        if (fragOptions.pushConstantData != defaultOptions.pushConstantData) {
+            // TODO
+            // Only push constants if the data pointer has changed between shaders
+            renderOps.push_back(pushConstants(frag, fragOptions.pushConstantData));
+        }
+        if (vert->hasSpecConstants) {
+            vert->specInfo.pData = vertOptions.specData;
+        }
+        if (frag->hasSpecConstants) {
+            frag->specInfo.pData = fragOptions.specData;
+        }
+        renderOps.push_back(bindIndexBuffer(pipeline_name + "_index_buffer"));
+        return *this;
+    }
     VulkanRenderGraph& buffer(std::string name, uint32_t count);
     VulkanRenderGraph& buffer(std::string name, uint32_t count, VkBufferUsageFlags additionalUsage,
                               VkMemoryPropertyFlags additionalProperties);
@@ -74,6 +122,7 @@ class VulkanRenderGraph {
     VulkanRenderGraph& setBuffer(std::string name, uint32_t value);
     VulkanRenderGraph& drawIndirect(std::string buffer, VkDeviceSize offset, std::string countBuffer, VkDeviceSize countBufferOffset,
                                     uint32_t maxDrawCount, uint32_t stride);
+    VulkanRenderGraph& drawIndirect(std::string buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
     VulkanRenderGraph& timestamp(VkPipelineStageFlags2 stageFlags, VkQueryPool queryPool, uint32_t query);
     VulkanRenderGraph& queryReset(VkQueryPool queryPool, uint32_t firstQuery, uint32_t count);
     VulkanRenderGraph& memoryBarrier(VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 dstAccessMask,
@@ -81,6 +130,11 @@ class VulkanRenderGraph {
     VulkanRenderGraph& debugBarrier();
     VulkanRenderGraph& resetViewport(VkViewport viewport);
     VulkanRenderGraph& resetScissor(VkRect2D scissor);
+
+    VulkanRenderGraph& startRendering();
+    VulkanRenderGraph& endRendering();
+    VulkanRenderGraph& outputTransition();
+
     void compile();
     void bufferWrite(std::string name, void* data);
     VkExtent2D getSwapChainExtent() { return swapChain->getExtent(); }
@@ -126,12 +180,15 @@ class VulkanRenderGraph {
     RenderOp dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
     RenderOp drawIndexedIndirectCount(std::string bufferName, VkDeviceSize offset, std::string countBufferName,
                                       VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
-    RenderOp startRendering();
-    RenderOp endRendering();
+    RenderOp drawIndexedIndirect(std::string bufferName, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
+
+    RenderOp startRenderingOp();
+    RenderOp endRenderingOp();
+    RenderOp outputTransitionOp();
     RenderOp writeTimestamp(VkPipelineStageFlags2 stageFlags, VkQueryPool queryPool, uint32_t query);
     RenderOp resetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t count);
-    RenderOp bindVertexBuffer(std::shared_ptr<VulkanBuffer> vertexBuffer);
-    RenderOp bindIndexBuffer(std::shared_ptr<VulkanBuffer> indexBuffer);
+    RenderOp bindVertexBuffer(std::string vertex_buffer);
+    RenderOp bindIndexBuffer(std::string index_buffer);
 
     RenderOp memoryBarrierOp(VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 dstAccessMask,
                              VkPipelineStageFlags2 dstStageMask);

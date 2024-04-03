@@ -241,32 +241,6 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
               [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 
     objectCullingData = VulkanBuffer::StorageBuffer(device, objects.size() * sizeof(ObjectCullData));
-    ObjectCullData* objectCullingDataMapped = reinterpret_cast<ObjectCullData*>(objectCullingData->mapped());
-
-    std::atomic<int32_t> i = 0;
-    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(), [this, &i, objectCullingDataMapped](auto&& object) {
-        int32_t index = i.fetch_add(1);
-        object->updateModelMatrix(ssboBuffers);
-        // FIXME:
-        // Do this whenever the object changes
-        // Objects can be in random order, as long as parameters are set properly
-        // FIXME:
-        // There's some issue with instance IDs
-        objectCullingDataMapped[index].obb = object->obb;
-        objectCullingDataMapped[index].firstInstanceID = object->firstInstanceID;
-        objectCullingDataMapped[index].instanceCount = object->model->totalInstanceCount();
-    });
-
-    vertexBuffer = VulkanBuffer::StagedBuffer(device, (void*)vertices.data(), sizeof(vertices[0]) * vertices.size(),
-                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    indexBuffer =
-        VulkanBuffer::StagedBuffer(device, (void*)indices.data(), sizeof(indices[0]) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-    const glm::vec3 boxVertices[] = {{0.5, 0.5, 0.5},  {0.5, 0.5, -0.5},  {0.5, -0.5, 0.5},  {0.5, -0.5, -0.5},
-                                     {-0.5, 0.5, 0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}};
-
-    const glm::vec<2, uint32_t> boxLines[] = {{0, 1}, {0, 2}, {0, 4}, {1, 5}, {1, 3}, {2, 3},
-                                              {3, 7}, {2, 6}, {4, 5}, {4, 6}, {5, 7}, {7, 6}};
 
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
@@ -374,7 +348,9 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     VulkanRenderGraph::ShaderOptions vertOptions{};
     VulkanRenderGraph::ShaderOptions fragOptions{};
 
-    rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertexBuffer, indexBuffer);
+    rg->startRendering();
+
+    rg->shader("triangle.vert", "triangle.frag", vertOptions, fragOptions, vertices, indices);
 
     rg->imageInfos("samplers", &samplerInfos);
     rg->imageInfos("images", &imageInfos);
@@ -386,12 +362,34 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     rg->drawIndirect("CulledDrawCommands", 0, "CulledDrawIndirectCount", 0, indirectDraws.size(), sizeof(indirectDraws[0]));
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 3);
 
-    /*
-    VulkanRenderGraph::ShaderOptions lineVertOptions{};
-    VulkanRenderGraph::ShaderOptions lineFragOptions{};
+    const std::vector<glm::vec3> box_vertices = {{0.5, 0.5, 0.5},  {0.5, 0.5, -0.5},  {0.5, -0.5, 0.5},  {0.5, -0.5, -0.5},
+                                                 {-0.5, 0.5, 0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}};
 
-    rg->shader("line.vert", "line.frag", lineVertOptions, lineFragOptions, vertexBuffer, indexBuffer);
-    */
+    const std::vector<glm::vec<2, uint32_t>> box_lines = {{0, 1}, {0, 2}, {0, 4}, {1, 5}, {1, 3}, {2, 3},
+                                                          {3, 7}, {2, 6}, {4, 5}, {4, 6}, {5, 7}, {7, 6}};
+
+    VkDrawIndexedIndirectCommand obbCommand{};
+    obbCommand.firstIndex = 0;
+    obbCommand.firstInstance = 0;
+    obbCommand.instanceCount = objects.size();
+    obbCommand.indexCount = box_lines.size() * 2;
+    obbCommand.vertexOffset = 0;
+
+    VulkanRenderGraph::ShaderOptions boxVertOptions{};
+    VulkanRenderGraph::ShaderOptions boxFragOptions{};
+
+    /*
+    rg->memoryBarrier(VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+                      */
+
+    rg->shader("box.vert", "box.frag", boxVertOptions, boxFragOptions, box_vertices, box_lines);
+    std::vector<VkDrawIndexedIndirectCommand> obbCommands;
+    obbCommands.push_back(obbCommand);
+    rg->buffer("BoxDrawCommand", obbCommands, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    rg->drawIndirect("BoxDrawCommand", 0, 1, sizeof(obbCommand));
+    rg->endRendering();
+    rg->outputTransition();
 
     rg->compile();
 
@@ -401,11 +399,26 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
 }
 
 void VulkanObjects::updateModels() {
+    ObjectCullData* objectCullingDataMapped = reinterpret_cast<ObjectCullData*>(objectCullingData->mapped());
+
+    std::atomic<int32_t> i = 0;
+    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(), [this, &i, objectCullingDataMapped](auto&& object) {
+        int32_t index = i.fetch_add(1);
+        object->updateModelMatrix(ssboBuffers);
+        // FIXME:
+        // Do this whenever the object changes
+        // Objects can be in random order, as long as parameters are set properly
+        // FIXME:
+        // There's some issue with instance IDs
+        objectCullingDataMapped[index].obb = object->obb;
+        objectCullingDataMapped[index].firstInstanceID = object->firstInstanceID;
+        objectCullingDataMapped[index].instanceCount = object->model->totalInstanceCount();
+    });
     for (VulkanModel* model : animatedModels) {
         model->updateAnimations();
     }
     for (VulkanObject* object : animatedObjects) {
-        object->updateModelMatrix(ssboBuffers);
+        //        object->updateModelMatrix(ssboBuffers);
     }
 }
 

@@ -2,15 +2,12 @@
 #define VULKAN_MODEL_H_
 
 #include "../glTF/GLTF.hpp"
-#include "vulkan_descriptors.hpp"
 #include <cstdint>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
-#include "glm/gtx/string_cast.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_node.hpp"
 #include <glm/glm.hpp>
-#include <set>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 

@@ -1,4 +1,5 @@
 #include "vulkan_node.hpp"
+#include "../glTF/AccessorLoader.hpp"
 #include "aabb.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
@@ -10,6 +11,7 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <stdexcept>
 
 VulkanNode::VulkanNode(std::shared_ptr<GLTF> model, int nodeID, std::unordered_map<int, std::shared_ptr<VulkanMesh>>* meshIDMap,

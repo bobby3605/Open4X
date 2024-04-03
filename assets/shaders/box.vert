@@ -19,46 +19,31 @@ struct ObjectCullData {
     uint instanceCount;
 };
 
-/*
-const vec3 boxVertices[8] = vec3[8](vec3(0.5, 0.5, 0.5),
-                                  vec3(0.5, 0.5, -0.5),
-                                  vec3(0.5, -0.5, 0.5),
-                                  vec3(0.5, -0.5, -0.5),
-                                  vec3(-0.5, 0.5, 0.5),
-                                  vec3(-0.5, 0.5, -0.5),
-                                  vec3(-0.5, -0.5, 0.5),
-                                  vec3(-0.5, -0.5, -0.5));
-
-const vec2 boxLines[12] = vec2[12](vec2(0, 1),
-                               vec2(0, 2),
-                               vec2(0, 4),
-                               vec2(1, 5),
-                               vec2(1, 3),
-                               vec2(2, 3),
-                               vec2(3, 7),
-                               vec2(2, 6),
-                               vec2(4, 5),
-                               vec2(4, 6),
-                               vec2(5, 7),
-                               vec2(7, 6));
-                               */
-
-layout(set = 0, binding = 0) readonly buffer ObjectCullingData { ObjectCullData obbs[]; };
+layout(set = 1, binding = 0) readonly buffer ObjectCullingData { ObjectCullData objectData[]; };
+layout(set = 1, binding = 1) readonly buffer VisibilityBuffer { bool visibilityBuffer[]; };
 
 layout(location = 0) in vec3 inPosition;
 
+layout(location = 0) out vec4 outColor;
+
 void main() {
-    OBB obb = obbs[gl_InstanceIndex].obb;
+    ObjectCullData object = objectData[gl_InstanceIndex];
+    OBB obb = object.obb;
     // if the signs are different, then subtract
     // abs add, then keep the sign
     vec3 obbVertex = vec3(0.0,0.0,0.0);
     obbVertex.x = sign(inPosition.x)*(abs(inPosition.x) + obb.half_extents.x);
-    obbVertex.y = sign(inPosition.x)*(abs(inPosition.y) + obb.half_extents.y);
-    obbVertex.z = sign(inPosition.x)*(abs(inPosition.z) + obb.half_extents.z);
+    obbVertex.y = sign(inPosition.y)*(abs(inPosition.y) + obb.half_extents.y);
+    obbVertex.z = sign(inPosition.z)*(abs(inPosition.z) + obb.half_extents.z);
     obbVertex += obb.center;
     mat3 rotationMatrix;
     rotationMatrix[0] = obb.directionU;
     rotationMatrix[1] = obb.directionV;
     rotationMatrix[2] = obb.directionW;
     gl_Position = projView * vec4(rotationMatrix * obbVertex, 1.0);
+    if(visibilityBuffer[object.firstInstanceID]) {
+        outColor = vec4(0.0,1.0,0.0,1.0);
+    } else {
+        outColor = vec4(1.0,0.0,0.0,1.0);
+    }
 }

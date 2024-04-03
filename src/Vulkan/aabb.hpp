@@ -30,7 +30,7 @@ class AABB {
     void update(AABB newBounds);
     void update(glm::vec4 newBounds);
 
-    OBB toOBB(glm::quat rot);
+    OBB toOBB(glm::quat rot, glm::vec3 scale);
 
   private:
     glm::vec3 _max{-MAXFLOAT};

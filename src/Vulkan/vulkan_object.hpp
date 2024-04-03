@@ -62,8 +62,8 @@ class VulkanObject {
         static const inline int moveRight = GLFW_KEY_D;
         static const inline int moveForward = GLFW_KEY_W;
         static const inline int moveBackward = GLFW_KEY_S;
-        static const inline int moveUp = GLFW_KEY_Q;
-        static const inline int moveDown = GLFW_KEY_E;
+        static const inline int moveUp = GLFW_KEY_E;
+        static const inline int moveDown = GLFW_KEY_Q;
         static const inline int yawLeft = GLFW_KEY_LEFT;
         static const inline int yawRight = GLFW_KEY_RIGHT;
         static const inline int pitchUp = GLFW_KEY_UP;

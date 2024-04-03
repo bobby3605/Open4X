@@ -1,8 +1,5 @@
 #include "vulkan_object.hpp"
-#include "../glTF/AccessorLoader.hpp"
 #include "vulkan_buffer.hpp"
-#include <chrono>
-#include <cstdint>
 #include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -41,10 +38,9 @@ VulkanObject::VulkanObject() {}
 void VulkanObject::updateOBB() {
     // FIXME:
     // Support animations
-    // FIXME:
-    // Probably doesn't support scaling (positionOffset)
-    obb = model->aabb.toOBB(rotation());
-    obb.center += position();
+    obb = model->aabb.toOBB(rotation(), scale());
+    glm::vec3 positionOffset = model->aabb.centerpoint() * scale();
+    obb.center += position() - positionOffset;
 }
 
 void VulkanObject::setPostion(glm::vec3 newPosition) {
@@ -137,13 +133,13 @@ void VulkanObject::keyboardUpdate(GLFWwindow* window, float frameTime) {
     glm::vec3 moveDir{0.f};
     speedUp = 1;
     if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)
-        moveDir -= forwardDir;
-    if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)
         moveDir += forwardDir;
+    if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)
+        moveDir -= forwardDir;
     if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)
-        moveDir -= rightDir;
-    if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)
         moveDir += rightDir;
+    if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)
+        moveDir -= rightDir;
     if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)
         moveDir += upDir;
     if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)

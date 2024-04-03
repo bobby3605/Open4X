@@ -1,5 +1,6 @@
 #include "aabb.hpp"
 #include "common.hpp"
+#include <glm/gtx/string_cast.hpp>
 
 void AABB::update(glm::vec3 newBounds) {
     _max.x = glm::max(_max.x, newBounds.x);
@@ -48,12 +49,20 @@ glm::vec3 AABB::centerpoint() {
     return _centerpoint;
 }
 
-OBB AABB::toOBB(glm::quat rotation) {
+OBB AABB::toOBB(glm::quat rotation, glm::vec3 scale) {
     OBB obb;
-    obb.center = (max() + min()) * 0.5f;
-    obb.half_extents = (max() - min()) * 0.5f;
+    obb.center = ((max() + min()) * 0.5f) * scale;
+    obb.half_extents = ((max() - min()) * 0.5f) * scale;
     obb.directionU = rotation * rightVector;
     obb.directionV = rotation * upVector;
+    // FIXME:
+    // Get rid of the * -1
+    // upVector is in -y space
+    // but rotation is in +y space
+    // this converts directionV to +y space,
+    // which is used for frustum culling calculations (I think)
+    // Ideally, the rotation quaternion would be directly passed to frustum culling
+    obb.directionV *= -1;
     obb.directionW = rotation * forwardVector;
     return obb;
 }

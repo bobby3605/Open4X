@@ -7,10 +7,30 @@
 
 template <typename OT> class AccessorLoader {
   public:
-    AccessorLoader(GLTF* model, GLTF::Accessor* accessor);
+    AccessorLoader(GLTF* model, GLTF::Accessor* accessor) : _accessor{accessor} {
+        _bufferView = &model->bufferViews[accessor->bufferView.value()];
+        uint32_t baseOffset = accessor->byteOffset + _bufferView->byteOffset;
+        stride =
+            _bufferView->byteStride.has_value() ? _bufferView->byteStride.value() : sizeSwitch(accessor->componentType, accessor->type);
+        data = model->buffers[_bufferView->buffer].data.data();
+        data += baseOffset;
+        _componentType = accessor->componentType;
+        getDataF = getComponent<OT>();
+    }
+
     AccessorLoader(GLTF* model, GLTF::Accessor* accessor, GLTF::BufferView* bufferView, uint32_t accessorByteOffset, uint32_t componentType,
-                   std::string type);
-    OT at(uint32_t count_index);
+                   std::string type)
+        : _accessor{accessor} {
+        _bufferView = bufferView;
+        uint32_t baseOffset = accessorByteOffset + _bufferView->byteOffset;
+        stride = _bufferView->byteStride.has_value() ? _bufferView->byteStride.value() : sizeSwitch(componentType, type);
+        _componentType = componentType;
+        data = model->buffers[_bufferView->buffer].data.data();
+        data += baseOffset;
+        getDataF = getComponent<OT>();
+    }
+
+    OT at(uint32_t count_index) { return getDataF(data, count_index * stride); }
 
   private:
     unsigned char* data;
@@ -123,9 +143,4 @@ template <typename OT> class AccessorLoader {
     }
 };
 
-template class AccessorLoader<glm::vec4>;
-template class AccessorLoader<glm::vec3>;
-template class AccessorLoader<glm::vec2>;
-template class AccessorLoader<uint32_t>;
-template class AccessorLoader<float>;
 #endif // ACCESSORLOADER_H_

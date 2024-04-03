@@ -1,25 +1,21 @@
 #include "vulkan_pipeline.hpp"
 #include "common.hpp"
-#include "vulkan_descriptors.hpp"
-#include "vulkan_model.hpp"
+#include "vulkan_node.hpp"
 #include <cstdint>
-#include <fstream>
-#include <iostream>
 #include <memory>
-#include <stdexcept>
-#include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
 GraphicsPipeline::GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain,
                                    VkPipelineShaderStageCreateInfo vertInfo, VkPipelineShaderStageCreateInfo fragInfo,
-                                   std::vector<VkDescriptorSetLayout>& descriptorLayouts, std::vector<VkPushConstantRange>& pushConstants)
+                                   std::vector<VkDescriptorSetLayout>& descriptorLayouts, std::vector<VkPushConstantRange>& pushConstants,
+                                   VkPrimitiveTopology topology)
     : VulkanPipeline(device) {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = topology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport{};
@@ -189,8 +185,27 @@ GraphicsPipeline::GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanS
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertInfo, fragInfo};
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    // FIXME:
+    // Auto generate this
+    VkVertexInputBindingDescription bindingDescription{};
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+
+    if (topology == VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST) {
+        bindingDescription = Vertex::getBindingDescription();
+        attributeDescriptions = Vertex::getAttributeDescriptions();
+    } else if (topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST) {
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(glm::vec3);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        VkVertexInputAttributeDescription desc;
+        desc.binding = 0;
+        desc.location = 0;
+        desc.format = VK_FORMAT_R32G32B32_SFLOAT;
+        desc.offset = 0;
+
+        attributeDescriptions.push_back(desc);
+    }
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

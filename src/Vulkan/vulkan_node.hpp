@@ -1,16 +1,13 @@
 #ifndef VULKAN_NODE_H_
 #define VULKAN_NODE_H_
-#include "../glTF/AccessorLoader.hpp"
 #include "../glTF/GLTF.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
 #include <cstdint>
 #include <glm/gtx/hash.hpp>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <set>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -29,8 +26,8 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions;
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;

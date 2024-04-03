@@ -2,11 +2,8 @@
 #include "common.hpp"
 #include "stb/stb_image.h"
 #include "vulkan_swapchain.hpp"
-#include <array>
 #include <cassert>
 #include <cstdint>
-#include <cstring>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>

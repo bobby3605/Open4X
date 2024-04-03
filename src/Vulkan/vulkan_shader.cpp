@@ -51,6 +51,7 @@ void VulkanRenderGraph::VulkanShader::createShaderModule() {
     createInfo.pCode = spirv.data();
 
     checkResult(vkCreateShaderModule(_device->device(), &createInfo, nullptr, &shaderModule), "failed to create shader module");
+    _device->setDebugName(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)shaderModule, name);
 
     stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stageInfo.stage = stageFlags;

@@ -33,7 +33,7 @@ RenderOp VulkanRenderGraph::bindDescriptorSets(std::shared_ptr<VulkanShader> sha
     };
 }
 
-RenderOp VulkanRenderGraph::startRendering() {
+RenderOp VulkanRenderGraph::startRenderingOp() {
     return [&](VkCommandBuffer commandBuffer) {
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -69,10 +69,12 @@ RenderOp VulkanRenderGraph::startRendering() {
     };
 }
 
-RenderOp VulkanRenderGraph::endRendering() {
-    return [=](VkCommandBuffer commandBuffer) {
-        vkCmdEndRendering(commandBuffer);
+RenderOp VulkanRenderGraph::endRenderingOp() {
+    return [=](VkCommandBuffer commandBuffer) { vkCmdEndRendering(commandBuffer); };
+}
 
+RenderOp VulkanRenderGraph::outputTransitionOp() {
+    return [=](VkCommandBuffer commandBuffer) {
         _device->transitionImageLayout(swapChain->getSwapChainImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                        VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1})(commandBuffer);
@@ -104,6 +106,13 @@ RenderOp VulkanRenderGraph::drawIndexedIndirectCount(std::string bufferName, VkD
     };
 }
 
+RenderOp VulkanRenderGraph::drawIndexedIndirect(std::string bufferName, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) {
+    bufferMap* buffers = &globalBuffers;
+    return [=](VkCommandBuffer commandBuffer) {
+        vkCmdDrawIndexedIndirect(commandBuffer, buffers->at(bufferName)->buffer(), offset, drawCount, stride);
+    };
+}
+
 RenderOp VulkanRenderGraph::writeTimestamp(VkPipelineStageFlags2 stageFlags, VkQueryPool queryPool, uint32_t query) {
     return [=](VkCommandBuffer commandBuffer) { vkCmdWriteTimestamp2(commandBuffer, stageFlags, queryPool, query); };
 }
@@ -112,14 +121,18 @@ RenderOp VulkanRenderGraph::resetQueryPool(VkQueryPool queryPool, uint32_t first
     return [=](VkCommandBuffer commandBuffer) { vkCmdResetQueryPool(commandBuffer, queryPool, firstQuery, count); };
 }
 
-RenderOp VulkanRenderGraph::bindVertexBuffer(std::shared_ptr<VulkanBuffer> vertexBuffer) {
-    VkBuffer vertexBuffers[] = {vertexBuffer->buffer()};
-    VkDeviceSize offsets[] = {0};
-    return [=](VkCommandBuffer commandBuffer) { vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets); };
+RenderOp VulkanRenderGraph::bindVertexBuffer(std::string vertex_buffer) {
+    return [=](VkCommandBuffer commandBuffer) {
+        VkBuffer vertexBuffers[] = {globalBuffers[vertex_buffer]->buffer()};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    };
 }
 
-RenderOp VulkanRenderGraph::bindIndexBuffer(std::shared_ptr<VulkanBuffer> indexBuffer) {
-    return [=](VkCommandBuffer commandBuffer) { vkCmdBindIndexBuffer(commandBuffer, indexBuffer->buffer(), 0, VK_INDEX_TYPE_UINT32); };
+RenderOp VulkanRenderGraph::bindIndexBuffer(std::string index_buffer) {
+    return [=](VkCommandBuffer commandBuffer) {
+        vkCmdBindIndexBuffer(commandBuffer, globalBuffers[index_buffer]->buffer(), 0, VK_INDEX_TYPE_UINT32);
+    };
 }
 
 RenderOp VulkanRenderGraph::memoryBarrierOp(VkAccessFlags2 srcAccessMask, VkPipelineStageFlags2 srcStageMask, VkAccessFlags2 dstAccessMask,

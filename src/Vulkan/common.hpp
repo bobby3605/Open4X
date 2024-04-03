@@ -13,6 +13,8 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+// TODO:
+// checkResult should assign a debug name to everything
 #ifdef NDEBUG
 #define checkResult(f, str)
 #else
@@ -25,8 +27,8 @@
 #endif
 
 inline static const glm::vec3 upVector = glm::vec3(0.f, -1.0f, 0.f);
-inline static const glm::vec3 forwardVector = glm::vec3(0.0f, 0.0f, -1.0f);
-inline static const glm::vec3 rightVector = glm::vec3(-1.0f, 0.0, 0.0f);
+inline static const glm::vec3 forwardVector = glm::vec3(0.0f, 0.0f, 1.0f);
+inline static const glm::vec3 rightVector = glm::vec3(1.0f, 0.0, 0.0f);
 
 typedef std::function<void(VkCommandBuffer)> RenderOp;
 

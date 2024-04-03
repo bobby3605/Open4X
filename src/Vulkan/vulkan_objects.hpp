@@ -7,7 +7,6 @@
 #include "vulkan_object.hpp"
 #include "vulkan_rendergraph.hpp"
 #include <future>
-#include <map>
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -32,6 +31,8 @@ class VulkanObjects {
   private:
     std::shared_ptr<VulkanBuffer> vertexBuffer;
     std::shared_ptr<VulkanBuffer> indexBuffer;
+    std::shared_ptr<VulkanBuffer> boxVertexBuffer;
+    std::shared_ptr<VulkanBuffer> boxIndexBuffer;
     std::vector<VulkanObject*> objects;
     std::vector<std::future<VulkanObject*>> futureObjects;
     std::vector<VulkanModel*> animatedModels;

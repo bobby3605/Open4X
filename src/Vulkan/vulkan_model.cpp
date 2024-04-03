@@ -1,4 +1,5 @@
 #include "vulkan_model.hpp"
+#include "../glTF/AccessorLoader.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
 VulkanModel::VulkanModel(std::string filePath, uint32_t fileNum, std::shared_ptr<SSBOBuffers> ssboBuffers) {

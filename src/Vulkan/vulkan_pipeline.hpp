@@ -47,7 +47,7 @@ class GraphicsPipeline : public VulkanPipeline {
   public:
     GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain, VkPipelineShaderStageCreateInfo vertInfo,
                      VkPipelineShaderStageCreateInfo fragInfo, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                     std::vector<VkPushConstantRange>& pushConstants);
+                     std::vector<VkPushConstantRange>& pushConstants, VkPrimitiveTopology topology);
     //   void bind();
 };
 
