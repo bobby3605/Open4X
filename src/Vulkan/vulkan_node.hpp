@@ -86,6 +86,8 @@ class VulkanMesh {
         float roughnessFactor = 1.0f;
         float occlusionStrength = 1.0f;
         AABB aabb;
+        VkDrawIndexedIndirectCommand indirect_draw{};
+        std::atomic<uint32_t> instanceCount;
 
       private:
         bool unique = 0;

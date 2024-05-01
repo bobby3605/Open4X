@@ -114,7 +114,7 @@ class VulkanRenderGraph {
     VulkanRenderGraph& buffer(std::string name, std::shared_ptr<VulkanBuffer> buffer);
 
     template <typename T> VulkanRenderGraph& buffer(std::string name, std::vector<T> data, VkBufferUsageFlags additionalUsage) {
-        buffer(name, VulkanBuffer::StagedBuffer(_device, (void*)data.data(), sizeof(data[0]) * data.size(), additionalUsage));
+        buffer(name, VulkanBuffer::StagedBuffer(_device, (void*)data.data(), sizeof(T) * data.size(), additionalUsage));
         return *this;
     }
     VulkanRenderGraph& imageInfos(std::string name, std::vector<VkDescriptorImageInfo>* imageInfos);

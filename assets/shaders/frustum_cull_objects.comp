@@ -13,7 +13,7 @@ struct OBB {
 
 struct ObjectCullData {
     OBB obb;
-    uint firstInstanceID;
+    uint baseInstanceID;
     uint instanceCount;
 };
 
@@ -37,6 +37,7 @@ layout(push_constant) uniform constants {
 
 layout(set = 0, binding = 0) readonly buffer ObjectCullingData { ObjectCullData objects[]; };
 layout(set = 0, binding = 1) writeonly buffer VisibilityBuffer { bool visibilityBuffer[]; };
+layout(set = 0, binding = 2) readonly buffer MeshInstanceIDs { uint meshInstanceIDs[]; };
 
 vec3 get_p_vertex(vec3 normal, vec3 minVec, vec3 maxVec) {
     vec3 p = minVec;
@@ -102,8 +103,11 @@ void main() {
         // Only fast for low instance/primitive count models
         // TODO
         // Save memory by packing bools
+        //
+        // If an object is visible, set the visibility of all instances that make it up to true,
+        // otherwise set those instances to false
         for (uint i = 0; i < object.instanceCount; ++i) {
-            visibilityBuffer[object.firstInstanceID + i] = visible;
+            visibilityBuffer[meshInstanceIDs[object.baseInstanceID + i]] = visible;
         }
     }
 }

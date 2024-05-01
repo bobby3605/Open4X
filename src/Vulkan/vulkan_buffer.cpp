@@ -9,13 +9,13 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
-VulkanBuffer::VulkanBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size, VkBufferUsageFlags usage,
-                           VkMemoryPropertyFlags properties)
+VulkanBuffer::VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
     : device{device} {
     device->createBuffer(size, usage, properties, buffer(), memory());
     _bufferInfo.range = size;
     _bufferInfo.offset = 0;
     _usageFlags = usage;
+    _mem_flags = properties;
 }
 
 void VulkanBuffer::map() {
@@ -39,7 +39,7 @@ VulkanBuffer::~VulkanBuffer() {
     vkFreeMemory(device->device(), memory(), nullptr);
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(std::shared_ptr<VulkanDevice> device, void* data, VkDeviceSize size,
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size,
                                                          VkBufferUsageFlags usageFlags) {
 
     VulkanBuffer stagingBuffer(device, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -56,7 +56,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::StagedBuffer(std::shared_ptr<VulkanD
     return stagedBuffer;
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size) {
+std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(VulkanDevice* device, VkDeviceSize size) {
 
     std::shared_ptr<VulkanBuffer> uniformBuffer = std::make_shared<VulkanBuffer>(
         device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -66,8 +66,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::UniformBuffer(std::shared_ptr<Vulkan
     return uniformBuffer;
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size,
-                                                          VkMemoryPropertyFlags memoryFlags) {
+std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(VulkanDevice* device, VkDeviceSize size, VkMemoryPropertyFlags memoryFlags) {
     std::shared_ptr<VulkanBuffer> storageBuffer =
         std::make_shared<VulkanBuffer>(device, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, memoryFlags);
 
@@ -78,7 +77,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::StorageBuffer(std::shared_ptr<Vulkan
     return storageBuffer;
 }
 
-SSBOBuffers::SSBOBuffers(std::shared_ptr<VulkanDevice> device) : device{device} {}
+SSBOBuffers::SSBOBuffers(VulkanDevice* device) : device{device} {}
 
 void SSBOBuffers::createMaterialBuffer(uint32_t drawsCount) {
     // NOTE:
@@ -102,7 +101,9 @@ void SSBOBuffers::createInstanceBuffers(uint32_t instanceCount) {
     _instanceIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
     _materialIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
     _culledMaterialIndicesBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
+    _meshInstanceIDsBuffer = VulkanBuffer::StorageBuffer(device, instanceCount * sizeof(uint32_t));
 
+    meshInstanceIDsMapped = reinterpret_cast<uint32_t*>(_meshInstanceIDsBuffer->mapped());
     instanceIndicesMapped = reinterpret_cast<uint32_t*>(_instanceIndicesBuffer->mapped());
     materialIndicesMapped = reinterpret_cast<uint32_t*>(_materialIndicesBuffer->mapped());
 }

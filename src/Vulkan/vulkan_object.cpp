@@ -20,8 +20,15 @@ VulkanObject::VulkanObject(std::shared_ptr<VulkanModel> model, std::shared_ptr<S
     }
     // NOTE:
     // Preallocates instance ids from the total instance ids in the model
-    firstInstanceID = ssboBuffers->uniqueInstanceID.fetch_add(model->totalInstanceCount(), std::memory_order_relaxed);
-    model->addInstance(firstInstanceID, ssboBuffers);
+    // FIXME:
+    // This isn't right
+    // Model should keep track of firstInstanceID
+    // An object is just an instance of a model
+    // No,
+    // An object is an instance of a whole model
+    // When something gets culled, the instances that make up the model should be removed
+    baseInstanceID = ssboBuffers->uniqueInstanceID.fetch_add(model->totalInstanceCount(), std::memory_order_relaxed);
+    model->addInstance(baseInstanceID, ssboBuffers);
     updateOBB();
 }
 
@@ -96,7 +103,7 @@ void VulkanObject::updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers) {
         }
         glm::mat4 modelMatrix =
             glm::translate(glm::mat4(1.0f), position() - positionOffset) * glm::toMat4(rotation()) * glm::scale(scale());
-        model->uploadModelMatrix(firstInstanceID, modelMatrix, ssboBuffers);
+        model->uploadModelMatrix(baseInstanceID, modelMatrix, ssboBuffers);
         updateOBB();
         _isBufferValid = 1;
     }

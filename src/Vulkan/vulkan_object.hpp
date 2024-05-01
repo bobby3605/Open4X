@@ -11,7 +11,7 @@
 
 struct ObjectCullData {
     OBB obb;
-    uint32_t firstInstanceID;
+    uint32_t baseInstanceID;
     uint32_t instanceCount;
     uint32_t pad2;
     uint32_t pad3;
@@ -36,7 +36,7 @@ class VulkanObject {
     glm::mat4 const modelMatrix() { return _modelMatrix; }
     void updateOBB();
     void draw();
-    uint32_t firstInstanceID = -1;
+    uint32_t baseInstanceID = -1;
     void updateModelMatrix(std::shared_ptr<SSBOBuffers> ssboBuffers);
 
     std::shared_ptr<VulkanModel> model;

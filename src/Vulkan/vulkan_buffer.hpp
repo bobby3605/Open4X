@@ -14,11 +14,10 @@
 class VulkanBuffer {
 
   public:
-    VulkanBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    static std::shared_ptr<VulkanBuffer> StagedBuffer(std::shared_ptr<VulkanDevice> device, void* data, VkDeviceSize size,
-                                                      VkBufferUsageFlags usageFlags);
-    static std::shared_ptr<VulkanBuffer> UniformBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size);
-    static std::shared_ptr<VulkanBuffer> StorageBuffer(std::shared_ptr<VulkanDevice> device, VkDeviceSize size,
+    VulkanBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    static std::shared_ptr<VulkanBuffer> StagedBuffer(VulkanDevice* device, void* data, VkDeviceSize size, VkBufferUsageFlags usageFlags);
+    static std::shared_ptr<VulkanBuffer> UniformBuffer(VulkanDevice* device, VkDeviceSize size);
+    static std::shared_ptr<VulkanBuffer> StorageBuffer(VulkanDevice* device, VkDeviceSize size,
                                                        VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     void map();
@@ -32,14 +31,16 @@ class VulkanBuffer {
     VkBuffer& buffer() { return _bufferInfo.buffer; }
     VkDeviceMemory& memory() { return _memory; }
     VkBufferUsageFlags usageFlags() { return _usageFlags; }
+    VkMemoryPropertyFlags mem_flags() { return _mem_flags; }
 
   private:
-    std::shared_ptr<VulkanDevice> device;
+    VulkanDevice* device;
     bool isMapped = false;
     void* _mapped = nullptr;
     VkDescriptorBufferInfo _bufferInfo{};
     VkDeviceMemory _memory = VK_NULL_HANDLE;
     VkBufferUsageFlags _usageFlags;
+    VkMemoryPropertyFlags _mem_flags;
 };
 
 struct UniformBufferObject {
@@ -74,12 +75,13 @@ struct MaterialData {
 
 class SSBOBuffers {
   public:
-    SSBOBuffers(std::shared_ptr<VulkanDevice> device);
+    SSBOBuffers(VulkanDevice* device);
     void createMaterialBuffer(uint32_t drawsCount);
     void createInstanceBuffers(uint32_t instanceCount);
     std::shared_ptr<VulkanBuffer> ssboBuffer() { return _ssboBuffer; }
     std::shared_ptr<VulkanBuffer> materialBuffer() { return _materialBuffer; }
     std::shared_ptr<VulkanBuffer> instanceIndicesBuffer() { return _instanceIndicesBuffer; }
+    std::shared_ptr<VulkanBuffer> meshInstanceIDsBuffer() { return _meshInstanceIDsBuffer; }
     std::shared_ptr<VulkanBuffer> materialIndicesBuffer() { return _materialIndicesBuffer; }
     std::shared_ptr<VulkanBuffer> culledMaterialIndicesBuffer() { return _culledMaterialIndicesBuffer; }
     SSBOData* ssboMapped;
@@ -102,17 +104,19 @@ class SSBOBuffers {
     std::atomic<uint32_t> aoMapsCount = 1;
     std::map<void*, int> uniqueAoMapsMap;
     uint32_t* instanceIndicesMapped;
+    uint32_t* meshInstanceIDsMapped;
     uint32_t* materialIndicesMapped;
     std::atomic<uint32_t> uniqueInstanceID = 0;
     // starts at 1 since the default material is made in the constructor
     std::atomic<uint32_t> uniqueMaterialID = 1;
     std::atomic<uint32_t> currDrawIndex = 0;
-    std::shared_ptr<VulkanDevice> device;
+    VulkanDevice* device;
 
   private:
     std::shared_ptr<VulkanBuffer> _ssboBuffer;
     std::shared_ptr<VulkanBuffer> _materialBuffer;
     std::shared_ptr<VulkanBuffer> _instanceIndicesBuffer;
+    std::shared_ptr<VulkanBuffer> _meshInstanceIDsBuffer;
     std::shared_ptr<VulkanBuffer> _materialIndicesBuffer;
     std::shared_ptr<VulkanBuffer> _culledMaterialIndicesBuffer;
 };

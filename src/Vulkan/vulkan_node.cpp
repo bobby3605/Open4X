@@ -47,6 +47,9 @@ void VulkanNode::addInstance(uint32_t& globalInstanceIDIterator, std::shared_ptr
         mesh->instanceIDsMutex.lock();
         mesh->instanceIDs.push_back(globalInstanceIDIterator++);
         mesh->instanceIDsMutex.unlock();
+        for (auto primitive : mesh->primitives) {
+            ++primitive->instanceCount;
+        }
     }
     for (const auto child : children) {
         child->addInstance(globalInstanceIDIterator, ssboBuffers);
@@ -193,6 +196,8 @@ VulkanMesh::VulkanMesh(GLTF* model, uint32_t meshID, std::unordered_map<int, int
 
 VulkanMesh::Primitive::Primitive(GLTF* model, int meshID, int primitiveID, std::unordered_map<int, int>* materialIDMap,
                                  std::shared_ptr<SSBOBuffers> ssboBuffers) {
+    indirect_draw.firstInstance = 0;
+    indirect_draw.instanceCount = 0;
 
     GLTF::Accessor* accessor;
     GLTF::Mesh::Primitive* primitive = &model->meshes[meshID].primitives[primitiveID];

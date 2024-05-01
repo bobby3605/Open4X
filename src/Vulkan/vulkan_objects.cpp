@@ -226,9 +226,15 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
                 ssboBuffers->materialIndicesMapped[indirectDraws.back().firstInstance] = primitive->materialIndex;
                 // TODO
                 // IDs are now contiguous within a mesh, so this can be optimized
+                // Wrong, they're sequential within an object
+                // Ideally, they'd be sequential within a mesh, but I don't think that's possible
                 for (uint32_t i = 0; i < mesh->instanceIDs.size(); ++i) {
                     ssboBuffers->instanceIndicesMapped[_totalInstanceCount + i] = mesh->instanceIDs[i];
+                    ssboBuffers->meshInstanceIDsMapped[mesh->instanceIDs[i]] = _totalInstanceCount + i;
                 }
+                // Have mesh->instanceIDs[i]
+                // need ssboBuffers->instanceIndicesMapped[x] == mesh->instanceIDs[i]
+                // need the draw instance id that maps to the mesh instance id
                 _totalInstanceCount += mesh->instanceIDs.size();
             }
         }
@@ -241,6 +247,20 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
               [](VkDrawIndexedIndirectCommand a, VkDrawIndexedIndirectCommand b) { return a.firstInstance < b.firstInstance; });
 
     objectCullingData = VulkanBuffer::StorageBuffer(device, objects.size() * sizeof(ObjectCullData));
+    ObjectCullData* objectCullingDataMapped = reinterpret_cast<ObjectCullData*>(objectCullingData->mapped());
+    std::atomic<int32_t> i = 0;
+    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(), [this, &i, objectCullingDataMapped](auto&& object) {
+        int32_t index = i.fetch_add(1);
+        object->updateModelMatrix(ssboBuffers);
+        // FIXME:
+        // Do this whenever the object changes
+        // Objects can be in random order, as long as parameters are set properly
+        // FIXME:
+        // There's some issue with instance IDs
+        objectCullingDataMapped[index].obb = object->obb;
+        objectCullingDataMapped[index].baseInstanceID = object->baseInstanceID;
+        objectCullingDataMapped[index].instanceCount = object->model->totalInstanceCount();
+    });
 
     // Get unique samplers and load into continuous vector
     samplerInfos.resize(ssboBuffers->uniqueSamplersMap.size());
@@ -283,7 +303,8 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         // adding 32 - 1 ensures correct rounding
         .buffer("ActiveLanes", (_totalInstanceCount + (32 - 1)) / 32)
         .buffer("ObjectCullingData", objectCullingData)
-        .buffer("VisibilityBuffer", _totalInstanceCount);
+        .buffer("VisibilityBuffer", _totalInstanceCount)
+        .buffer("MeshInstanceIDs", ssboBuffers->meshInstanceIDsBuffer());
 
     const uint32_t queryCount = 4;
     VkQueryPoolCreateInfo queryPoolInfo{};
@@ -399,21 +420,7 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
 }
 
 void VulkanObjects::updateModels() {
-    ObjectCullData* objectCullingDataMapped = reinterpret_cast<ObjectCullData*>(objectCullingData->mapped());
 
-    std::atomic<int32_t> i = 0;
-    std::for_each(std::execution::par_unseq, objects.begin(), objects.end(), [this, &i, objectCullingDataMapped](auto&& object) {
-        int32_t index = i.fetch_add(1);
-        object->updateModelMatrix(ssboBuffers);
-        // FIXME:
-        // Do this whenever the object changes
-        // Objects can be in random order, as long as parameters are set properly
-        // FIXME:
-        // There's some issue with instance IDs
-        objectCullingDataMapped[index].obb = object->obb;
-        objectCullingDataMapped[index].firstInstanceID = object->firstInstanceID;
-        objectCullingDataMapped[index].instanceCount = object->model->totalInstanceCount();
-    });
     for (VulkanModel* model : animatedModels) {
         model->updateAnimations();
     }
