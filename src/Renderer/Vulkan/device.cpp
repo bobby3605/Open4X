@@ -423,19 +423,21 @@ void Device::set_debug_name(VkObjectType type, uint64_t handle, std::string name
     }
 }
 
-VkImageView Device::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
-    VkImageViewCreateInfo viewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = format;
-    viewInfo.subresourceRange.aspectMask = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = mipLevels;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
+VkImageView Device::create_image_view(std::string name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+                                      uint32_t mipLevels) {
+    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    view_info.image = image;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.format = format;
+    view_info.subresourceRange.aspectMask = aspectFlags;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = mipLevels;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
 
-    VkImageView imageView;
-    check_result(vkCreateImageView(_device, &viewInfo, nullptr, &imageView), "failed to create image view!");
+    VkImageView image_view;
+    check_result(vkCreateImageView(_device, &view_info, nullptr, &image_view), "failed to create image view!");
+    set_debug_name(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)image_view, name);
 
-    return imageView;
+    return image_view;
 }

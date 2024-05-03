@@ -13,7 +13,21 @@ SwapChain::SwapChain(VkExtent2D extent) : _extent(extent) {
     create_sync_objects();
 }
 
-SwapChain::~SwapChain() {}
+SwapChain::~SwapChain() {
+    vkDestroyImageView(Device::device->vk_device(), _color_image_view, nullptr);
+    vkDestroyImageView(Device::device->vk_device(), _depth_image_view, nullptr);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(Device::device->vk_device(), _render_finished_semaphores[i], nullptr);
+        vkDestroySemaphore(Device::device->vk_device(), _image_available_semaphores[i], nullptr);
+        vkDestroyFence(Device::device->vk_device(), _in_flight_fences[i], nullptr);
+    }
+
+    for (size_t i = 0; i < _swap_chain_image_views.size(); i++) {
+        vkDestroyImageView(Device::device->vk_device(), _swap_chain_image_views[i], nullptr);
+    }
+
+    vkDestroySwapchainKHR(Device::device->vk_device(), _swap_chain, nullptr);
+}
 
 void SwapChain::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) {
     for (const auto& available_format : available_formats) {
@@ -102,9 +116,8 @@ void SwapChain::create_image_views() {
     _swap_chain_image_views.resize(_swap_chain_images.size());
     for (size_t i = 0; i < _swap_chain_images.size(); i++) {
         _swap_chain_image_views[i] =
-            Device::device->create_image_view(_swap_chain_images[i], _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-        Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)_swap_chain_image_views[i],
-                                       "swap_chain_image_view[" + std::to_string(i) + "]");
+            Device::device->create_image_view("swap_chain_image_view[" + std::to_string(i) + "]", _swap_chain_images[i],
+                                              _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 }
 
@@ -113,8 +126,8 @@ void SwapChain::create_color_resources() {
     Buffers::buffers->create_image("color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format,
                                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    _color_image_view = Device::device->create_image_view(Buffers::buffers->get_image("color_image").vk_image, _surface_format.format,
-                                                          VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    _color_image_view = Device::device->create_image_view("color_image_view", Buffers::buffers->get_image("color_image").vk_image,
+                                                          _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 
 VkFormat SwapChain::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -143,8 +156,8 @@ void SwapChain::create_depth_resources() {
     Buffers::buffers->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), depth_format,
                                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    _depth_image_view =
-        Device::device->create_image_view(Buffers::buffers->get_image("depth_image").vk_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    _depth_image_view = Device::device->create_image_view("depth_image_view", Buffers::buffers->get_image("depth_image").vk_image,
+                                                          depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
 
 void SwapChain::create_sync_objects() {

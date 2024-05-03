@@ -37,7 +37,7 @@ class Device {
     void set_debug_name(VkObjectType type, uint64_t handle, std::string name);
     VkSampleCountFlagBits msaa_samples() const { return _msaa_samples; }
     VkPhysicalDevice physical_device() const { return _physical_device; }
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+    VkImageView create_image_view(std::string name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     static const uint32_t API_VERSION = VK_API_VERSION_1_3;
 
 #ifdef NDEBUG

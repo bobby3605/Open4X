@@ -11,7 +11,11 @@ RenderGraph::RenderGraph() {
     create_command_buffers();
 }
 
-RenderGraph::~RenderGraph() { delete Device::device; }
+RenderGraph::~RenderGraph() {
+    delete _swap_chain;
+    delete Buffers::buffers;
+    delete Device::device;
+}
 
 void RenderGraph::create_command_buffers() {
     _command_buffers.reserve(SwapChain::MAX_FRAMES_IN_FLIGHT);
