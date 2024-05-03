@@ -1,6 +1,8 @@
 #ifndef OPEN4X_H_
 #define OPEN4X_H_
 
+#include "Renderer/Vulkan/rendergraph.hpp"
+#include "Renderer/Vulkan/window.hpp"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_device.hpp"
 #include "Vulkan/vulkan_model.hpp"
@@ -30,6 +32,9 @@ class Open4X {
 
     std::shared_ptr<Settings> settings;
     void loadSettings();
+
+    // New Renderer
+    RenderGraph* rg;
 };
 
 #endif // OPEN4X_H_

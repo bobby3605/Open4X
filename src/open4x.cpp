@@ -1,3 +1,4 @@
+#include "Renderer/Vulkan/rendergraph.hpp"
 #include "Vulkan/vulkan_descriptors.hpp"
 #include "Vulkan/vulkan_rendergraph.hpp"
 #include <chrono>
@@ -33,6 +34,8 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
+#define NEW_RENDERER 1
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, 1);
@@ -52,18 +55,34 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 }
 
 Open4X::Open4X() {
-    creationTime = std::chrono::high_resolution_clock::now();
-    vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
-    glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
+    if (NEW_RENDERER) {
+        std::cout << "new renderer" << std::endl;
+        creationTime = std::chrono::high_resolution_clock::now();
+        std::cout << "getting window" << std::endl;
+        new Window(640, 480, "Open 4X");
+        std::cout << "setting callback" << std::endl;
+        glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
+        std::cout << "creating rendergraph" << std::endl;
+        rg = new RenderGraph();
+        std::cout << "done with init" << std::endl;
+    } else {
+        creationTime = std::chrono::high_resolution_clock::now();
+        vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
+        glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
-    vulkanDevice = std::make_shared<VulkanDevice>(vulkanWindow);
+        vulkanDevice = std::make_shared<VulkanDevice>(vulkanWindow);
+    }
 }
 
 Open4X::~Open4X() {
-
-    //    delete vulkanRenderer;
-    //    delete vulkanDevice;
-    delete vulkanWindow;
+    if (NEW_RENDERER) {
+        delete rg;
+        delete Window::window;
+    } else {
+        //    delete vulkanRenderer;
+        //    delete vulkanDevice;
+        delete vulkanWindow;
+    }
 }
 
 void fillComputePushConstants(ComputePushConstants& computePushConstants, float vFov, float aspectRatio, float nearClip, float farClip) {
@@ -112,92 +131,99 @@ void Open4X::loadSettings() {
 }
 
 void Open4X::run() {
+    std::cout << "run" << std::endl;
 
     loadSettings();
 
-    VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
-
-    VulkanObjects objects(vulkanDevice, &renderGraph, settings);
-
-    camera = new VulkanObject();
-    //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
-
-    UniformBufferObject ubo{};
-
-    float vFov = 45.0f;
-    float nearClip = 0.0001f;
-    float farClip = 1000.0f;
-    float aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
-
-    glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
-
-    objects.computePushConstants.totalInstanceCount = objects.totalInstanceCount();
-    fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
-
-    auto startTime = std::chrono::high_resolution_clock::now();
-    std::cout << "Total load time: " << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count()
-              << "ms" << std::endl;
-    float titleFrametime = 0.0f;
-    std::string title;
-    while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
-        glfwPollEvents();
-
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        startTime = currentTime;
-        camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
-        if (titleFrametime == 0.0f) {
-            titleFrametime = frameTime;
-        } else {
-            titleFrametime = titleFrametime * 0.95 + frameTime * 0.05;
+    if (NEW_RENDERER) {
+        while (!glfwWindowShouldClose(Window::window->glfw_window())) {
+            glfwPollEvents();
         }
+    } else {
+        VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
 
-        glm::mat4 cameraModel =
-            glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
+        VulkanObjects objects(vulkanDevice, &renderGraph, settings);
 
-        ubo.projView = proj * glm::inverse(cameraModel);
-        ubo.camPos = camera->position();
+        camera = new VulkanObject();
+        //    camera->children.push_back(objects.getObjectByName("assets/glTF/uss_enterprise_d_star_trek_tng.glb"));
 
-        renderGraph.bufferWrite("Globals", &ubo);
+        UniformBufferObject ubo{};
 
-        setComputePushConstantsCamera(objects.computePushConstants, camera);
+        float vFov = 45.0f;
+        float nearClip = 0.0001f;
+        float farClip = 1000.0f;
+        float aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
 
-        objects.updateModels();
+        glm::mat4 proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
 
-        if (renderGraph.render()) {
-            aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
-            proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
-            fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
+        objects.computePushConstants.totalInstanceCount = objects.totalInstanceCount();
+        fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
+
+        auto startTime = std::chrono::high_resolution_clock::now();
+        std::cout << "Total load time: "
+                  << std::chrono::duration<float, std::chrono::milliseconds::period>(startTime - creationTime).count() << "ms" << std::endl;
+        float titleFrametime = 0.0f;
+        std::string title;
+        while (!glfwWindowShouldClose(vulkanWindow->getGLFWwindow())) {
+            glfwPollEvents();
+
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+            startTime = currentTime;
+            camera->keyboardUpdate(vulkanWindow->getGLFWwindow(), frameTime);
+            if (titleFrametime == 0.0f) {
+                titleFrametime = frameTime;
+            } else {
+                titleFrametime = titleFrametime * 0.95 + frameTime * 0.05;
+            }
+
+            glm::mat4 cameraModel =
+                glm::translate(glm::mat4(1.0f), camera->position()) * glm::toMat4(camera->rotation()) * glm::scale(camera->scale());
+
+            ubo.projView = proj * glm::inverse(cameraModel);
+            ubo.camPos = camera->position();
+
+            renderGraph.bufferWrite("Globals", &ubo);
+
+            setComputePushConstantsCamera(objects.computePushConstants, camera);
+
+            objects.updateModels();
+
+            if (renderGraph.render()) {
+                aspectRatio = renderGraph.getSwapChainExtent().width / (float)renderGraph.getSwapChainExtent().height;
+                proj = perspectiveProjection(vFov, aspectRatio, nearClip, farClip);
+                fillComputePushConstants(objects.computePushConstants, vFov, aspectRatio, nearClip, farClip);
+            }
+
+            //        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            if (settings->showFPS) {
+                const uint32_t queryCount = 4;
+                std::vector<uint64_t> queryResults(queryCount);
+                const bool wait = true;
+                // FIXME:
+                // workaround for disabling waiting on some gpus
+                // TODO:
+                // One query pool per frame
+                vkGetQueryPoolResults(vulkanDevice->device(), objects.queryPool, 0, queryCount,
+                                      queryResults.size() * sizeof(queryResults[0]), queryResults.data(), sizeof(queryResults[0]),
+                                      VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
+
+                float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
+                float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
+
+                std::stringstream title;
+                title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
+                      << " "
+                      << "Framerate: " << 1.0 / titleFrametime << " "
+                      << "Drawtime: " << drawTime << "ms"
+                      << " "
+                      << "Culltime: " << cullTime << "ms";
+
+                glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
+            }
         }
-
-        //        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        if (settings->showFPS) {
-            const uint32_t queryCount = 4;
-            std::vector<uint64_t> queryResults(queryCount);
-            const bool wait = true;
-            // FIXME:
-            // workaround for disabling waiting on some gpus
-            // TODO:
-            // One query pool per frame
-            vkGetQueryPoolResults(vulkanDevice->device(), objects.queryPool, 0, queryCount, queryResults.size() * sizeof(queryResults[0]),
-                                  queryResults.data(), sizeof(queryResults[0]),
-                                  VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_64_BIT));
-
-            float cullTime = (queryResults[1] - queryResults[0]) * vulkanDevice->timestampPeriod() * 1e-6;
-            float drawTime = (queryResults[3] - queryResults[2]) * vulkanDevice->timestampPeriod() * 1e-6;
-
-            std::stringstream title;
-            title << "Frametime: " << std::fixed << std::setprecision(2) << (titleFrametime * 1000) << "ms"
-                  << " "
-                  << "Framerate: " << 1.0 / titleFrametime << " "
-                  << "Drawtime: " << drawTime << "ms"
-                  << " "
-                  << "Culltime: " << cullTime << "ms";
-
-            glfwSetWindowTitle(vulkanWindow->getGLFWwindow(), title.str().c_str());
-        }
+        vkDeviceWaitIdle(vulkanDevice->device());
+        delete camera;
     }
-    vkDeviceWaitIdle(vulkanDevice->device());
-    delete camera;
 }
