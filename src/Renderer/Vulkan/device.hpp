@@ -87,6 +87,9 @@ class Device {
     void create_logical_device();
     VkCommandPool _command_pool;
     VkCommandPool create_command_pool(VkCommandPoolCreateFlags flags);
+    std::vector<VkFence> fence_pool;
+    VkFence get_fence();
+    void release_fence(VkFence fence);
 
     class CommandPoolAllocator {
       public:
@@ -106,6 +109,7 @@ class Device {
 
   public:
     CommandPoolAllocator* command_pools() { return _command_pool_allocator; };
+    void submit_queue(VkQueueFlags queue, std::vector<VkSubmitInfo> submit_infos);
 };
 
 #endif // DEVICE_H_

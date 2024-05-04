@@ -1,7 +1,7 @@
 #include "swapchain.hpp"
-#include "buffers.hpp"
 #include "common.hpp"
 #include "device.hpp"
+#include "memory_manager.hpp"
 #include <algorithm>
 #include <vulkan/vulkan_core.h>
 
@@ -123,11 +123,12 @@ void SwapChain::create_image_views() {
 
 void SwapChain::create_color_resources() {
 
-    Buffers::buffers->create_image("color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format,
-                                   VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    _color_image_view = Device::device->create_image_view("color_image_view", Buffers::buffers->get_image("color_image").vk_image,
-                                                          _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    MemoryManager::memory_manager->create_image(
+        "color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    _color_image_view =
+        Device::device->create_image_view("color_image_view", MemoryManager::memory_manager->get_image("color_image").vk_image,
+                                          _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 
 VkFormat SwapChain::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -153,11 +154,11 @@ VkFormat SwapChain::find_depth_format() {
 void SwapChain::create_depth_resources() {
 
     VkFormat depth_format = find_depth_format();
-    Buffers::buffers->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), depth_format,
-                                   VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    _depth_image_view = Device::device->create_image_view("depth_image_view", Buffers::buffers->get_image("depth_image").vk_image,
-                                                          depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    MemoryManager::memory_manager->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(),
+                                                depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    _depth_image_view = Device::device->create_image_view(
+        "depth_image_view", MemoryManager::memory_manager->get_image("depth_image").vk_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
 
 void SwapChain::create_sync_objects() {

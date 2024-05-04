@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(Open4X)
+set(PROJECT_NAME Open4X)
+
+project("${PROJECT_NAME}")
 
 file(GLOB SOURCES
   src/*.hpp
@@ -13,27 +15,29 @@ file(GLOB SOURCES
   src/Renderer/Vulkan/*.cpp
   )
 
-add_executable(Open4X ${SOURCES})
+add_executable("${PROJECT_NAME}" ${SOURCES})
 
 set(ALLOW_EXTERNAL_SPIRV_TOOLS ON)
 add_subdirectory(external/glslang/glslang/)
 add_subdirectory(external/SPIRV-Cross/SPIRV-Cross/)
 add_subdirectory(external/VulkanMemoryAllocator/VulkanMemoryAllocator/)
+add_subdirectory(external/fastgltf/fastgltf/)
 
-target_include_directories(Open4X PUBLIC
+target_include_directories("${PROJECT_NAME}" PUBLIC
   external/rapidjson/rapidjson/include
   external/stb
   external/glslang/glslang/glslang
   external/glslang/glslang/SPIRV
   external/SPIRV-Cross/
-  external/VulkanMemoryAllocator/VulkanMemoryAllocator/
+  external/VulkanMemoryAllocator
+  external/fastgltf
 )
 
 # glslang libraries
 # TODO
 # static build, don't use system libraries
 # include static spirv-tools
-target_link_libraries(Open4X PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp GPUOpen::VulkanMemoryAllocator)
+target_link_libraries("${PROJECT_NAME}" PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp GPUOpen::VulkanMemoryAllocator fastgltf)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)

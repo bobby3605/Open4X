@@ -441,3 +441,35 @@ VkImageView Device::create_image_view(std::string name, VkImage image, VkFormat 
 
     return image_view;
 }
+
+VkFence Device::get_fence() {
+    static const uint32_t createCount = 10;
+    VkFence fence;
+    if (fence_pool.size() == 0) {
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        for (int i = 0; i < createCount; i++) {
+            check_result(vkCreateFence(_device, &fenceInfo, nullptr, &fence), "failed to create single time fence");
+            fence_pool.push_back(fence);
+        }
+        vkResetFences(_device, createCount, fence_pool.data());
+    }
+    fence = fence_pool.back();
+    fence_pool.pop_back();
+    return fence;
+}
+
+void Device::release_fence(VkFence fence) {
+    check_result(vkResetFences(_device, 1, &fence), "failed to release fence");
+    fence_pool.push_back(fence);
+}
+
+void Device::submit_queue(VkQueueFlags queue, std::vector<VkSubmitInfo> submit_infos) {
+
+    VkFence fence = get_fence();
+    vkQueueSubmit(_graphics_queue, submit_infos.size(), submit_infos.data(), fence);
+    vkWaitForFences(_device, 1, &fence, VK_TRUE, UINT64_MAX);
+    release_fence(fence);
+}

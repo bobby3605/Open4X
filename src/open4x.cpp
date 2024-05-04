@@ -25,6 +25,7 @@
 #include "rapidjson/istreamwrapper.h"
 #include <GLFW/glfw3.h>
 #include <cstring>
+#include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -56,15 +57,11 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 
 Open4X::Open4X() {
     if (NEW_RENDERER) {
-        std::cout << "new renderer" << std::endl;
         creationTime = std::chrono::high_resolution_clock::now();
-        std::cout << "getting window" << std::endl;
         new Window(640, 480, "Open 4X");
-        std::cout << "setting callback" << std::endl;
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
-        std::cout << "creating rendergraph" << std::endl;
         rg = new RenderGraph();
-        std::cout << "done with init" << std::endl;
+        _model_manager = new ModelManager();
     } else {
         creationTime = std::chrono::high_resolution_clock::now();
         vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
@@ -76,6 +73,7 @@ Open4X::Open4X() {
 
 Open4X::~Open4X() {
     if (NEW_RENDERER) {
+        delete _model_manager;
         delete rg;
         delete Window::window;
     } else {
@@ -131,9 +129,10 @@ void Open4X::loadSettings() {
 }
 
 void Open4X::run() {
-    std::cout << "run" << std::endl;
 
     loadSettings();
+    std::string base_path = std::filesystem::current_path().string();
+    _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
 
     if (NEW_RENDERER) {
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {

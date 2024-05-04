@@ -1,25 +1,22 @@
 #ifndef BUFFERS_H_
 #define BUFFERS_H_
 
-#define VMA_STATIC_VULKAN_FUNCTIONS 0
-#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+#include "buffer.hpp"
 #include "vk_mem_alloc.h"
 #include <string>
 #include <unordered_map>
+#include <vulkan/vulkan_core.h>
 
-class Buffers {
+class MemoryManager {
   public:
-    Buffers();
-    ~Buffers();
+    MemoryManager();
+    ~MemoryManager();
 
-    static Buffers* buffers;
+    static MemoryManager* memory_manager;
 
-    struct Buffer {
-        VkBuffer vk_buffer;
-        VmaAllocation allocation;
-    };
-    void create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    Buffer get_buffer(std::string name) const { return _buffers.at(name); };
+    Buffer* create_buffer(std::string name, uint32_t element_size, uint32_t capacity, VkBufferUsageFlags usage,
+                          VkMemoryPropertyFlags properties);
+    Buffer* get_buffer(std::string name) { return _buffers.at(name); };
     void delete_buffer(std::string name);
 
     struct Image {
@@ -33,8 +30,8 @@ class Buffers {
 
   private:
     VmaAllocator _allocator;
-    std::unordered_map<std::string, Buffer> _buffers;
+    std::unordered_map<std::string, Buffer*> _buffers;
     std::unordered_map<std::string, Image> _images;
 };
 
-#endif // BUFFERS_H_
+#endif // MemoryManager_H_

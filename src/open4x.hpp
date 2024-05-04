@@ -1,6 +1,7 @@
 #ifndef OPEN4X_H_
 #define OPEN4X_H_
 
+#include "Renderer/Vulkan/model_manager.hpp"
 #include "Renderer/Vulkan/rendergraph.hpp"
 #include "Renderer/Vulkan/window.hpp"
 #include "Vulkan/common.hpp"
@@ -34,6 +35,7 @@ class Open4X {
     void loadSettings();
 
     // New Renderer
+    ModelManager* _model_manager;
     RenderGraph* rg;
 };
 

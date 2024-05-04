@@ -1,13 +1,15 @@
-#include "common.hpp"
-#include <cstdint>
-#include <vulkan/vulkan_core.h>
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
-#include "buffers.hpp"
+#include "memory_manager.hpp"
+#include "common.hpp"
 #include "device.hpp"
+#include "vk_mem_alloc.h"
+#include <vulkan/vulkan_core.h>
 
-Buffers* Buffers::buffers;
+MemoryManager* MemoryManager::memory_manager;
 
-Buffers::Buffers() {
+MemoryManager::MemoryManager() {
     VmaVulkanFunctions vulkan_functions = {};
     vulkan_functions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
     vulkan_functions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
@@ -21,12 +23,12 @@ Buffers::Buffers() {
     allocatorCreateInfo.pVulkanFunctions = &vulkan_functions;
 
     vmaCreateAllocator(&allocatorCreateInfo, &_allocator);
-    buffers = this;
+    memory_manager = this;
 }
 
-Buffers::~Buffers() {
+MemoryManager::~MemoryManager() {
     for (auto buffer : _buffers) {
-        vmaDestroyBuffer(_allocator, buffer.second.vk_buffer, buffer.second.allocation);
+        delete buffer.second;
     }
     for (auto image : _images) {
         vmaDestroyImage(_allocator, image.second.vk_image, image.second.allocation);
@@ -34,34 +36,28 @@ Buffers::~Buffers() {
     vmaDestroyAllocator(_allocator);
 }
 
-void Buffers::create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+Buffer* MemoryManager::create_buffer(std::string name, uint32_t element_size, uint32_t capacity, VkBufferUsageFlags usage,
+                                     VkMemoryPropertyFlags properties) {
     if (_buffers.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
     }
 
-    VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    buffer_info.size = size;
-    buffer_info.usage = usage;
+    Buffer* buffer = new Buffer(_allocator, element_size, capacity, usage, properties);
+    Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer->vk_buffer(), name);
 
-    VmaAllocationCreateInfo alloc_info = {};
-    alloc_info.requiredFlags = properties;
-    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-
-    Buffer buffer;
-    check_result(vmaCreateBuffer(_allocator, &buffer_info, &alloc_info, &buffer.vk_buffer, &buffer.allocation, nullptr),
-                 "failed to create buffer!");
-    Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer.vk_buffer, name);
+    // FIXME:
+    // Thread safety
     _buffers.insert({name, buffer});
+    return buffer;
 }
 
-void Buffers::delete_buffer(std::string name) {
-    Buffer buffer = get_buffer(name);
-    vmaDestroyBuffer(_allocator, buffer.vk_buffer, buffer.allocation);
+void MemoryManager::delete_buffer(std::string name) {
+    delete _buffers[name];
     _buffers.erase(name);
 };
 
-void Buffers::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
-                           VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+void MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
+                                 VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
     if (_images.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
     }
@@ -91,7 +87,7 @@ void Buffers::create_image(std::string name, uint32_t width, uint32_t height, ui
     _images.insert({name, image});
 }
 
-void Buffers::delete_image(std::string name) {
+void MemoryManager::delete_image(std::string name) {
     Image image = get_image(name);
     vmaDestroyImage(_allocator, image.vk_image, image.allocation);
     _images.erase(name);
