@@ -25,6 +25,9 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 }
 
 Device::~Device() {
+    for (VkFence& fence : fence_pool) {
+        vkDestroyFence(_device, fence, nullptr);
+    }
     vkDestroyCommandPool(_device, _command_pool, nullptr);
     delete _command_pool_allocator;
     vkDestroyDevice(_device, nullptr);
@@ -50,6 +53,7 @@ void Device::set_required_features() {
     vk12_features.drawIndirectCount = VK_TRUE;
     vk12_features.hostQueryReset = VK_TRUE;
     vk12_features.scalarBlockLayout = VK_TRUE;
+    vk12_features.bufferDeviceAddress = VK_TRUE;
 
     vk13_features.dynamicRendering = VK_TRUE;
     vk13_features.synchronization2 = VK_TRUE;
@@ -280,7 +284,8 @@ bool Device::check_features(VkPhysicalDevice device) {
     bool vk11_features_available = comp11(shaderDrawParameters);
 
     bool vk12_features_available = comp12(runtimeDescriptorArray) && comp12(shaderSampledImageArrayNonUniformIndexing) &&
-                                   comp12(drawIndirectCount) && comp12(hostQueryReset) && comp12(scalarBlockLayout);
+                                   comp12(drawIndirectCount) && comp12(hostQueryReset) && comp12(scalarBlockLayout) &&
+                                   comp12(bufferDeviceAddress);
 
     bool vk13_features_available =
         comp13(dynamicRendering) && comp13(synchronization2) && comp13(subgroupSizeControl) && comp13(maintenance4);

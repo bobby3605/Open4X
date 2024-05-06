@@ -1,9 +1,14 @@
 #include "model.hpp"
 #include "fastgltf/core.hpp"
+#include "fastgltf/math.hpp"
 #include "fastgltf/types.hpp"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 Model::Model(std::filesystem::path path) {
@@ -37,27 +42,43 @@ Model::~Model() {
     delete _asset;
     */
 }
+
 Model::Scene::Scene(Model* model, fastgltf::Scene* scene) : _model(model), _scene(scene) {
     _root_node_indices.reserve(scene->nodeIndices.size());
     for (auto node_index : scene->nodeIndices) {
         _root_node_indices.push_back(node_index);
         _model->_nodes.resize(node_index + 1);
         if (!_model->_nodes[node_index].has_value()) {
-            _model->_nodes[node_index] = Node(model, &_model->_asset->nodes[node_index]);
+            _model->_nodes[node_index] = Node(model, &_model->_asset->nodes[node_index], glm::mat4());
         }
     }
 }
 
-Model::Node::Node(Model* model, fastgltf::Node* node) : _model(model), _node(node) {
+Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_transform) : _model(model), _node(node) {
+    if (std::holds_alternative<fastgltf::TRS>(node->transform)) {
+        fastgltf::TRS trs = std::get<fastgltf::TRS>(node->transform);
+        _transform = glm::translate(glm::mat4(), glm::make_vec3(trs.translation.value_ptr()));
+        glm::quat r = glm::make_quat(trs.rotation.value_ptr());
+        _transform = _transform * glm::toMat4(r);
+        _transform = glm::scale(_transform, glm::make_vec3(trs.scale.value_ptr()));
+    } else {
+        auto& mat = std::get<fastgltf::math::fmat4x4>(node->transform);
+        _transform[0] = glm::make_vec4(mat[0].value_ptr());
+        _transform[1] = glm::make_vec4(mat[1].value_ptr());
+        _transform[2] = glm::make_vec4(mat[2].value_ptr());
+        _transform[3] = glm::make_vec4(mat[3].value_ptr());
+    }
+    _transform = parent_transform * _transform;
     // Check if node has mesh
     if (node->meshIndex.has_value()) {
-        std::size_t mesh_index = node->meshIndex.value();
+        ++_model->_model_matrices_size;
+        _mesh_index = node->meshIndex.value();
         // Ensure that _meshes is allocated for mesh_index
-        _model->_meshes.resize(mesh_index + 1);
+        _model->_meshes.resize(_mesh_index.value() + 1);
         // Check if mesh has been created already
-        if (!_model->_meshes[mesh_index].has_value()) {
+        if (!_model->_meshes[_mesh_index.value()].has_value()) {
             // Create mesh and add to vector if it doesn't exist
-            _model->_meshes[mesh_index] = Mesh(model, &_model->_asset->meshes[mesh_index]);
+            _model->_meshes[_mesh_index.value()] = Mesh(model, &_model->_asset->meshes[_mesh_index.value()]);
         }
     }
 
@@ -66,7 +87,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node) : _model(model), _node(nod
         _child_node_indices.push_back(child_index);
         _model->_nodes.resize(child_index + 1);
         if (!_model->_nodes[child_index].has_value()) {
-            _model->_nodes[child_index] = Node(_model, &_model->_asset->nodes[child_index]);
+            _model->_nodes[child_index] = Node(_model, &_model->_asset->nodes[child_index], _transform);
         }
     }
 }
@@ -129,4 +150,23 @@ std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {
 
 std::vector<texcoord> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coord_selector) {
     return load_accessor<texcoord>(_model->_asset, _primitive->findAttribute("TEXCOORD_" + std::to_string(tex_coord_selector))->second);
+}
+
+void Model::load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data) {
+    // reset the size, but not capacity, to 0 for push_back
+    instance_data.clear();
+    for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
+        _nodes[root_node_index.value()]->load_instance_data(object_matrix, instance_data);
+    }
+}
+
+void Model::Node::load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data) {
+    if (_mesh_index.has_value()) {
+        InstanceData instance{};
+        instance.model_matrix = object_matrix * _transform;
+        instance_data.push_back(instance);
+    }
+    for (auto& child_node_index : _child_node_indices) {
+        _model->_nodes[child_node_index.value()]->load_instance_data(object_matrix, instance_data);
+    }
 }

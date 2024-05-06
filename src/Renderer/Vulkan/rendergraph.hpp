@@ -1,6 +1,7 @@
 #ifndef RENDERGRAPH_H_
 #define RENDERGRAPH_H_
 
+#include "model.hpp"
 #include "swapchain.hpp"
 #include <vulkan/vulkan_core.h>
 

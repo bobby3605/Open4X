@@ -9,6 +9,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 
+struct InstanceData {
+    glm::mat4 model_matrix;
+};
+
 template <typename T> std::vector<T> load_accessor(fastgltf::Asset& asset, unsigned long accessor_index) {
     fastgltf::Accessor* accessor = &asset.accessors[accessor_index];
     std::vector<T> data;
@@ -48,6 +52,10 @@ class Model {
   public:
     Model(std::filesystem::path path);
     ~Model();
+
+    void load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data);
+    const std::size_t model_matrices_size() { return _model_matrices_size; }
+
     class Scene {
       public:
         Scene(Model* model, fastgltf::Scene* scene);
@@ -58,18 +66,25 @@ class Model {
       private:
         Model* _model;
         fastgltf::Scene* _scene;
+
+        friend class Model;
     };
 
     class Node {
       public:
-        Node(Model* _model, fastgltf::Node* node);
+        Node(Model* _model, fastgltf::Node* node, glm::mat4 const& parent_transform);
+        void load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data);
 
       protected:
+        std::optional<std::size_t> _mesh_index;
         std::vector<std::optional<std::size_t>> _child_node_indices;
+        glm::mat4 _transform;
 
       private:
         Model* _model;
         fastgltf::Node* _node;
+
+        friend class Model;
     };
 
     class Mesh {
@@ -87,6 +102,8 @@ class Model {
             std::vector<texcoord> get_texcoords(std::size_t tex_coord_selector);
             Model* _model;
             fastgltf::Primitive* _primitive;
+
+            friend class Model;
         };
 
       protected:
@@ -95,6 +112,8 @@ class Model {
       private:
         Model* _model;
         fastgltf::Mesh* _mesh;
+
+        friend class Model;
     };
 
   protected:
@@ -109,6 +128,7 @@ class Model {
     fastgltf::Parser _parser;
     fastgltf::MappedGltfFile* _data;
     std::size_t _default_scene;
+    std::size_t _model_matrices_size = 0;
 };
 
 #endif // MODEL_H_

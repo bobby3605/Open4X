@@ -14,8 +14,7 @@ class MemoryManager {
 
     static MemoryManager* memory_manager;
 
-    Buffer* create_buffer(std::string name, uint32_t element_size, uint32_t capacity, VkBufferUsageFlags usage,
-                          VkMemoryPropertyFlags properties);
+    Buffer* create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
     Buffer* get_buffer(std::string name) { return _buffers.at(name); };
     void delete_buffer(std::string name);
 

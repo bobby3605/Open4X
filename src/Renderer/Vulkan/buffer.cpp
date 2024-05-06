@@ -2,68 +2,79 @@
 #include "command_runner.hpp"
 #include "common.hpp"
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
+#include <vulkan/vulkan_core.h>
 
-Buffer::Buffer(VmaAllocator& allocator, uint32_t element_size, uint32_t capacity, VkBufferUsageFlags usage,
-               VkMemoryPropertyFlags properties)
-    : _allocator(allocator), _element_size(element_size), _capacity(capacity) {
-    _buffer_info.size = _element_size * capacity;
-    _buffer_info.usage = usage;
-
-    if (_buffer_info.size == 0) {
-        throw std::runtime_error("error creating a buffer with 0 size");
+Buffer::Buffer(VmaAllocator& allocator, VkDeviceSize byte_size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
+    : _allocator(allocator) {
+    if (byte_size == 0) {
+        throw std::runtime_error("error creating a buffer with 0 size!");
     }
+
+    _buffer_info.size = byte_size;
+    _buffer_info.usage = usage;
 
     _alloc_info.requiredFlags = properties;
     _alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
     check_result(vmaCreateBuffer(allocator, &_buffer_info, &_alloc_info, &_vk_buffer, &_allocation, nullptr), "failed to create buffer!");
+
+    VmaVirtualBlockCreateInfo virtual_block_create_info{};
+    // Allocate max size in the virtual block
+    // This allows for the underlying VkBuffer to be resized,
+    // without disrupting the virtual allocations
+    virtual_block_create_info.size = -1;
+    check_result(vmaCreateVirtualBlock(&virtual_block_create_info, &_virtual_block), "virtual block creation failed, shouldn't be here!");
 }
-void Buffer::unmap(VmaAllocation& allocation) {
-    vmaUnmapMemory(_allocator, allocation);
+void Buffer::unmap() {
+    vmaUnmapMemory(_allocator, _allocation);
     _mapped = false;
 }
-Buffer::~Buffer() {
+void Buffer::destroy() {
     if (_mapped) {
-        unmap(_allocation);
+        unmap();
     }
     vmaDestroyBuffer(_allocator, _vk_buffer, _allocation);
 }
-void Buffer::map(VmaAllocation& allocation, void* data) {
-    vmaMapMemory(_allocator, allocation, &data);
+Buffer::~Buffer() {
+    vmaClearVirtualBlock(_virtual_block);
+    vmaDestroyVirtualBlock(_virtual_block);
+    destroy();
+}
+
+void Buffer::map() {
+    vmaMapMemory(_allocator, _allocation, &_data);
     _mapped = true;
 }
-void Buffer::push_back(void* item) {
-    if (!_mapped) {
-        map(_allocation, _data);
-    }
-    if (_size == _capacity) {
-        resize(_capacity + realloc_size);
-    }
-    std::memcpy(_data, item, _element_size);
-}
-void Buffer::resize(uint32_t new_size) {
-    /* NOTE:
-     * Validation layer can handle this better
+// TODO
+// Thread safety with element access
+void Buffer::resize(std::size_t new_byte_size) {
     if (!check_usage(VK_BUFFER_USAGE_TRANSFER_SRC_BIT)) {
         throw std::runtime_error("error: tried to copy buffer without transfer_src set");
     }
-    */
-    VkBufferCreateInfo buffer_info = _buffer_info;
-    buffer_info.size = _element_size * new_size;
-    buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+    //    std::cout << "resizing to size: " << new_byte_size << std::endl;
+    VkBufferCreateInfo new_buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    new_buffer_info.size = new_byte_size;
+    new_buffer_info.usage = _buffer_info.usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     VkBuffer new_buffer;
     VmaAllocation new_allocation;
 
-    check_result(vmaCreateBuffer(_allocator, &buffer_info, &_alloc_info, &new_buffer, &new_allocation, nullptr),
+    check_result(vmaCreateBuffer(_allocator, &new_buffer_info, &_alloc_info, &new_buffer, &new_allocation, nullptr),
                  "failed to create buffer!");
 
-    copy(new_buffer, _element_size * std::min(_size, new_size));
+    copy(new_buffer, std::min(_buffer_info.size, new_buffer_info.size));
+    bool tmp_mapped = _mapped;
+    // destroy buffer and allocation before overwriting vars
+    destroy();
 
     _vk_buffer = new_buffer;
+    _buffer_info = new_buffer_info;
     _allocation = new_allocation;
-    _capacity = new_size;
+    if (tmp_mapped)
+        map();
 }
 bool inline Buffer::check_usage(VkBufferUsageFlags usage) {
     if ((_buffer_info.usage & usage) == usage) {
@@ -80,3 +91,15 @@ void Buffer::copy(VkBuffer dst, VkDeviceSize copy_size) {
     command_runner.copy_buffer(_vk_buffer, dst, buffer_copies);
     command_runner.run();
 }
+
+void Buffer::alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset) {
+    VmaVirtualAllocationCreateInfo alloc_create_info{};
+    alloc_create_info.size = byte_size;
+    check_result(vmaVirtualAllocate(_virtual_block, &alloc_create_info, &alloc, &offset),
+                 "failed to allocate inside virtual block, shouldn't be here!");
+    if (offset + byte_size > _buffer_info.size) {
+        resize(offset + byte_size);
+    }
+}
+
+void Buffer::free(VmaVirtualAllocation& alloc) { vmaVirtualFree(_virtual_block, alloc); }

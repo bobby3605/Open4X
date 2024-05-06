@@ -15,7 +15,7 @@ MemoryManager::MemoryManager() {
     vulkan_functions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
-    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     allocatorCreateInfo.vulkanApiVersion = Device::API_VERSION;
     allocatorCreateInfo.physicalDevice = Device::device->physical_device();
     allocatorCreateInfo.device = Device::device->vk_device();
@@ -36,13 +36,12 @@ MemoryManager::~MemoryManager() {
     vmaDestroyAllocator(_allocator);
 }
 
-Buffer* MemoryManager::create_buffer(std::string name, uint32_t element_size, uint32_t capacity, VkBufferUsageFlags usage,
-                                     VkMemoryPropertyFlags properties) {
+Buffer* MemoryManager::create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
     if (_buffers.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
     }
 
-    Buffer* buffer = new Buffer(_allocator, element_size, capacity, usage, properties);
+    Buffer* buffer = new Buffer(_allocator, size, usage, properties);
     Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer->vk_buffer(), name);
 
     // FIXME:

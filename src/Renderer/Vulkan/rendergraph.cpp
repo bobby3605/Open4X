@@ -29,10 +29,26 @@ void RenderGraph::create_command_buffers() {
 }
 
 void RenderGraph::create_data_buffers() {
-    MemoryManager::memory_manager->create_buffer("vertex_buffer", sizeof(NewVertex), 1, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    MemoryManager::memory_manager->create_buffer("index_buffer", sizeof(uint32_t), 1, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    Buffer* vertex_buffer = MemoryManager::memory_manager->create_buffer(
+        "vertex_buffer", sizeof(NewVertex) * 1, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    Buffer* index_buffer = MemoryManager::memory_manager->create_buffer(
+        "index_buffer", sizeof(uint32_t) * 1, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    Buffer* instance_data_buffer = MemoryManager::memory_manager->create_buffer(
+        "InstanceData", sizeof(InstanceData) * 1, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    /*
+    VmaVirtualAllocation alloc;
+    VkDeviceSize offset;
+    instance_data_buffer->alloc(16, alloc, offset);
+
+    VmaVirtualAllocation alloc1;
+    VkDeviceSize offset1;
+    instance_data_buffer->alloc(sizeof(InstanceData) * 3, alloc1, offset1);
+
+    instance_data_buffer->free(alloc);
+    */
 }
 
 void RenderGraph::render() { draw_indirect_custom(); }

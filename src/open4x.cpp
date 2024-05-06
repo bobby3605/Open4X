@@ -1,3 +1,5 @@
+#include "Renderer/Vulkan/memory_manager.hpp"
+#include "Renderer/Vulkan/object_manager.hpp"
 #include "Renderer/Vulkan/rendergraph.hpp"
 #include "Vulkan/vulkan_descriptors.hpp"
 #include "Vulkan/vulkan_rendergraph.hpp"
@@ -16,6 +18,7 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "Renderer/Vulkan/camera.hpp"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
@@ -62,6 +65,7 @@ Open4X::Open4X() {
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
         rg = new RenderGraph();
         _model_manager = new ModelManager();
+        _object_manager = new ObjectManager(MemoryManager::memory_manager->get_buffer("InstanceData"));
     } else {
         creationTime = std::chrono::high_resolution_clock::now();
         vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
@@ -131,12 +135,22 @@ void Open4X::loadSettings() {
 void Open4X::run() {
 
     loadSettings();
+
     std::string base_path = std::filesystem::current_path().string();
-    _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
+    Model* simple_texture_model = _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
+    Object* simple_texture_object_0 = _object_manager->add_object("simple_texture_0", simple_texture_model);
+    simple_texture_object_0->position({1, 0, 0});
+    Camera cam;
 
     if (NEW_RENDERER) {
+        auto start_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             glfwPollEvents();
+            auto current_time = std::chrono::high_resolution_clock::now();
+            float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+            start_time = current_time;
+            cam.update_transform(frame_time);
+            // rg->render();
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);

@@ -5,7 +5,7 @@
 VkCommandPool CommandRunner::_pool = VK_NULL_HANDLE;
 CommandRunner::CommandRunner() {
     if (_pool == VK_NULL_HANDLE) {
-        Device::device->command_pools()->get_pool();
+        _pool = Device::device->command_pools()->get_pool();
     }
 
     _command_buffer = Device::device->command_pools()->get_buffer(_pool);
@@ -36,7 +36,7 @@ void CommandRunner::end_recording() {
 void CommandRunner::run() {
     end_recording();
     Device::device->command_pools()->release_buffer(_pool, _command_buffer);
-    delete this;
+    //    delete this;
 }
 
 void CommandRunner::copy_buffer(VkBuffer src, VkBuffer dst, std::vector<VkBufferCopy>& copy_infos) {
