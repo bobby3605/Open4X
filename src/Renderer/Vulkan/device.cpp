@@ -40,31 +40,6 @@ Device::~Device() {
     vkDestroyInstance(_instance, nullptr);
 }
 
-void Device::set_required_features() {
-    device_features.features.samplerAnisotropy = VK_TRUE;
-    device_features.features.sampleRateShading = sample_shading;
-    device_features.features.multiDrawIndirect = VK_TRUE;
-    device_features.features.shaderFloat64 = VK_TRUE;
-
-    vk11_features.shaderDrawParameters = VK_TRUE;
-
-    vk12_features.runtimeDescriptorArray = VK_TRUE;
-    vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    vk12_features.drawIndirectCount = VK_TRUE;
-    vk12_features.hostQueryReset = VK_TRUE;
-    vk12_features.scalarBlockLayout = VK_TRUE;
-    vk12_features.bufferDeviceAddress = VK_TRUE;
-
-    vk13_features.dynamicRendering = VK_TRUE;
-    vk13_features.synchronization2 = VK_TRUE;
-    vk13_features.subgroupSizeControl = VK_TRUE;
-    vk13_features.maintenance4 = VK_TRUE;
-
-    device_features.pNext = &vk11_features;
-    vk11_features.pNext = &vk12_features;
-    vk12_features.pNext = &vk13_features;
-}
-
 bool Device::supports_validation_layers() {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -251,11 +226,38 @@ Device::SwapChainSupportDetails Device::query_swap_chain_support(VkPhysicalDevic
     return details;
 }
 
+void Device::set_required_features() {
+    device_features.features.samplerAnisotropy = VK_TRUE;
+    device_features.features.sampleRateShading = sample_shading;
+    device_features.features.multiDrawIndirect = VK_TRUE;
+    device_features.features.shaderFloat64 = VK_TRUE;
+
+    vk11_features.shaderDrawParameters = VK_TRUE;
+
+    vk12_features.runtimeDescriptorArray = VK_TRUE;
+    vk12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    vk12_features.drawIndirectCount = VK_TRUE;
+    vk12_features.hostQueryReset = VK_TRUE;
+    vk12_features.scalarBlockLayout = VK_TRUE;
+    vk12_features.bufferDeviceAddress = VK_TRUE;
+    // Only enable when in debug for performance reasons
+    vk12_features.bufferDeviceAddressCaptureReplay = enable_validation_layers ? VK_TRUE : VK_FALSE;
+
+    vk13_features.dynamicRendering = VK_TRUE;
+    vk13_features.synchronization2 = VK_TRUE;
+    vk13_features.subgroupSizeControl = VK_TRUE;
+    vk13_features.maintenance4 = VK_TRUE;
+
+    device_features.pNext = &vk11_features;
+    vk11_features.pNext = &vk12_features;
+    vk12_features.pNext = &vk13_features;
+}
+
 // Macro abuse to try to make comparing device has and must have features a little easier
 
 // min_have and device_has are the same, or min have is false
 #define comp(min_have_name, device_has_name, feature_name)                                                                                 \
-    (min_have_name.feature_name == device_has_name.feature_name || !min_have_name.feature_name)
+    ((min_have_name.feature_name == device_has_name.feature_name) || !min_have_name.feature_name)
 
 #define comp_check(var_name, feature_name) comp(var_name, var_name##_check, feature_name)
 
@@ -285,7 +287,7 @@ bool Device::check_features(VkPhysicalDevice device) {
 
     bool vk12_features_available = comp12(runtimeDescriptorArray) && comp12(shaderSampledImageArrayNonUniformIndexing) &&
                                    comp12(drawIndirectCount) && comp12(hostQueryReset) && comp12(scalarBlockLayout) &&
-                                   comp12(bufferDeviceAddress);
+                                   comp12(bufferDeviceAddress) && comp12(bufferDeviceAddressCaptureReplay);
 
     bool vk13_features_available =
         comp13(dynamicRendering) && comp13(synchronization2) && comp13(subgroupSizeControl) && comp13(maintenance4);
