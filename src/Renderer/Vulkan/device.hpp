@@ -39,6 +39,8 @@ class Device {
     VkPhysicalDevice physical_device() const { return _physical_device; }
     VkImageView create_image_view(std::string name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     static const uint32_t API_VERSION = VK_API_VERSION_1_3;
+    VkQueue graphics_queue() { return _graphics_queue; }
+    VkQueue present_queue() { return _present_queue; }
 
 #ifdef NDEBUG
     static const bool enable_validation_layers = false;

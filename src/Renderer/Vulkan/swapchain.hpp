@@ -8,6 +8,12 @@ class SwapChain {
   public:
     SwapChain(VkExtent2D _extent);
     ~SwapChain();
+    size_t current_frame() { return _current_frame; }
+    VkResult acquire_next_image();
+    VkResult submit_command_buffers(VkCommandBuffer buffer);
+    VkImageView color_image_view() { return _color_image_view; }
+    VkImageView depth_image_view() { return _depth_image_view; }
+    VkExtent2D extent() { return _extent; }
 
     static const uint32_t MAX_FRAMES_IN_FLIGHT = 1;
 
@@ -35,6 +41,8 @@ class SwapChain {
     std::vector<VkSemaphore> _render_finished_semaphores;
     std::vector<VkFence> _in_flight_fences;
     void create_sync_objects();
+    size_t _current_frame = 0;
+    uint32_t _image_index = 0;
 };
 
 #endif // SWAPCHAIN_H_

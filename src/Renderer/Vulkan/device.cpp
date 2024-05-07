@@ -167,7 +167,10 @@ Device::QueueFamilyIndices Device::find_queue_families(VkPhysicalDevice device) 
 
     int i = 0;
     for (const auto& queue_family : queue_families) {
-        if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        // FIXME:
+        // Update rendergraph to allow for different queues
+        // Need one command buffer per queue
+        if (queue_family.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
             indices.graphicsFamily = i;
         }
 

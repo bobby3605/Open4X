@@ -179,3 +179,52 @@ void SwapChain::create_sync_objects() {
                      "failed to create synchronization objects for a frame!");
     }
 }
+
+VkResult SwapChain::acquire_next_image() {
+    vkWaitForFences(Device::device->vk_device(), 1, &_in_flight_fences[current_frame()], VK_TRUE, UINT64_MAX);
+
+    VkResult result = vkAcquireNextImageKHR(Device::device->vk_device(), _swap_chain, UINT64_MAX,
+                                            _image_available_semaphores[current_frame()], VK_NULL_HANDLE, &_image_index);
+
+    vkResetFences(Device::device->vk_device(), 1, &_in_flight_fences[current_frame()]);
+
+    return result;
+}
+
+VkResult SwapChain::submit_command_buffers(VkCommandBuffer buffer) {
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {_image_available_semaphores[current_frame()]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &buffer;
+
+    VkSemaphore signalSemaphores[] = {_render_finished_semaphores[current_frame()]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    check_result(vkQueueSubmit(Device::device->graphics_queue(), 1, &submitInfo, _in_flight_fences[current_frame()]),
+                 "failed to submit draw command buffer");
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {_swap_chain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &_image_index;
+    presentInfo.pResults = nullptr;
+
+    VkResult result = vkQueuePresentKHR(Device::device->present_queue(), &presentInfo);
+
+    _current_frame = (_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    return result;
+}

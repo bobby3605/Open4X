@@ -1,24 +1,31 @@
-#ifndef RENDERGRAPH_H_
-#define RENDERGRAPH_H_
+#ifndef RENDEROPS_H_
+#define RENDEROPS_H_
 
-#include "model.hpp"
-#include "swapchain.hpp"
+#include "../../utils.hpp"
+#include "buffer.hpp"
+#include <functional>
+#include <string>
 #include <vulkan/vulkan_core.h>
+
+typedef std::function<void(VkCommandBuffer)> RenderOp;
+
+class RenderNode {
+  public:
+    template <typename F, typename... Args> RenderNode(F f, Args... args) : op{partial(f, args...)} {}
+    // op should never change once it's initialized
+    const RenderOp op;
+};
 
 class RenderGraph {
   public:
-    RenderGraph();
-    ~RenderGraph();
-    void create_data_buffers();
-    void render();
+    RenderGraph(VkCommandPool pool);
+    void compile();
+    VkCommandBuffer command_buffer() { return _command_buffer; }
 
   private:
-    SwapChain* _swap_chain;
-    VkCommandPool _command_pool;
-    std::vector<VkCommandBuffer> _command_buffers;
-    void create_command_buffers();
-    uint32_t _current_frame;
-    void draw_indirect_custom();
+    void record();
+    std::vector<RenderNode> _render_nodes;
+    VkCommandBuffer _command_buffer;
 };
 
-#endif // RENDERGRAPH_H_
+#endif // RENDEROPS_H_

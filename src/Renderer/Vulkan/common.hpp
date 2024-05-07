@@ -1,6 +1,7 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#include <cstdint>
 #include <stdexcept>
 
 #ifdef NDEBUG
@@ -13,5 +14,12 @@
         }                                                                                                                                  \
     }
 #endif
+
+struct NewSettings {
+    uint32_t extraObjectCount = 10000;
+    uint32_t randLimit = 100;
+    bool showFPS = true;
+    bool pauseOnMinimization = false;
+};
 
 #endif // COMMON_H_

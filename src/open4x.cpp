@@ -59,11 +59,12 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 }
 
 Open4X::Open4X() {
+    loadSettings();
     if (NEW_RENDERER) {
         creationTime = std::chrono::high_resolution_clock::now();
         new Window(640, 480, "Open 4X");
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
-        rg = new RenderGraph();
+        rg = new RenderGraph((NewSettings*)settings);
         _model_manager = new ModelManager();
         _object_manager = new ObjectManager(MemoryManager::memory_manager->get_buffer("InstanceData"));
     } else {
@@ -134,8 +135,6 @@ void Open4X::loadSettings() {
 
 void Open4X::run() {
 
-    loadSettings();
-
     std::string base_path = std::filesystem::current_path().string();
     Model* simple_texture_model = _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
     Object* simple_texture_object_0 = _object_manager->add_object("simple_texture_0", simple_texture_model);
@@ -150,7 +149,7 @@ void Open4X::run() {
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;
             cam.update_transform(frame_time);
-            // rg->render();
+            rg->render();
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
