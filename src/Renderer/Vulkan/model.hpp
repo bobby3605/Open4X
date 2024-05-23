@@ -8,6 +8,7 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
+#include <vulkan/vulkan.hpp>
 
 struct InstanceData {
     glm::mat4 model_matrix;
@@ -36,6 +37,39 @@ struct NewVertex {
     texcoord tangent = {0, 0};
     bool operator==(const NewVertex& other) const {
         return pos == other.pos && base == other.base && normal == other.normal && tangent == other.tangent;
+    }
+
+    static VkVertexInputBindingDescription binding_description() {
+        VkVertexInputBindingDescription binding_description{};
+        binding_description.binding = 0;
+        binding_description.stride = sizeof(NewVertex);
+        binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return binding_description;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions() {
+        std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions;
+        attribute_descriptions[0].binding = 0;
+        attribute_descriptions[0].location = 0;
+        attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attribute_descriptions[0].offset = offsetof(NewVertex, pos);
+
+        attribute_descriptions[1].binding = 0;
+        attribute_descriptions[1].location = 1;
+        attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+        attribute_descriptions[1].offset = offsetof(NewVertex, base);
+
+        attribute_descriptions[2].binding = 0;
+        attribute_descriptions[2].location = 2;
+        attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attribute_descriptions[2].offset = offsetof(NewVertex, normal);
+
+        attribute_descriptions[3].binding = 0;
+        attribute_descriptions[3].location = 3;
+        attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attribute_descriptions[3].offset = offsetof(NewVertex, tangent);
+        return attribute_descriptions;
     }
 };
 

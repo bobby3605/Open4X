@@ -361,6 +361,7 @@ void Device::pick_physical_device() {
     VkPhysicalDeviceVulkan13Properties vk13_properties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES};
     VkPhysicalDeviceProperties2 properties2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     properties2.pNext = &vk13_properties;
+    vk13_properties.pNext = &_descriptor_buffer_properties;
     vkGetPhysicalDeviceProperties2(_physical_device, &properties2);
     std::cout << "Using device: " << properties2.properties.deviceID << " " << properties2.properties.deviceName << std::endl;
 

@@ -2,6 +2,8 @@
 #include "device.hpp"
 #include "memory_manager.hpp"
 #include "model.hpp"
+#include "pipeline.hpp"
+#include "shader.hpp"
 #include "swapchain.hpp"
 #include "window.hpp"
 #include <vulkan/vulkan_core.h>
@@ -11,10 +13,16 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     new MemoryManager();
     create_data_buffers();
     _swap_chain = new SwapChain(Window::window->extent());
+    // TODO
+    // Probably don't need this anymore
     create_command_buffers();
+
+    create_rendergraph();
 }
 
 Renderer::~Renderer() {
+    delete _pipeline;
+    delete rg;
     delete _swap_chain;
     delete MemoryManager::memory_manager;
     delete Device::device;
@@ -57,31 +65,19 @@ void Renderer::recreate_swap_chain() {
     //    swapChain = new VulkanSwapChain(_device, _window->getExtent(), swapChain);
 }
 
-void Renderer::start_frame() {
+bool Renderer::render() {
+    // Start Frame
     VkResult result = _swap_chain->acquire_next_image();
-
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         // TODO
         // Do I need to run acquireNextImage after this?
         recreate_swap_chain();
-        return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("failed to acquire swap chain image");
     }
-
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = 0;
-    begin_info.pInheritanceInfo = nullptr;
-
-    vkResetCommandBuffer(get_current_command_buffer(), 0);
-
-    check_result(vkBeginCommandBuffer(get_current_command_buffer(), &begin_info), "failed to begin recording command buffer");
-}
-
-bool Renderer::end_frame() {
-    check_result(vkEndCommandBuffer(get_current_command_buffer()), "failed to end command buffer");
-    VkResult result = _swap_chain->submit_command_buffers(get_current_command_buffer());
+    // Submit Frame
+    result = _swap_chain->submit_command_buffers(rg->command_buffer());
+    // End Frame
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreate_swap_chain();
         // return true if framebuffer was resized
@@ -90,12 +86,6 @@ bool Renderer::end_frame() {
         throw std::runtime_error("failed to present swap chain image");
     }
     return false;
-}
-
-bool Renderer::render() {
-    start_frame();
-    //   record_render_ops(_render_ops, get_current_command_buffer());
-    return end_frame();
 }
 
 struct CustomDrawCommand {
@@ -263,3 +253,24 @@ RenderOp setScissor(VkRect2D scissor) {
     return [=](VkCommandBuffer command_buffer) { vkCmdSetScissor(command_buffer, 0, 1, &scissor); };
 }
 */
+
+void Renderer::create_rendergraph() {
+    rg = new RenderGraph(_command_pool);
+
+    rg->begin_rendering(_swap_chain);
+    std::string baseShaderPath = "assets/shaders/graphics/";
+    std::string baseShaderName = "triangle";
+
+    std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
+    std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
+    rg->graphics_pass(vert_shader_path, frag_shader_path, "vertex_buffer", "index_buffer", _swap_chain);
+
+    std::vector<VkDrawIndexedIndirectCommand> indirect_draws;
+
+    rg->add_node(vkCmdDrawIndexedIndirectCount, MemoryManager::memory_manager->get_buffer("indirect_commands")->vk_buffer(), 0,
+                 MemoryManager::memory_manager->get_buffer("indirect_count")->vk_buffer(), 0, indirect_draws.size(),
+                 sizeof(indirect_draws[0]));
+
+    rg->add_node(vkCmdEndRendering);
+    rg->compile();
+}

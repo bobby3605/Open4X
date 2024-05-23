@@ -29,13 +29,15 @@ class Device {
     static Device* device;
 
     void set_required_features();
-    VkDevice vk_device() const { return _device; }
+    VkDevice const& vk_device() const { return _device; }
     VkInstance instance() const { return _instance; }
     VkSurfaceKHR surface() const { return _surface; }
     SwapChainSupportDetails query_swap_chain_support() { return query_swap_chain_support(_physical_device); }
     QueueFamilyIndices find_queue_families() { return find_queue_families(_physical_device); }
     void set_debug_name(VkObjectType type, uint64_t handle, std::string name);
     VkSampleCountFlagBits msaa_samples() const { return _msaa_samples; }
+    static const VkBool32 sample_shading = VK_FALSE;
+    VkPhysicalDeviceDescriptorBufferPropertiesEXT const& descriptor_buffer_properties() { return _descriptor_buffer_properties; };
     VkPhysicalDevice physical_device() const { return _physical_device; }
     VkImageView create_image_view(std::string name, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     static const uint32_t API_VERSION = VK_API_VERSION_1_3;
@@ -53,8 +55,6 @@ class Device {
     VkPhysicalDeviceVulkan11Features vk11_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
     VkPhysicalDeviceVulkan12Features vk12_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     VkPhysicalDeviceVulkan13Features vk13_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
-
-    static const VkBool32 sample_shading = VK_FALSE;
 
     static constexpr std::array<const char*, 1> validation_layers = {"VK_LAYER_KHRONOS_validation"};
     static constexpr VkValidationFeatureEnableEXT enabled_validation_features[] = {
@@ -79,6 +79,7 @@ class Device {
     VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
     uint32_t _max_subgroup_size;
     uint32_t _max_compute_work_group_invocations;
+    VkPhysicalDeviceDescriptorBufferPropertiesEXT _descriptor_buffer_properties{};
     float _timestamp_period = 0;
     VkSampleCountFlagBits _msaa_samples = VK_SAMPLE_COUNT_1_BIT;
     static const VkBool32 _msaa_enable = VK_FALSE;

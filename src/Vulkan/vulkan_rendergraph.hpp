@@ -1,5 +1,6 @@
 #ifndef VULKAN_RENDERGRAPH_H_
 #define VULKAN_RENDERGRAPH_H_
+#include "common.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_descriptors.hpp"
 #include "vulkan_pipeline.hpp"

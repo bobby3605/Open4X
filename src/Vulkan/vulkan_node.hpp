@@ -2,6 +2,7 @@
 #define VULKAN_NODE_H_
 #include "../glTF/AccessorLoader.hpp"
 #include "../glTF/GLTF.hpp"
+#include "aabb.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_image.hpp"
 #include <cstdint>

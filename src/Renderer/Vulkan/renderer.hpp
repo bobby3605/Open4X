@@ -2,8 +2,8 @@
 #define RENDERER_H_
 
 #include "common.hpp"
-#include "model.hpp"
-#include "swapchain.hpp"
+#include "pipeline.hpp"
+#include "rendergraph.hpp"
 #include <vulkan/vulkan_core.h>
 
 class Renderer {
@@ -23,8 +23,10 @@ class Renderer {
     void create_command_buffers();
     void draw_indirect_custom();
     void recreate_swap_chain();
-    void start_frame();
-    bool end_frame();
+
+    void create_rendergraph();
+    RenderGraph* rg;
+    Pipeline* _pipeline;
 
     /*
 std::vector<RenderOp> _render_ops;

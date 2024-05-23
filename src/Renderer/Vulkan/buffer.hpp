@@ -13,14 +13,16 @@ class Buffer {
     void map();
     void resize(std::size_t new_size);
     void copy(VkBuffer dst, VkDeviceSize copy_size);
-    void*& data() { return _data; }
-    VkBuffer vk_buffer() { return _vk_buffer; }
+    char* data() { return reinterpret_cast<char*>(_data); }
+    const VkBuffer& vk_buffer() { return _vk_buffer; }
     void alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset);
     void free(VmaVirtualAllocation& alloc);
+    const VkDeviceAddress& device_address() { return _device_address; };
 
   private:
     VmaAllocator _allocator;
     VkBuffer _vk_buffer;
+    VkDeviceAddress _device_address;
     VmaAllocation _allocation;
     VkBufferCreateInfo _buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     VmaAllocationCreateInfo _alloc_info = {};

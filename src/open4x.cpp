@@ -64,7 +64,7 @@ Open4X::Open4X() {
         creationTime = std::chrono::high_resolution_clock::now();
         new Window(640, 480, "Open 4X");
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
-        rg = new RenderGraph((NewSettings*)settings);
+        renderer = new Renderer((NewSettings*)settings.get());
         _model_manager = new ModelManager();
         _object_manager = new ObjectManager(MemoryManager::memory_manager->get_buffer("InstanceData"));
     } else {
@@ -79,7 +79,7 @@ Open4X::Open4X() {
 Open4X::~Open4X() {
     if (NEW_RENDERER) {
         delete _model_manager;
-        delete rg;
+        delete renderer;
         delete Window::window;
     } else {
         //    delete vulkanRenderer;
@@ -149,7 +149,7 @@ void Open4X::run() {
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;
             cam.update_transform(frame_time);
-            rg->render();
+            renderer->render();
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);

@@ -1,6 +1,7 @@
 #include "buffer.hpp"
 #include "command_runner.hpp"
 #include "common.hpp"
+#include "device.hpp"
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -19,6 +20,11 @@ Buffer::Buffer(VmaAllocator& allocator, VkDeviceSize byte_size, VkBufferUsageFla
     _alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
     check_result(vmaCreateBuffer(allocator, &_buffer_info, &_alloc_info, &_vk_buffer, &_allocation, nullptr), "failed to create buffer!");
+    // NOTE:
+    // vk_device() should be the same as what was used to create the allocator
+    VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    info.buffer = vk_buffer();
+    _device_address = vkGetBufferDeviceAddress(Device::device->vk_device(), &info);
 
     VmaVirtualBlockCreateInfo virtual_block_create_info{};
     // Allocate max size in the virtual block
@@ -64,6 +70,10 @@ void Buffer::resize(std::size_t new_byte_size) {
 
     check_result(vmaCreateBuffer(_allocator, &new_buffer_info, &_alloc_info, &new_buffer, &new_allocation, nullptr),
                  "failed to create buffer!");
+
+    VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+    info.buffer = vk_buffer();
+    _device_address = vkGetBufferDeviceAddress(Device::device->vk_device(), &info);
 
     copy(new_buffer, std::min(_buffer_info.size, new_buffer_info.size));
     bool tmp_mapped = _mapped;

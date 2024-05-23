@@ -11,8 +11,12 @@ class SwapChain {
     size_t current_frame() { return _current_frame; }
     VkResult acquire_next_image();
     VkResult submit_command_buffers(VkCommandBuffer buffer);
+    VkSurfaceFormatKHR const& surface_format() { return _surface_format; }
+    VkFormat const& depth_format() { return _depth_format; }
     VkImageView color_image_view() { return _color_image_view; }
     VkImageView depth_image_view() { return _depth_image_view; }
+    VkImage const& color_image() { return _color_image; }
+    VkImage const& depth_image() { return _depth_image; }
     VkExtent2D extent() { return _extent; }
 
     static const uint32_t MAX_FRAMES_IN_FLIGHT = 1;
@@ -33,6 +37,7 @@ class SwapChain {
     void create_color_resources();
     VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat find_depth_format();
+    VkFormat _depth_format;
     VkImage _depth_image;
     VkDeviceMemory _depth_image_memory;
     VkImageView _depth_image_view;
