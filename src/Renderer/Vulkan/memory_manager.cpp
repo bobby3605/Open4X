@@ -1,9 +1,10 @@
+#include <string>
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
-#include "memory_manager.hpp"
 #include "common.hpp"
 #include "device.hpp"
+#include "memory_manager.hpp"
 #include "vk_mem_alloc.h"
 #include <vulkan/vulkan_core.h>
 
@@ -41,8 +42,7 @@ Buffer* MemoryManager::create_buffer(std::string name, VkDeviceSize size, VkBuff
         throw std::runtime_error(name + " already exists!");
     }
 
-    Buffer* buffer = new Buffer(_allocator, size, usage, properties);
-    Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer->vk_buffer(), name);
+    Buffer* buffer = new Buffer(_allocator, size, usage, properties, name);
 
     // FIXME:
     // Thread safety
@@ -50,13 +50,21 @@ Buffer* MemoryManager::create_buffer(std::string name, VkDeviceSize size, VkBuff
     return buffer;
 }
 
+Buffer* MemoryManager::get_buffer(std::string name) {
+    if (_buffers.count(name) == 0) {
+        throw std::runtime_error("tried to get buffer that doesn't exist: " + name);
+    }
+    return _buffers.at(name);
+}
+
 void MemoryManager::delete_buffer(std::string name) {
     delete _buffers[name];
     _buffers.erase(name);
 };
 
-void MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
-                                 VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels,
+                                                 VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
+                                                 VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
     if (_images.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
     }
@@ -84,6 +92,7 @@ void MemoryManager::create_image(std::string name, uint32_t width, uint32_t heig
                  "failed to create image!");
     Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.vk_image, name);
     _images.insert({name, image});
+    return image;
 }
 
 void MemoryManager::delete_image(std::string name) {

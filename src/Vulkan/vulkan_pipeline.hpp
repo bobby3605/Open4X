@@ -43,11 +43,11 @@ class VulkanPipeline {
     VkPipelineBindPoint _pipelineType;
 };
 
-class GraphicsPipeline : public VulkanPipeline {
+class OldGraphicsPipeline : public VulkanPipeline {
   public:
-    GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain, VkPipelineShaderStageCreateInfo vertInfo,
-                     VkPipelineShaderStageCreateInfo fragInfo, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                     std::vector<VkPushConstantRange>& pushConstants);
+    OldGraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain, VkPipelineShaderStageCreateInfo vertInfo,
+                        VkPipelineShaderStageCreateInfo fragInfo, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                        std::vector<VkPushConstantRange>& pushConstants);
     //   void bind();
 };
 

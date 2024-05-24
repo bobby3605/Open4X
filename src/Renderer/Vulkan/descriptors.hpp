@@ -7,14 +7,6 @@
 #include <vulkan/vulkan_core.h>
 
 class DescriptorLayout {
-  public:
-    void add_binding(uint32_t set, uint32_t binding, VkDescriptorType type, VkShaderStageFlags stage, std::string buffer_name,
-                     VkMemoryPropertyFlags mem_props);
-    void create_layouts();
-    uint32_t set_offset(uint32_t set);
-    void get_descriptor(uint32_t set, uint32_t binding, VkDescriptorDataEXT const& descriptor_data, void* base_address);
-    std::vector<VkDescriptorSetLayout> get_set_layouts() const;
-
   private:
     struct BindingLayout {
         VkDescriptorSetLayoutBinding binding;
@@ -29,7 +21,19 @@ class DescriptorLayout {
         VkDeviceSize layout_size;
     };
 
-    std::map<uint32_t, SetLayout> set_layouts;
+  public:
+    ~DescriptorLayout();
+    void add_binding(uint32_t set, uint32_t binding, VkDescriptorType type, VkShaderStageFlags stage, std::string buffer_name,
+                     VkMemoryPropertyFlags mem_props);
+    void create_layouts();
+    uint32_t set_offset(uint32_t set) const;
+    void set_descriptor_buffer(uint32_t set, uint32_t binding, VkDescriptorDataEXT const& descriptor_data, char* base_address) const;
+    std::vector<VkDescriptorSetLayout> vk_set_layouts() const;
+    std::map<uint32_t, SetLayout> const& set_layouts() const { return _set_layouts; };
+    size_t buffer_size() const;
+
+  private:
+    std::map<uint32_t, SetLayout> _set_layouts;
 };
 
 #endif // DESCRIPTORS_H_

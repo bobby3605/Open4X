@@ -8,9 +8,9 @@ class SwapChain {
   public:
     SwapChain(VkExtent2D _extent);
     ~SwapChain();
-    size_t current_frame() { return _current_frame; }
+    size_t current_frame() const { return _current_frame; }
     VkResult acquire_next_image();
-    VkResult submit_command_buffers(VkCommandBuffer buffer);
+    VkResult submit_command_buffers(std::vector<VkCommandBuffer>& cmd_buffers);
     VkSurfaceFormatKHR const& surface_format() { return _surface_format; }
     VkFormat const& depth_format() { return _depth_format; }
     VkImageView color_image_view() { return _color_image_view; }
@@ -18,6 +18,8 @@ class SwapChain {
     VkImage const& color_image() { return _color_image; }
     VkImage const& depth_image() { return _depth_image; }
     VkExtent2D extent() { return _extent; }
+    VkImage current_image() const { return _swap_chain_images[_image_index]; }
+    VkImageView current_image_view() const { return _swap_chain_image_views[current_frame()]; }
 
     static const uint32_t MAX_FRAMES_IN_FLIGHT = 1;
 

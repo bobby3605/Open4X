@@ -15,15 +15,16 @@ class MemoryManager {
     static MemoryManager* memory_manager;
 
     Buffer* create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    Buffer* get_buffer(std::string name) { return _buffers.at(name); };
+    Buffer* get_buffer(std::string name);
     void delete_buffer(std::string name);
+    bool buffer_exists(std::string name) const { return _buffers.count(name) == 1; }
 
     struct Image {
         VkImage vk_image;
         VmaAllocation allocation;
     };
-    void create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
-                      VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
+    Image create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples,
+                       VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
     Image get_image(std::string name) const { return _images.at(name); };
     void delete_image(std::string name);
 

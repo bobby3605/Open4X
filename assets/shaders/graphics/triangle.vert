@@ -52,7 +52,8 @@ void main() {
 
     ObjectData object = objects[culled_instance_indices[gl_InstanceIndex]];
 
-    gl_Position = proj_view * object.model_matrix * vertPos;
+    vec4 vert_pos = object.model_matrix * vec4(in_position, 1.0);
+    gl_Position = proj_view * vert_pos;
 
     base_color_factor = material.base_color_factor;
 
@@ -68,8 +69,6 @@ void main() {
     occulsion_strength = material.occlusion_strength;
 
     frag_texcoord = tex_coord;
-    // FIXME:
-    // Why is this vert_pos??
     world_pos = vec3(vert_pos);
     normal_out = normal;
     cam_pos_out = cam_pos;

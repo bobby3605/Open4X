@@ -146,13 +146,15 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
     std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts;
     // Copy stages and descriptor layouts into contiguous memory
+    // Get descriptor buffer size
     for (auto const& shader : shaders()) {
         shader_stages.push_back(shader.second.stage_info());
         // TODO
         // Make this better, so there's less copying
         // c++23 has append_range, but I can't get it to compile
-        std::vector<VkDescriptorSetLayout> tmp = shader.second.descriptor_layout().get_set_layouts();
+        std::vector<VkDescriptorSetLayout> tmp = shader.second.descriptor_layout().vk_set_layouts();
         descriptor_buffer_layouts.insert(descriptor_buffer_layouts.end(), tmp.begin(), tmp.end());
+        _buffer_size += shader.second.descriptor_layout().buffer_size();
     }
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -161,6 +163,7 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
 
     check_result(vkCreatePipelineLayout(Device::device->vk_device(), &pipeline_layout_info, nullptr, &_pipeline_layout),
                  "failed to create graphics pipeline layout");
+    Device::device->set_debug_name(VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)_pipeline_layout, _pipeline_name + "_layout");
 
     auto binding_description = NewVertex::binding_description();
     auto attribute_descriptions = NewVertex::attribute_descriptions();
@@ -178,4 +181,5 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
 
     check_result(vkCreateGraphicsPipelines(Device::device->device->vk_device(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &_pipeline),
                  "failed to create graphics pipeline");
+    Device::device->set_debug_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)_pipeline, _pipeline_name);
 }

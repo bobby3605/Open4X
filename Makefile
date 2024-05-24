@@ -3,7 +3,7 @@
 
 open4x:
 	mkdir -p build
-	cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -S . -B build -GNinja
+	cmake -S . -B build -GNinja
 	ninja -v -C build
 
 run:

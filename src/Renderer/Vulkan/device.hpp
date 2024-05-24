@@ -55,6 +55,8 @@ class Device {
     VkPhysicalDeviceVulkan11Features vk11_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
     VkPhysicalDeviceVulkan12Features vk12_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     VkPhysicalDeviceVulkan13Features vk13_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
 
     static constexpr std::array<const char*, 1> validation_layers = {"VK_LAYER_KHRONOS_validation"};
     static constexpr VkValidationFeatureEnableEXT enabled_validation_features[] = {
@@ -71,7 +73,8 @@ class Device {
     void create_instance();
     VkSurfaceKHR _surface;
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    static constexpr std::array<const char*, 1> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    static constexpr std::array<const char*, 2> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                                     VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME};
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);
     bool check_features(VkPhysicalDevice device);
@@ -79,7 +82,8 @@ class Device {
     VkPhysicalDevice _physical_device = VK_NULL_HANDLE;
     uint32_t _max_subgroup_size;
     uint32_t _max_compute_work_group_invocations;
-    VkPhysicalDeviceDescriptorBufferPropertiesEXT _descriptor_buffer_properties{};
+    VkPhysicalDeviceDescriptorBufferPropertiesEXT _descriptor_buffer_properties{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT};
     float _timestamp_period = 0;
     VkSampleCountFlagBits _msaa_samples = VK_SAMPLE_COUNT_1_BIT;
     static const VkBool32 _msaa_enable = VK_FALSE;
@@ -99,7 +103,9 @@ class Device {
         CommandPoolAllocator();
         ~CommandPoolAllocator();
         VkCommandPool get_pool();
-        VkCommandBuffer get_buffer(VkCommandPool pool);
+        VkCommandBuffer get_buffer(VkCommandPool pool, VkCommandBufferLevel level);
+        VkCommandBuffer get_primary(VkCommandPool pool);
+        VkCommandBuffer get_secondary(VkCommandPool pool);
         void release_pool(VkCommandPool pool);
         void release_buffer(VkCommandPool pool, VkCommandBuffer buffer);
 

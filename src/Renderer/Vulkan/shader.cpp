@@ -50,6 +50,7 @@ Shader::Shader(std::filesystem::path file_path) : _path{file_path} {
     // Should this be before or after compile?
     // Probably after in case a descriptor gets optimized out
     reflect();
+    _descriptor_layout.create_layouts();
 }
 
 Shader::~Shader() { vkDestroyShaderModule(Device::device->device->vk_device(), _module, nullptr); }
@@ -115,18 +116,27 @@ void Shader::compile() {
 
     result = shader.parse(limits, default_version, defaultProfile, force_default_version_and_profile, forward_compatible, rules, includer);
     if (!result) {
-        throw std::runtime_error("Shader parsing failed for: " + _path.string());
+        std::string err = "Shader parsing failed for: " + _path.string() + "\n" + shader.getInfoLog();
+        if (debug)
+            err += shader.getInfoDebugLog();
+        throw std::runtime_error(err);
     }
 
     glslang::TProgram shader_program;
     shader_program.addShader(&shader);
     result = shader_program.link(EShMsgDefault);
     if (!result) {
-        throw std::runtime_error("Shader linking failed for: " + _path.string());
+        std::string err = "Shader linking failed for: " + _path.string() + "\n" + shader.getInfoLog();
+        if (debug)
+            err += shader.getInfoDebugLog();
+        throw std::runtime_error(err);
     }
     result = shader_program.mapIO();
     if (!result) {
-        throw std::runtime_error("Shader IO mapping failed for: " + _path.string());
+        std::string err = "Shader IO mapping failed for: " + _path.string() + "\n" + shader.getInfoLog();
+        if (debug)
+            err += shader.getInfoDebugLog();
+        throw std::runtime_error(err);
     }
 
     glslang::SpvOptions options;

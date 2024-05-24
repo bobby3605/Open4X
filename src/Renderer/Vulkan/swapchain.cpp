@@ -110,6 +110,10 @@ void SwapChain::create_swap_chain(VkSwapchainKHR _old_swap_chain) {
     vkGetSwapchainImagesKHR(Device::device->vk_device(), _swap_chain, &image_count, nullptr);
     _swap_chain_images.resize(image_count);
     vkGetSwapchainImagesKHR(Device::device->vk_device(), _swap_chain, &image_count, _swap_chain_images.data());
+    for (size_t i = 0; i < _swap_chain_images.size(); ++i) {
+        Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)_swap_chain_images[i],
+                                       "swap_chain_image[" + std::to_string(i) + "]");
+    }
 }
 
 void SwapChain::create_image_views() {
@@ -123,9 +127,12 @@ void SwapChain::create_image_views() {
 
 void SwapChain::create_color_resources() {
 
-    MemoryManager::memory_manager->create_image(
-        "color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    _color_image =
+        MemoryManager::memory_manager
+            ->create_image("color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format,
+                           VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            .vk_image;
     _color_image_view =
         Device::device->create_image_view("color_image_view", MemoryManager::memory_manager->get_image("color_image").vk_image,
                                           _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
@@ -154,9 +161,11 @@ VkFormat SwapChain::find_depth_format() {
 void SwapChain::create_depth_resources() {
 
     _depth_format = find_depth_format();
-    MemoryManager::memory_manager->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(),
-                                                _depth_format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    _depth_image =
+        MemoryManager::memory_manager
+            ->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _depth_format,
+                           VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            .vk_image;
     _depth_image_view = Device::device->create_image_view(
         "depth_image_view", MemoryManager::memory_manager->get_image("depth_image").vk_image, _depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 }
@@ -191,7 +200,7 @@ VkResult SwapChain::acquire_next_image() {
     return result;
 }
 
-VkResult SwapChain::submit_command_buffers(VkCommandBuffer buffer) {
+VkResult SwapChain::submit_command_buffers(std::vector<VkCommandBuffer>& cmd_buffers) {
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -201,8 +210,8 @@ VkResult SwapChain::submit_command_buffers(VkCommandBuffer buffer) {
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &buffer;
+    submitInfo.commandBufferCount = cmd_buffers.size();
+    submitInfo.pCommandBuffers = cmd_buffers.data();
 
     VkSemaphore signalSemaphores[] = {_render_finished_semaphores[current_frame()]};
     submitInfo.signalSemaphoreCount = 1;
@@ -211,18 +220,18 @@ VkResult SwapChain::submit_command_buffers(VkCommandBuffer buffer) {
     check_result(vkQueueSubmit(Device::device->graphics_queue(), 1, &submitInfo, _in_flight_fences[current_frame()]),
                  "failed to submit draw command buffer");
 
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signalSemaphores;
 
-    VkSwapchainKHR swapChains[] = {_swap_chain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &_image_index;
-    presentInfo.pResults = nullptr;
+    VkSwapchainKHR swap_chains[] = {_swap_chain};
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swap_chains;
+    present_info.pImageIndices = &_image_index;
+    present_info.pResults = nullptr;
 
-    VkResult result = vkQueuePresentKHR(Device::device->present_queue(), &presentInfo);
+    VkResult result = vkQueuePresentKHR(Device::device->present_queue(), &present_info);
 
     _current_frame = (_current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 

@@ -15,6 +15,12 @@ Device::Device() {
     _command_pool = create_command_pool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     _command_pool_allocator = new CommandPoolAllocator();
     device = this;
+    // FIXME:
+    // Replace with volk
+    load_device_addr(vkGetDescriptorSetLayoutSizeEXT, _device);
+    load_device_addr(vkGetDescriptorSetLayoutBindingOffsetEXT, _device);
+    load_device_addr(vkGetDescriptorEXT, _device);
+    load_device_addr(vkCmdBindDescriptorBuffersEXT, _device);
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
@@ -251,12 +257,23 @@ void Device::set_required_features() {
     vk13_features.subgroupSizeControl = VK_TRUE;
     vk13_features.maintenance4 = VK_TRUE;
 
+    descriptor_buffer_features.descriptorBuffer = VK_TRUE;
+    // NOTE:
+    // Neither mesa nor renderdoc support this
+    // amdgpu does, but without renderdoc support it's useless
+    // Until capture replay works in mesa and renderdoc,
+    // descriptor buffers are dead in the water for development
+    //    descriptor_buffer_features.descriptorBufferCaptureReplay = enable_validation_layers ? VK_TRUE : VK_FALSE;
+
     device_features.pNext = &vk11_features;
     vk11_features.pNext = &vk12_features;
     vk12_features.pNext = &vk13_features;
+    vk13_features.pNext = &descriptor_buffer_features;
 }
 
 // Macro abuse to try to make comparing device has and must have features a little easier
+// TODO
+// Better solution to this
 
 // min_have and device_has are the same, or min have is false
 #define comp(min_have_name, device_has_name, feature_name)                                                                                 \
@@ -268,8 +285,12 @@ void Device::set_required_features() {
 #define comp11(feature_name) comp_check(vk11_features, feature_name)
 #define comp12(feature_name) comp_check(vk12_features, feature_name)
 #define comp13(feature_name) comp_check(vk13_features, feature_name)
+#define compdb(feature_name) comp_check(descriptor_buffer_features, feature_name)
 
 bool Device::check_features(VkPhysicalDevice device) {
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features_check{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
+
     VkPhysicalDeviceVulkan13Features vk13_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
 
     VkPhysicalDeviceVulkan12Features vk12_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
@@ -294,6 +315,8 @@ bool Device::check_features(VkPhysicalDevice device) {
 
     bool vk13_features_available =
         comp13(dynamicRendering) && comp13(synchronization2) && comp13(subgroupSizeControl) && comp13(maintenance4);
+
+    bool descriptor_buffer_features_available = compdb(descriptorBuffer); //&& compdb(descriptorBufferCaptureReplay);
 
     return device_features_available && vk11_features_available && vk12_features_available && vk13_features_available;
 }
@@ -340,7 +363,7 @@ VkSampleCountFlagBits get_max_usable_sample_count(VkPhysicalDeviceProperties pro
 void Device::pick_physical_device() {
 
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(_instance, &deviceCount, VK_NULL_HANDLE);
 
     if (deviceCount == 0)
         throw std::runtime_error("failed to find GPUs with Vulkan support");
@@ -413,12 +436,12 @@ void Device::create_logical_device() {
 VkCommandPool Device::create_command_pool(VkCommandPoolCreateFlags flags) {
     QueueFamilyIndices queue_family_indices = find_queue_families(_physical_device);
 
-    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-    poolInfo.flags = flags;
-    poolInfo.queueFamilyIndex = queue_family_indices.graphicsFamily.value();
+    VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    pool_info.flags = flags;
+    pool_info.queueFamilyIndex = queue_family_indices.graphicsFamily.value();
 
     VkCommandPool pool;
-    check_result(vkCreateCommandPool(_device, &poolInfo, nullptr, &pool), "failed to create command pool");
+    check_result(vkCreateCommandPool(_device, &pool_info, nullptr, &pool), "failed to create command pool");
     return pool;
 }
 

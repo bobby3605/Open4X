@@ -8,7 +8,7 @@ CommandRunner::CommandRunner() {
         _pool = Device::device->command_pools()->get_pool();
     }
 
-    _command_buffer = Device::device->command_pools()->get_buffer(_pool);
+    _command_buffer = Device::device->command_pools()->get_primary(_pool);
     begin_recording();
 }
 

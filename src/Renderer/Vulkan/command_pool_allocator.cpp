@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include "device.hpp"
+#include <vulkan/vulkan_core.h>
 
 // TODO Improve this
 Device::CommandPoolAllocator::CommandPoolAllocator() {}
@@ -35,7 +36,7 @@ VkCommandPool Device::CommandPoolAllocator::get_pool() {
 }
 
 std::mutex Device::CommandPoolAllocator::get_buffer_mutex;
-VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool) {
+VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool, VkCommandBufferLevel level) {
     std::lock_guard<std::mutex> lock(get_buffer_mutex);
     for (auto poolItr = pools.begin(); poolItr != pools.end(); ++poolItr) {
         if (poolItr->first == pool) {
@@ -47,7 +48,7 @@ VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool) {
             }
             // if no free buffers create buffer in pool and return it
             VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-            allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            allocInfo.level = level;
             allocInfo.commandPool = poolItr->first;
             allocInfo.commandBufferCount = 1;
 
@@ -59,6 +60,11 @@ VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool) {
         }
     }
     throw std::runtime_error("failed to find command pool");
+}
+
+VkCommandBuffer Device::CommandPoolAllocator::get_primary(VkCommandPool pool) { return get_buffer(pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY); }
+VkCommandBuffer Device::CommandPoolAllocator::get_secondary(VkCommandPool pool) {
+    return get_buffer(pool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 }
 
 void Device::CommandPoolAllocator::release_pool(VkCommandPool pool) {

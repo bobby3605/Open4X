@@ -194,7 +194,7 @@ void VulkanRenderGraph::addGraphicsPipeline(std::shared_ptr<VulkanRenderGraph::V
         pushConstants.push_back(fragShader->pushConstantRange);
     }
     pipelines[getFilenameNoExt(vertShader->name)] =
-        std::make_shared<GraphicsPipeline>(_device, swapChain, vertShader->stageInfo, fragShader->stageInfo, layouts, pushConstants);
+        std::make_shared<OldGraphicsPipeline>(_device, swapChain, vertShader->stageInfo, fragShader->stageInfo, layouts, pushConstants);
 }
 
 void VulkanRenderGraph::compile() {

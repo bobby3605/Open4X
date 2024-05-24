@@ -1,67 +1,200 @@
 #include "rendergraph.hpp"
+#include "common.hpp"
 #include "device.hpp"
 #include "memory_manager.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
 #include <memory>
+#include <stdexcept>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
-/*
-void tmp() {
-    VkRenderingInfo pass_info{};
-    RenderNode begin_rendering = RenderNode(vkCmdBeginRendering, &pass_info);
-    RenderNode dispatch = RenderNode(vkCmdDispatch, 0, 1, 2);
-}
-*/
+RenderGraph::RenderGraph(VkCommandPool pool) : _pool{pool} {}
 
-RenderGraph::RenderGraph(VkCommandPool pool) : _command_buffer{Device::device->command_pools()->get_buffer(pool)} {}
+RenderGraph::~RenderGraph() {
+    for (auto& graph : _primary_graphs) {
+        Device::device->command_pools()->release_buffer(_pool, graph.first);
+    }
+    for (auto& graph : _secondary_graphs) {
+        Device::device->command_pools()->release_buffer(_pool, graph.first);
+    }
+}
 
 void RenderGraph::compile() {
-    get_descriptors();
-    record();
-}
+    // FIXME:
+    // Only record non-per frame buffers
+    for (auto& graph : _primary_graphs) {
+        record_buffer(graph.first, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, graph.second);
+    }
+    for (auto& graph : _secondary_graphs) {
+        record_buffer(graph.first, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, graph.second);
+    }
 
-void RenderGraph::get_descriptors() {
+    // Set descriptor buffer
+    // FIXME:
+    // Clean this up
+    for (auto const& pipeline : _pipelines) {
+        // FIXME:
+        // Dynamically resize this buffer
+        Buffer* descriptor_buffer = MemoryManager::memory_manager->create_buffer(
+            pipeline->name() + std::string(Pipeline::_descriptor_buffer_suffix), pipeline->buffer_size(),
+            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    for (auto& pipeline : _pipelines) {
+        pipeline->descriptor_buffers_binding_info.address = descriptor_buffer->device_address();
+        pipeline->descriptor_buffers_binding_info.usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
+
         for (auto const& shader : pipeline->shaders()) {
-            // FIXME:
-            // use map instead of unordered map so that set layouts are sorted
-            for (auto const& set_layout : shader.second.set_layouts()) {
-                std::size_t size;
-                std::size_t byte_offset = 0;
-                VkDescriptorDataEXT data;
-                VkDescriptorGetInfoEXT descriptor_info{VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT};
-
-                descriptor_info.type;
-                descriptor_info.data = data;
-
-                size = Device::device->descriptor_buffer_properties().storageBufferDescriptorSize;
-
-                vkGetDescriptorEXT(
-                    Device::device->vk_device(), &descriptor_info, size,
-                    MemoryManager::memory_manager->get_buffer(pipeline->name() + std::string(Pipeline::_descriptor_buffer_suffix))->data() +
-                        byte_offset);
-                byte_offset += size;
+            for (auto const& set_layout : shader.second.descriptor_layout().set_layouts()) {
+                for (auto const& binding_layout : set_layout.second.bindings) {
+                    VkDescriptorDataEXT descriptor_data;
+                    VkDescriptorAddressInfoEXT addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
+                    Buffer* tmp;
+                    std::string buffer_name = binding_layout.second.buffer_name;
+                    if (MemoryManager::memory_manager->buffer_exists(buffer_name)) {
+                        // FIXME:
+                        // support recreating buffer with new mem props if needed from the graph
+                        tmp = MemoryManager::memory_manager->get_buffer(buffer_name);
+                    } else {
+                        if (_buffer_size_registry.count(buffer_name) == 0) {
+                            throw std::runtime_error("trying to create unregistered buffer: " + buffer_name);
+                        }
+                        VkDeviceSize size = _buffer_size_registry.at(buffer_name);
+                        // FIXME:
+                        // Get size from dynamic resizing instead of _buffer_size_registry
+                        // Support shaders that have a buffer named the same
+                        // Get mem_props by reading what the buffer will be used for in the graph
+                        tmp = MemoryManager::memory_manager->create_buffer(
+                            buffer_name, size,
+                            type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                            binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    }
+                    addr_info.address = tmp->device_address();
+                    addr_info.range = tmp->size();
+                    // TODO
+                    // Find out what format should be
+                    addr_info.format = VK_FORMAT_UNDEFINED;
+                    // TODO
+                    // clean this up
+                    // binding_layout.second.binding.descriptorType;
+                    if (tmp->buffer_info().usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+                        descriptor_data.pStorageBuffer = &addr_info;
+                    } else if (tmp->buffer_info().usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) {
+                        descriptor_data.pUniformBuffer = &addr_info;
+                    } else {
+                        throw std::runtime_error("unknown buffer usage for VkDescriptorData: " + std::to_string(tmp->buffer_info().usage));
+                    }
+                    shader.second.descriptor_layout().set_descriptor_buffer(set_layout.first, binding_layout.first, descriptor_data,
+                                                                            descriptor_buffer->data());
+                }
             }
         }
     }
 }
 
-void RenderGraph::record() {
+void RenderGraph::record_buffer(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags,
+                                std::vector<RenderNode> const& render_nodes) {
+    check_result(vkResetCommandBuffer(command_buffer, 0), "failed to reset command buffer!");
     VkCommandBufferBeginInfo begin_info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     // Simultaneous use so that it can be used across multiple frames
     // Only works within the same queue family
+    // Might need to record per frame, because of secondaries
     // TODO
     // If device doesn't have a queue with both graphics and compute capability,
     // then create separate command buffers for graphics and compute
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-    vkBeginCommandBuffer(_command_buffer, &begin_info);
-
-    for (RenderNode const& render_node : _render_nodes) {
-        render_node.op(_command_buffer);
+    begin_info.flags = flags;
+    // FIXME:
+    // Get inheritance info for dynamic rendering
+    begin_info.pInheritanceInfo;
+    check_result(vkBeginCommandBuffer(command_buffer, &begin_info), "failed to begin command buffer!");
+    for (RenderNode const& render_node : render_nodes) {
+        render_node.op(command_buffer);
     }
-    vkEndCommandBuffer(_command_buffer);
+    check_result(vkEndCommandBuffer(command_buffer), "failed to end command buffer!");
+}
+
+void RenderGraph::bad_workaround(SwapChain* swap_chain) {
+    VkCommandBuffer& cmd_buffer = _curr_primary_cmd_buffer;
+    auto& nodes = _primary_graphs.at(cmd_buffer);
+
+    uint32_t current_transition_index = 0;
+    uint32_t tmp_barrier_index = 0;
+    auto tmp_barrier = reinterpret_cast<VkImageMemoryBarrier2*>(nodes[current_transition_index].deps[tmp_barrier_index].get());
+    tmp_barrier->image = swap_chain->current_image();
+
+    uint32_t depth_transition_index = 1;
+    tmp_barrier = reinterpret_cast<VkImageMemoryBarrier2*>(nodes[depth_transition_index].deps[tmp_barrier_index].get());
+    tmp_barrier->image = swap_chain->depth_image();
+
+    uint32_t begin_rendering_index = 2;
+    uint32_t color_attachment_index = 0;
+    auto color_attachment = reinterpret_cast<VkRenderingAttachmentInfo*>(nodes[begin_rendering_index].deps[color_attachment_index].get());
+    color_attachment->imageView = swap_chain->color_image_view();
+
+    uint32_t depth_attachment_index = 1;
+    auto depth_attachment = reinterpret_cast<VkRenderingAttachmentInfo*>(nodes[begin_rendering_index].deps[depth_attachment_index].get());
+    depth_attachment->imageView = swap_chain->depth_image_view();
+
+    uint32_t present_transition_index = nodes.size() - 1;
+    tmp_barrier = reinterpret_cast<VkImageMemoryBarrier2*>(nodes[present_transition_index].deps[tmp_barrier_index].get());
+    tmp_barrier->image = swap_chain->current_image();
+
+    record_buffer(cmd_buffer, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, nodes);
+}
+
+VkResult RenderGraph::submit(SwapChain* swap_chain) {
+    // Flatten primaries for submission
+    // TODO
+    // Move this into compile so it's only done once
+    std::vector<VkCommandBuffer> primary_buffers;
+    primary_buffers.reserve(_primary_graphs.size());
+    for (auto& graph : _primary_graphs) {
+        primary_buffers.push_back(graph.first);
+    }
+    for (auto& cmd_buffer : _per_frame_primary) {
+        record_buffer(cmd_buffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, _primary_graphs.at(cmd_buffer));
+    }
+    for (auto& cmd_buffer : _per_frame_secondary) {
+        record_buffer(cmd_buffer, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, _secondary_graphs.at(cmd_buffer));
+    }
+    // FIXME:
+    // Sets the per-frame values
+    bad_workaround(swap_chain);
+    // Return true if swapchain recreated
+    return swap_chain->submit_command_buffers(primary_buffers);
+}
+
+// TODO
+// Figure out the primary vs secondary buffers and re-recording at graph compile time
+void RenderGraph::define_primary(bool per_frame) {
+    // TODO
+    // Look into replacing _curr with _graphs.end()
+    // unordered map should work fine
+    _curr_primary_cmd_buffer = Device::device->command_pools()->get_primary(_pool);
+    Device::device->set_debug_name(VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)_curr_primary_cmd_buffer,
+                                   "primary_cmd_buffer[" + std::to_string(_primary_graphs.size()) + "]");
+    if (per_frame) {
+        _per_frame_primary.push_back(_curr_primary_cmd_buffer);
+    }
+    _secondary = false;
+}
+
+void RenderGraph::define_secondary(bool per_frame) {
+    _curr_secondary_cmd_buffer = Device::device->command_pools()->get_secondary(_pool);
+    Device::device->set_debug_name(VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)_curr_secondary_cmd_buffer,
+                                   "secondary_cmd_buffer[" + std::to_string(_secondary_graphs.size()) + "]");
+    auto secondary_lifetime = std::make_shared<VkCommandBuffer>(_curr_secondary_cmd_buffer);
+    // TODO
+    // optimize this in compile
+    // if multiple secondary command buffers come right after one another,
+    // they can be combined into one execute commands if there's no memory hazards
+
+    // Add secondary to current primary command buffer
+    add_node({secondary_lifetime}, vkCmdExecuteCommands, 1, secondary_lifetime.get());
+    _secondary = true;
+    if (per_frame) {
+        _per_frame_secondary.push_back(_curr_secondary_cmd_buffer);
+    }
 }
 
 // FIXME:
@@ -69,27 +202,34 @@ void RenderGraph::record() {
 // Will need to re-record buffer,
 // maybe put vkCmdBeginRendering into a secondary buffer? so that the whole thing doesn't need to be re-recorded
 void RenderGraph::begin_rendering(SwapChain* const swap_chain) {
-    transition_image(swap_chain->color_image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    transition_image(swap_chain->current_image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                      VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
 
     transition_image(swap_chain->depth_image(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                      VkImageSubresourceRange{VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1});
 
-    auto color_attachment = std::make_shared<VkRenderingAttachmentInfo>(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO);
-    color_attachment->imageView = swap_chain->color_image_view();
+    auto color_attachment = std::make_shared<VkRenderingAttachmentInfo>();
+    color_attachment->sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    // NOTE:
+    // This probably needs to be a reference to the image that the swapchain is currently using,
+    // more than 1 frame in flight will break this because it's pre-recorded
+    // Or maybe it's fine, because we only process one frame at a time??
+    color_attachment->imageView = swap_chain->current_image_view();
     color_attachment->imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color_attachment->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     color_attachment->clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    auto depth_attachment = std::make_shared<VkRenderingAttachmentInfo>(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO);
+    auto depth_attachment = std::make_shared<VkRenderingAttachmentInfo>();
+    depth_attachment->sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depth_attachment->imageView = swap_chain->depth_image_view();
     depth_attachment->imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
     depth_attachment->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth_attachment->storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depth_attachment->clearValue.depthStencil = {1.0f, 0};
 
-    auto pass_info = std::make_shared<VkRenderingInfo>(VK_STRUCTURE_TYPE_RENDERING_INFO);
+    auto pass_info = std::make_shared<VkRenderingInfo>();
+    pass_info->sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     pass_info->renderArea.extent = swap_chain->extent();
     pass_info->layerCount = 1;
     pass_info->colorAttachmentCount = 1;
@@ -97,6 +237,11 @@ void RenderGraph::begin_rendering(SwapChain* const swap_chain) {
     pass_info->pDepthAttachment = depth_attachment.get();
 
     add_node({color_attachment, depth_attachment, pass_info}, vkCmdBeginRendering, pass_info.get());
+}
+void RenderGraph::end_rendering(SwapChain* const swap_chain) {
+    add_node(vkCmdEndRendering);
+    transition_image(swap_chain->current_image(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                     VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1});
 }
 
 void RenderGraph::transition_image(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels) {
@@ -156,8 +301,9 @@ void RenderGraph::image_barrier(VkImageMemoryBarrier2& barrier) {
     }
 
     auto tmp_barrier = std::make_shared<VkImageMemoryBarrier2>(barrier);
-    auto dependency_info = std::make_shared<VkDependencyInfo>(VK_STRUCTURE_TYPE_DEPENDENCY_INFO);
+    auto dependency_info = std::make_shared<VkDependencyInfo>();
 
+    dependency_info->sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info->dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     dependency_info->imageMemoryBarrierCount = 1;
     dependency_info->pImageMemoryBarriers = tmp_barrier.get();
@@ -185,14 +331,16 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     // Technically passing _pipeline isn't needed here,
     // but it's being put here to ensure that the render node holds the lifetime of it
     add_node({_pipeline}, vkCmdBindPipeline, _pipeline->bind_point(), _pipeline->vk_pipeline());
-    //    add_node(vkCmdBindDescriptorBuffersEXT, 1, _pipeline->descriptor_buffers_binding_info());
-
-    uint32_t first_binding = 0;
-    uint32_t binding_count = 0;
     // bind descriptors
+    // FIXME:
+    // Get rid of this bind, and only set offsets instead
+    add_node(vkCmdBindDescriptorBuffersEXT_, 1, &_pipeline->descriptor_buffers_binding_info);
+
     // push constants
-    std::vector<VkBuffer> vertex_buffers = {MemoryManager::memory_manager->get_buffer(vertex_buffer_name)->vk_buffer()};
-    std::vector<VkDeviceSize> offsets = {0};
-    add_node(vkCmdBindVertexBuffers, first_binding, binding_count, vertex_buffers.data(), offsets.data());
+    auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
+    add_node({offsets}, vkCmdBindVertexBuffers, 0, 1, &MemoryManager::memory_manager->get_buffer(vertex_buffer_name)->vk_buffer(),
+             offsets->data());
     add_node(vkCmdBindIndexBuffer, MemoryManager::memory_manager->get_buffer(index_buffer_name)->vk_buffer(), 0, VK_INDEX_TYPE_UINT32);
 }
+
+void RenderGraph::buffer(std::string name, VkDeviceSize size) { _buffer_size_registry.insert_or_assign(name, size); }

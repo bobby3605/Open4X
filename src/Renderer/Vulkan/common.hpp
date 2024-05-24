@@ -7,9 +7,10 @@
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #ifdef NDEBUG
-#define check_result(f, str)
+#define check_result(f, str) f
 #else
 #define check_result(f, str)                                                                                                               \
     {                                                                                                                                      \
@@ -19,6 +20,19 @@
     }
 #endif
 
+// FIXME:
+// Replace with volk
+#define def_vk_ext_hpp(f_name) extern PFN_##f_name f_name##_;
+#define def_vk_ext_cpp(f_name) PFN_##f_name f_name##_;
+
+def_vk_ext_hpp(vkGetDescriptorSetLayoutSizeEXT);
+def_vk_ext_hpp(vkGetDescriptorSetLayoutBindingOffsetEXT);
+def_vk_ext_hpp(vkGetDescriptorEXT);
+def_vk_ext_hpp(vkCmdBindDescriptorBuffersEXT);
+
+#define load_instance_addr(f_name, instance) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetInstanceProcAddr(instance, #f_name))
+#define load_device_addr(f_name, device) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetDeviceProcAddr(device, #f_name))
+
 struct NewSettings {
     uint32_t extraObjectCount = 10000;
     uint32_t randLimit = 100;
@@ -26,51 +40,17 @@ struct NewSettings {
     bool pauseOnMinimization = false;
 };
 
-static std::string get_file_extension(std::string file_path) {
-    try {
-        return file_path.substr(file_path.find_last_of(".") + 1);
-    } catch (std::exception& e) {
-        throw std::runtime_error("failed to get file extension of: " + file_path);
-    }
-}
+std::string get_file_extension(std::string file_path);
 
-static std::string get_filename(std::string file_path) {
-    try {
-        auto pos = file_path.find_last_of("/\\") + 1;
-        // returns npos if / is not found, would happen if there is no subdirectory
-        return file_path.substr(pos == std::string::npos ? 0 : pos);
-    } catch (std::exception& e) {
-        throw std::runtime_error("failed to get filename of: " + file_path);
-    }
-}
+std::string get_filename(std::string file_path);
 
-static std::string get_filename_no_ext(std::string file_path) {
-    try {
-        std::string file_name_with_ext = get_filename(file_path);
-        return file_name_with_ext.substr(0, file_path.find_last_of("."));
-    } catch (std::exception& e) {
-        throw std::runtime_error("failed to get file extension of: " + file_path);
-    }
-}
+std::string get_filename_no_ext(std::string file_path);
 
-static std::vector<char> read_file(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+std::vector<char> read_file(const std::string& filename);
 
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file: " + filename);
-    }
+inline std::size_t align(std::size_t x, std::size_t U) { return (sizeof(x) + sizeof(U) - 1) - sizeof(x) % sizeof(U); }
 
-    size_t file_size = (size_t)file.tellg();
-    std::vector<char> buffer(file_size);
-    file.seekg(0);
-    file.read(buffer.data(), file_size);
-    file.close();
-    return buffer;
-}
-
-static inline std::size_t align(std::size_t x, std::size_t U) { return (sizeof(x) + sizeof(U) - 1) - sizeof(x) % sizeof(U); }
-
-static inline const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = {
+const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = {
     {VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER},
     {VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER},
     {VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
@@ -79,6 +59,7 @@ static inline const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usa
     {VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC},
 };
 
-VkDescriptorType usage_to_type(VkBufferUsageFlags usageFlags);
+VkDescriptorType usage_to_type(VkBufferUsageFlags usage_flags);
+VkBufferUsageFlags type_to_usage(VkDescriptorType type);
 
 #endif // NEWCOMMON_H_
