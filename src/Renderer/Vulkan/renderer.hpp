@@ -17,9 +17,6 @@ class Renderer {
     NewSettings* _settings;
     SwapChain* _swap_chain;
     VkCommandPool _command_pool;
-    std::vector<VkCommandBuffer> _command_buffers;
-    VkCommandBuffer get_current_command_buffer() { return _command_buffers[_swap_chain->current_frame()]; }
-    void create_command_buffers();
     void recreate_swap_chain();
 
     void create_rendergraph();

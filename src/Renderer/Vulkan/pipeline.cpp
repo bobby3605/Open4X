@@ -9,7 +9,6 @@
 #include <vulkan/vulkan_core.h>
 
 Pipeline::~Pipeline() {
-    MemoryManager::memory_manager->delete_buffer(_pipeline_name + std::string(_descriptor_buffer_suffix));
     vkDestroyPipelineLayout(Device::device->vk_device(), _pipeline_layout, nullptr);
     vkDestroyPipeline(Device::device->vk_device(), _pipeline, nullptr);
 }
@@ -154,7 +153,6 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
         // c++23 has append_range, but I can't get it to compile
         std::vector<VkDescriptorSetLayout> tmp = shader.second.descriptor_layout().vk_set_layouts();
         descriptor_buffer_layouts.insert(descriptor_buffer_layouts.end(), tmp.begin(), tmp.end());
-        _buffer_size += shader.second.descriptor_layout().buffer_size();
     }
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

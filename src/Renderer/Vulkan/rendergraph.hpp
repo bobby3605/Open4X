@@ -32,9 +32,8 @@ struct WriteHazard : Hazard {};
 
 class RenderNode {
   public:
-    template <typename F, typename... Args> RenderNode(RenderDeps& in_deps, F f, Args... args) : op{partial(f, args...)}, deps{in_deps} {}
-    // op should never change once it's initialized
-    const RenderOp op;
+    template <typename F, typename... Args> RenderNode(RenderDeps in_deps, F f, Args... args) : op{partial(f, args...)}, deps{in_deps} {}
+    RenderOp op;
     std::vector<Hazard> hazards;
     // NOTE:
     // Keep track of any data dependencies

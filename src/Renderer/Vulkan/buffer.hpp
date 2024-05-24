@@ -21,11 +21,11 @@ class Buffer {
     const VkDeviceAddress& device_address() const;
     VkDeviceSize size() const { return _buffer_info.size; }
     VkBufferCreateInfo buffer_info() const { return _buffer_info; }
+    VkDescriptorDataEXT const& descriptor_data() const;
 
   private:
     VmaAllocator _allocator;
     VkBuffer _vk_buffer;
-    VkDeviceAddress _device_address = -1;
     VmaAllocation _allocation;
     VkBufferCreateInfo _buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     VmaAllocationCreateInfo _alloc_info = {};
@@ -34,10 +34,15 @@ class Buffer {
     // Delete =, so that resize can be memory safe
     // Maybe unique_ptr?
     void* _data;
+    void create(VkBufferCreateInfo& buffer_info, VmaAllocationCreateInfo& alloc_info, VkBuffer& buffer, VmaAllocation& allocation,
+                std::string& name);
     void destroy();
     bool inline check_usage(VkBufferUsageFlags usage);
     VmaVirtualBlock _virtual_block;
     std::string _name;
+    VkDescriptorDataEXT _descriptor_data;
+    bool _has_descriptor_data = false;
+    VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
 };
 
 #endif // BUFFER_H_

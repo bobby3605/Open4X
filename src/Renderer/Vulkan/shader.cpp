@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "descriptors.hpp"
 #include "device.hpp"
+#include "memory_manager.hpp"
 #include "spirv.hpp"
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/MachineIndependent/Versions.h>
@@ -43,7 +44,8 @@ static inline VkPipelineBindPoint flag_to_bind_point(VkShaderStageFlagBits stage
     }
 }
 
-Shader::Shader(std::filesystem::path file_path) : _path{file_path} {
+Shader::Shader(std::filesystem::path file_path)
+    : _path{file_path}, _descriptor_layout(MemoryManager::memory_manager->get_buffer("descriptor_buffer")) {
     compile();
     create_module();
     // TODO:

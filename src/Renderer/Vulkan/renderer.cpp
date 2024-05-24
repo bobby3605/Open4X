@@ -11,29 +11,18 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     new MemoryManager();
     create_data_buffers();
     _swap_chain = new SwapChain(Window::window->extent());
-    // TODO
-    // Probably don't need this anymore
-    create_command_buffers();
+    _command_pool = Device::device->command_pools()->get_pool();
 
     create_rendergraph();
 }
 
 Renderer::~Renderer() {
+    Device::device->command_pools()->release_pool(_command_pool);
     vkDeviceWaitIdle(Device::device->vk_device());
     delete rg;
     delete _swap_chain;
     delete MemoryManager::memory_manager;
     delete Device::device;
-}
-
-void Renderer::create_command_buffers() {
-    // FIXME:
-    // This isn't needed anymore, because rg holds the command buffers
-    _command_buffers.reserve(SwapChain::MAX_FRAMES_IN_FLIGHT);
-    _command_pool = Device::device->command_pools()->get_pool();
-    for (uint32_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; ++i) {
-        _command_buffers.push_back(Device::device->command_pools()->get_primary(_command_pool));
-    }
 }
 
 void Renderer::create_data_buffers() {
