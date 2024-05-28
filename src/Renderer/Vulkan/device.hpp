@@ -1,6 +1,7 @@
 #ifndef DEVICE_H_
 #define DEVICE_H_
 
+#include "vk_mem_alloc.h"
 #include <array>
 #include <mutex>
 #include <optional>
@@ -43,6 +44,7 @@ class Device {
     static const uint32_t API_VERSION = VK_API_VERSION_1_3;
     VkQueue graphics_queue() { return _graphics_queue; }
     VkQueue present_queue() { return _present_queue; }
+    VmaAllocator const& vma_allocator() const { return _vma_allocator; }
 
 #ifdef NDEBUG
     static const bool enable_validation_layers = false;
@@ -73,8 +75,8 @@ class Device {
     void create_instance();
     VkSurfaceKHR _surface;
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    static constexpr std::array<const char*, 2> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                                                     VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME};
+    static constexpr std::array<const char*, 3> device_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME, VK_KHR_MAINTENANCE_6_EXTENSION_NAME};
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);
     bool check_features(VkPhysicalDevice device);
@@ -97,6 +99,7 @@ class Device {
     std::vector<VkFence> fence_pool;
     VkFence get_fence();
     void release_fence(VkFence fence);
+    VmaAllocator _vma_allocator;
 
     class CommandPoolAllocator {
       public:

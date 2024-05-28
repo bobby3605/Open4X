@@ -1,6 +1,7 @@
 #include "descriptors.hpp"
 #include "common.hpp"
 #include "device.hpp"
+#include <cstdint>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -29,7 +30,10 @@ void DescriptorLayout::add_binding(uint32_t set, uint32_t binding, VkDescriptorT
     layout.mem_props = mem_props;
     // Create the set mapping if it doesn't exist
     // Add the binding to the set layout
-    _set_layouts.try_emplace(set).first->second.bindings.insert(std::pair{binding, layout});
+    // DescriptorLayout is per pipeline,
+    // so if shaders in a pipeline have multiple slots,
+    // the descriptor created will be the last one to call add_binding to that slot
+    _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
 }
 
 void DescriptorLayout::create_layouts() {
@@ -61,7 +65,8 @@ void DescriptorLayout::create_layouts() {
         }
     }
     if (_total_layout_size != 0) {
-        _descriptor_buffer->alloc(_total_layout_size, _descriptor_buffer_allocation, _descriptor_buffer_offset);
+        _descriptor_buffer->alloc(_total_layout_size, _descriptor_buffer_allocation, _descriptor_buffer_offset,
+                                  Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
     }
 }
 
@@ -97,6 +102,19 @@ uint32_t DescriptorLayout::set_offset(uint32_t set) const {
     throw std::runtime_error("unknown set num in set_offset: " + std::to_string(set));
 }
 
+std::vector<VkDeviceSize> DescriptorLayout::set_offsets() const {
+    std::vector<VkDeviceSize> set_offsets;
+    uint32_t offset = 0;
+    set_offsets.reserve(_set_layouts.size());
+    for (auto const& set_layout : _set_layouts) {
+        set_offsets.push_back(offset);
+        offset += set_layout.second.layout_size;
+    }
+    return set_offsets;
+}
+
+// FIXME:
+// Move this into Buffer::
 void DescriptorLayout::set_descriptor_buffer(uint32_t set, uint32_t binding, VkDescriptorDataEXT const& descriptor_data) const {
     SetLayout const& set_layout = _set_layouts.at(set);
     BindingLayout const& binding_layout = set_layout.bindings.at(binding);

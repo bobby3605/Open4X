@@ -1,6 +1,7 @@
 #ifndef RENDERER_H_
 #define RENDERER_H_
 
+#include "../Allocator/allocator.hpp"
 #include "common.hpp"
 #include "rendergraph.hpp"
 #include <vulkan/vulkan_core.h>
@@ -12,6 +13,8 @@ class Renderer {
     void create_data_buffers();
     // Return true if swapchain was recreated
     bool render();
+    GPUAllocator* instance_data_allocator;
+    StackAllocator<GPUAllocator>* instances_stack_allocator;
 
   private:
     NewSettings* _settings;

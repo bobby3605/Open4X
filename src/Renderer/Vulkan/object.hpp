@@ -1,13 +1,14 @@
 #ifndef OBJECT_H_
 #define OBJECT_H_
 #include "../../utils.hpp"
+#include "../Allocator/allocator.hpp"
 #include "buffer.hpp"
 #include "model.hpp"
 
 class Object {
   public:
     Object();
-    Object(Model* model, safe_queue<Object*>* invalid_callback, Buffer* instance_data_buffer);
+    Object(Model* model, safe_queue<Object*>* invalid_callback, StackAllocator<GPUAllocator>* instances_sub_allocator);
     ~Object();
 
     glm::vec3 const& position() { return _position; }
@@ -23,7 +24,7 @@ class Object {
     // otherwise false
     bool update_instance_data();
     std::vector<InstanceData> const& instance_data() { return _instance_data; }
-    VkDeviceSize const& instance_data_offset() { return _instance_data_offset; }
+    std::vector<SubAllocation> const& instance_data_allocs() { return _instance_data_allocs; }
 
   private:
     Model* _model;
@@ -33,9 +34,8 @@ class Object {
     glm::mat4 _object_matrix;
     bool _object_matrix_invalid = true;
     std::vector<InstanceData> _instance_data;
-    Buffer* _instance_data_buffer = nullptr;
-    VmaVirtualAllocation _instance_data_alloc;
-    VkDeviceSize _instance_data_offset;
+    StackAllocator<GPUAllocator>* _instances_sub_allocator = nullptr;
+    std::vector<SubAllocation> _instance_data_allocs;
 
     safe_queue<Object*>* _invalid_callback;
 };

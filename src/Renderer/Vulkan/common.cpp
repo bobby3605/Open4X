@@ -5,6 +5,7 @@ def_vk_ext_cpp(vkGetDescriptorSetLayoutSizeEXT);
 def_vk_ext_cpp(vkGetDescriptorSetLayoutBindingOffsetEXT);
 def_vk_ext_cpp(vkGetDescriptorEXT);
 def_vk_ext_cpp(vkCmdBindDescriptorBuffersEXT);
+def_vk_ext_cpp(vkCmdSetDescriptorBufferOffsets2EXT);
 
 std::string get_file_extension(std::string file_path) {
     try {

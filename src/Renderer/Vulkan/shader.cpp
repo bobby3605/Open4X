@@ -44,15 +44,14 @@ static inline VkPipelineBindPoint flag_to_bind_point(VkShaderStageFlagBits stage
     }
 }
 
-Shader::Shader(std::filesystem::path file_path)
-    : _path{file_path}, _descriptor_layout(MemoryManager::memory_manager->get_buffer("descriptor_buffer")) {
+Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout)
+    : _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
     compile();
     create_module();
     // TODO:
     // Should this be before or after compile?
     // Probably after in case a descriptor gets optimized out
     reflect();
-    _descriptor_layout.create_layouts();
 }
 
 Shader::~Shader() { vkDestroyShaderModule(Device::device->device->vk_device(), _module, nullptr); }
@@ -208,14 +207,14 @@ void Shader::reflect() {
         // FIXME:
         // Get property flags from render graph
         VkMemoryPropertyFlags mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        _descriptor_layout.add_binding(set, binding, usage_to_type(usage), stage_info().stage, resource.name, mem_props);
+        _pipeline_descriptor_layout->add_binding(set, binding, usage_to_type(usage), stage_info().stage, resource.name, mem_props);
     }
     for (const spirv_cross::Resource& resource : res.uniform_buffers) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         VkMemoryPropertyFlags mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-        _descriptor_layout.add_binding(set, binding, usage_to_type(usage), stage_info().stage, resource.name, mem_props);
+        _pipeline_descriptor_layout->add_binding(set, binding, usage_to_type(usage), stage_info().stage, resource.name, mem_props);
     }
     /*
     for (const spirv_cross::Resource& resource : res.separate_samplers) {

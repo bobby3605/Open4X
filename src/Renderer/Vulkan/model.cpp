@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 Model::Model(std::filesystem::path path) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
@@ -73,13 +74,8 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     if (node->meshIndex.has_value()) {
         ++_model->_model_matrices_size;
         _mesh_index = node->meshIndex.value();
-        // Ensure that _meshes is allocated for mesh_index
-        _model->_meshes.resize(_mesh_index.value() + 1);
-        // Check if mesh has been created already
-        if (!_model->_meshes[_mesh_index.value()].has_value()) {
-            // Create mesh and add to vector if it doesn't exist
-            _model->_meshes[_mesh_index.value()] = Mesh(model, &_model->_asset->meshes[_mesh_index.value()]);
-        }
+        // Create mesh if it doesn't already exist
+        _model->_meshes.try_emplace(_mesh_index.value(), model, &_model->_asset->meshes[_mesh_index.value()]);
     }
 
     _child_node_indices.reserve(_node->children.size());
@@ -162,9 +158,7 @@ void Model::load_instance_data(glm::mat4 const& object_matrix, std::vector<Insta
 
 void Model::Node::load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data) {
     if (_mesh_index.has_value()) {
-        InstanceData instance{};
-        instance.model_matrix = object_matrix * _transform;
-        instance_data.push_back(instance);
+        instance_data.emplace_back(InstanceData{object_matrix * _transform});
     }
     for (auto& child_node_index : _child_node_indices) {
         _model->_nodes[child_node_index.value()]->load_instance_data(object_matrix, instance_data);

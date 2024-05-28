@@ -7,7 +7,7 @@ class CommandRunner {
   public:
     CommandRunner();
     void run();
-    void copy_buffer(VkBuffer src, VkBuffer dst, std::vector<VkBufferCopy>& copy_infos);
+    void copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos);
 
   private:
     static VkCommandPool _pool;

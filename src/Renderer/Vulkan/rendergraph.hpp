@@ -88,6 +88,7 @@ class RenderGraph {
     void image_barrier(VkImageMemoryBarrier2& barrier);
     std::vector<std::shared_ptr<Pipeline>> _pipelines;
     std::unordered_map<std::string, VkDeviceSize> _buffer_size_registry;
+    std::string _descriptor_buffer_name = "descriptor_buffer";
 
     void bad_workaround(SwapChain* swap_chain);
 };

@@ -1,11 +1,10 @@
 #include "pipeline.hpp"
 #include "common.hpp"
 #include "device.hpp"
-#include "memory_manager.hpp"
 #include "model.hpp"
-#include <cstddef>
-#include <cstdlib>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vulkan/vulkan_core.h>
 
 Pipeline::~Pipeline() {
@@ -19,7 +18,8 @@ GraphicsPipeline::~GraphicsPipeline() {
 }
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
-                                   std::string const& frag_path) {
+                                   std::string const& frag_path, std::string descriptor_buffer_name)
+    : Pipeline(descriptor_buffer_name) {
     _bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
     _pipeline_name = get_filename_no_ext(vert_path);
 
@@ -129,8 +129,8 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     pipeline_info.flags = VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
 
     // create shaders
-    _shaders.emplace("vert", vert_path);
-    _shaders.emplace("frag", frag_path);
+    _shaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert"), std::forward_as_tuple(vert_path, &_descriptor_layout));
+    _shaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag"), std::forward_as_tuple(frag_path, &_descriptor_layout));
 
     /*
     VkPushConstantRange pushConstantRange{};
@@ -143,17 +143,14 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     //  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-    std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts;
     // Copy stages and descriptor layouts into contiguous memory
     // Get descriptor buffer size
     for (auto const& shader : shaders()) {
         shader_stages.push_back(shader.second.stage_info());
-        // TODO
-        // Make this better, so there's less copying
-        // c++23 has append_range, but I can't get it to compile
-        std::vector<VkDescriptorSetLayout> tmp = shader.second.descriptor_layout().vk_set_layouts();
-        descriptor_buffer_layouts.insert(descriptor_buffer_layouts.end(), tmp.begin(), tmp.end());
     }
+
+    _descriptor_layout.create_layouts();
+    std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts = _descriptor_layout.vk_set_layouts();
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pipeline_layout_info.setLayoutCount = descriptor_buffer_layouts.size();
@@ -163,6 +160,8 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
                  "failed to create graphics pipeline layout");
     Device::device->set_debug_name(VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)_pipeline_layout, _pipeline_name + "_layout");
 
+    // FIXME:
+    // Get this from the vertex shader
     auto binding_description = NewVertex::binding_description();
     auto attribute_descriptions = NewVertex::attribute_descriptions();
 

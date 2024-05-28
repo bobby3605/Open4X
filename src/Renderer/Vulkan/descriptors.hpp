@@ -29,6 +29,8 @@ class DescriptorLayout {
                      VkMemoryPropertyFlags mem_props);
     void create_layouts();
     uint32_t set_offset(uint32_t set) const;
+    std::vector<VkDeviceSize> set_offsets() const;
+    uint64_t descriptor_buffer_offset() const { return _descriptor_buffer_offset; }
     void set_descriptor_buffer(uint32_t set, uint32_t binding, VkDescriptorDataEXT const& descriptor_data) const;
     std::vector<VkDescriptorSetLayout> vk_set_layouts() const;
     std::map<uint32_t, SetLayout> const& set_layouts() const { return _set_layouts; };

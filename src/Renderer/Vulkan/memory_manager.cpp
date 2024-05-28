@@ -62,6 +62,8 @@ void MemoryManager::delete_buffer(std::string name) {
     _buffers.erase(name);
 };
 
+void MemoryManager::set_buffer(std::string const& name, Buffer* buffer) { _buffers.insert_or_assign(name, buffer); }
+
 MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels,
                                                  VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
                                                  VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {

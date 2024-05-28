@@ -13,10 +13,13 @@ class Buffer {
     void unmap();
     void map();
     void resize(std::size_t new_size);
+    void copy(VkBuffer dst, VkDeviceSize src_offset, VkDeviceSize dst_offset, VkDeviceSize copy_size);
     void copy(VkBuffer dst, VkDeviceSize copy_size);
     char* data();
     const VkBuffer& vk_buffer() { return _vk_buffer; }
-    void alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset);
+    // return true if resized
+    bool alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset, VkDeviceSize alignment = 1);
+    void realloc(VkDeviceSize const& new_byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset, VkDeviceSize alignment = 1);
     void free(VmaVirtualAllocation& alloc);
     const VkDeviceAddress& device_address() const;
     VkDeviceSize size() const { return _buffer_info.size; }

@@ -1,22 +1,26 @@
 #include "object.hpp"
 #include <glm/gtx/quaternion.hpp>
+#include <vulkan/vulkan_core.h>
 
 Object::Object() {}
 
-Object::Object(Model* model, safe_queue<Object*>* invalid_callback, Buffer* instance_data_buffer)
-    : _model(model), _invalid_callback(invalid_callback), _instance_data_buffer(instance_data_buffer) {
+Object::Object(Model* model, safe_queue<Object*>* invalid_callback, StackAllocator<GPUAllocator>* instances_sub_allocator)
+    : _model(model), _invalid_callback(invalid_callback), _instances_sub_allocator(instances_sub_allocator) {
     // pre allocate capacity
     _instance_data.reserve(model->model_matrices_size());
-    _instance_data_buffer->alloc(sizeof(InstanceData) * _instance_data.capacity(), _instance_data_alloc, _instance_data_offset);
+    _instance_data_allocs.reserve(_instance_data.size());
+    for (size_t i = 0; i < _instance_data_allocs.capacity(); ++i) {
+        _instance_data_allocs.push_back(_instances_sub_allocator->alloc());
+    }
 }
 
 Object::~Object() {
     // TODO
     // could be nullptr because of Camera,
-    // not sure if Camera calls this destructor...
-    // probably doesn't
-    if (_instance_data_buffer != nullptr)
-        _instance_data_buffer->free(_instance_data_alloc);
+    if (_instances_sub_allocator != VK_NULL_HANDLE)
+        for (auto& allocation : _instance_data_allocs) {
+            _instances_sub_allocator->free(allocation);
+        }
 }
 
 void Object::position(glm::vec3 const& new_position) {

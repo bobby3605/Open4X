@@ -5,7 +5,7 @@ layout(binding = 0) uniform Globals {
     vec3 cam_pos;
 };
 
-struct ObjectData {
+struct InstanceData {
     mat4 model_matrix;
 };
 
@@ -22,7 +22,7 @@ struct MaterialData {
     float occlusion_strength;
 };
 
-layout(std140, set = 1, binding = 0) readonly buffer Objects { ObjectData objects[]; };
+layout(std140, set = 1, binding = 0) readonly buffer Instances { InstanceData instances[]; };
 layout(std140, set = 1, binding = 1) readonly buffer Materials { MaterialData materials[]; };
 layout(set = 1, binding = 2) readonly buffer CulledInstanceIndices { uint culled_instance_indices[]; };
 layout(set = 1, binding = 3) readonly buffer CulledMaterialIndices { uint culled_material_indices[]; };
@@ -48,11 +48,14 @@ layout(location = 12) out float roughness_factor;
 layout(location = 13) out float occulsion_strength;
 
 void main() {
+    /*
     MaterialData material = materials[culled_material_indices[gl_BaseInstance]];
+    InstanceData instance = instances[culled_instance_indices[gl_InstanceIndex]];
+    */
+    MaterialData material = materials[0];
+    InstanceData instance = instances[gl_InstanceIndex];
 
-    ObjectData object = objects[culled_instance_indices[gl_InstanceIndex]];
-
-    vec4 vert_pos = object.model_matrix * vec4(in_position, 1.0);
+    vec4 vert_pos = instance.model_matrix * vec4(in_position, 1.0);
     gl_Position = proj_view * vert_pos;
 
     base_color_factor = material.base_color_factor;

@@ -1,9 +1,13 @@
 #ifndef MODEL_H_
 #define MODEL_H_
 #include "fastgltf/types.hpp"
+#include <cstdint>
 #include <optional>
+#include <unordered_map>
+#include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
+#include "buffer.hpp"
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <glm/glm.hpp>
@@ -128,8 +132,14 @@ class Model {
         class Primitive {
           public:
             Primitive(Model* _model, fastgltf::Primitive* primitive);
+
+          protected:
             std::vector<NewVertex> _vertices;
             std::vector<uint32_t> _indices;
+
+          public:
+            std::vector<NewVertex> const& vertices() const { return _vertices; }
+            std::vector<uint32_t> const& indices() const { return _indices; }
 
           private:
             std::vector<glm::vec3> get_positions();
@@ -143,6 +153,9 @@ class Model {
       protected:
         std::vector<Primitive> _primitives;
 
+      public:
+        std::vector<Primitive> const& primitives() const { return _primitives; }
+
       private:
         Model* _model;
         fastgltf::Mesh* _mesh;
@@ -154,7 +167,10 @@ class Model {
     fastgltf::Asset* _asset;
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
-    std::vector<std::optional<Mesh>> _meshes;
+    std::unordered_map<uint32_t, Mesh> _meshes;
+
+  public:
+    std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }
 
   private:
     // TODO

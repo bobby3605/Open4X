@@ -39,6 +39,6 @@ void CommandRunner::run() {
     //    delete this;
 }
 
-void CommandRunner::copy_buffer(VkBuffer src, VkBuffer dst, std::vector<VkBufferCopy>& copy_infos) {
+void CommandRunner::copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos) {
     vkCmdCopyBuffer(_command_buffer, src, dst, copy_infos.size(), copy_infos.data());
 }

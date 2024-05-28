@@ -2,8 +2,10 @@
 #include "device.hpp"
 #include "memory_manager.hpp"
 #include "model.hpp"
+#include "object_manager.hpp"
 #include "swapchain.hpp"
 #include "window.hpp"
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
 
 Renderer::Renderer(NewSettings* settings) : _settings(settings) {
@@ -27,24 +29,57 @@ Renderer::~Renderer() {
 
 void Renderer::create_data_buffers() {
     Buffer* vertex_buffer = MemoryManager::memory_manager->create_buffer(
-        "vertex_buffer", sizeof(NewVertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        "vertex_buffer", sizeof(NewVertex),
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     Buffer* index_buffer = MemoryManager::memory_manager->create_buffer(
-        "index_buffer", sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        "index_buffer", sizeof(uint32_t),
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    /*
     Buffer* instance_data_buffer = MemoryManager::memory_manager->create_buffer(
-        "InstanceData", sizeof(InstanceData), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        "Instances", sizeof(InstanceData),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        */
+
+    instance_data_allocator =
+        new GPUAllocator(sizeof(InstanceData),
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Instances");
+
+    instances_stack_allocator = new StackAllocator<GPUAllocator>(sizeof(InstanceData), instance_data_allocator);
 
     MemoryManager::memory_manager->create_buffer("indirect_commands", sizeof(VkDrawIndexedIndirectCommand),
                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     MemoryManager::memory_manager->create_buffer("indirect_count", sizeof(uint32_t),
                                                  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    Buffer* culled_instance_indices_buffer = MemoryManager::memory_manager->create_buffer(
+        "CulledInstanceIndices", sizeof(uint32_t),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    Buffer* culled_material_indices_buffer = MemoryManager::memory_manager->create_buffer(
+        "CulledMaterialIndices", sizeof(uint32_t),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    /*
+    ObjectManager* manager;
+    Object* box = manager->get_object("box");
+    uint32_t instance_index;
+    // This isn't right
+    // gl_InstanceIndex will be different
+    // Transposed with the primitives or something like that
+    culled_instance_indices_buffer->data()[instance_index] = box->instance_data_offset();
+    */
 }
 
 void Renderer::recreate_swap_chain() {
@@ -139,12 +174,10 @@ RenderOp memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 sr
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
     rg->buffer("Globals", 1);
-    rg->buffer("Objects", 1);
     rg->buffer("Materials", 1);
     rg->buffer("CulledInstanceIndices", 1);
     rg->buffer("CulledMaterialIndices", 1);
 
-    //    rg->define_primary(true);
     rg->define_primary(false);
     // FIXME:
     // rg should hold the swap chain
@@ -156,7 +189,6 @@ void Renderer::create_rendergraph() {
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
     std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
 
-    //    rg->define_secondary(false);
     rg->graphics_pass(vert_shader_path, frag_shader_path, "vertex_buffer", "index_buffer", _swap_chain);
 
     VkExtent2D extent = _swap_chain->extent();

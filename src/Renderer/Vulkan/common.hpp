@@ -29,6 +29,7 @@ def_vk_ext_hpp(vkGetDescriptorSetLayoutSizeEXT);
 def_vk_ext_hpp(vkGetDescriptorSetLayoutBindingOffsetEXT);
 def_vk_ext_hpp(vkGetDescriptorEXT);
 def_vk_ext_hpp(vkCmdBindDescriptorBuffersEXT);
+def_vk_ext_hpp(vkCmdSetDescriptorBufferOffsets2EXT);
 
 #define load_instance_addr(f_name, instance) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetInstanceProcAddr(instance, #f_name))
 #define load_device_addr(f_name, device) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetDeviceProcAddr(device, #f_name))
@@ -48,7 +49,7 @@ std::string get_filename_no_ext(std::string file_path);
 
 std::vector<char> read_file(const std::string& filename);
 
-inline std::size_t align(std::size_t x, std::size_t U) { return (sizeof(x) + sizeof(U) - 1) - sizeof(x) % sizeof(U); }
+inline std::size_t align(std::size_t offset, std::size_t alignment) { return offset + offset % alignment; }
 
 const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = {
     {VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER},

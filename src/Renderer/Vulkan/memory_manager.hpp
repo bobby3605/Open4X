@@ -18,6 +18,12 @@ class MemoryManager {
     Buffer* get_buffer(std::string name);
     void delete_buffer(std::string name);
     bool buffer_exists(std::string name) const { return _buffers.count(name) == 1; }
+    // NOTE:
+    // If a buffer is being overwritten,
+    // it must be deleted afterwards,
+    // or else there will be a memory leak
+    void set_buffer(std::string const& name, Buffer* buffer);
+    VmaAllocator allocator() { return _allocator; }
 
     struct Image {
         VkImage vk_image;

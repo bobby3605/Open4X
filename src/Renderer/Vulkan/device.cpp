@@ -21,6 +21,7 @@ Device::Device() {
     load_device_addr(vkGetDescriptorSetLayoutBindingOffsetEXT, _device);
     load_device_addr(vkGetDescriptorEXT, _device);
     load_device_addr(vkCmdBindDescriptorBuffersEXT, _device);
+    load_device_addr(vkCmdSetDescriptorBufferOffsets2EXT, _device);
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {

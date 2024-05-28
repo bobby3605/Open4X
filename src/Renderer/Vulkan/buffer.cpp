@@ -27,13 +27,6 @@ Buffer::Buffer(VmaAllocator& allocator, VkDeviceSize byte_size, VkBufferUsageFla
 
     create(_buffer_info, _alloc_info, _vk_buffer, _allocation, name);
 
-    VmaVirtualBlockCreateInfo virtual_block_create_info{};
-    // Allocate max size in the virtual block
-    // This allows for the underlying VkBuffer to be resized,
-    // without disrupting the virtual allocations
-    virtual_block_create_info.size = -1;
-    check_result(vmaCreateVirtualBlock(&virtual_block_create_info, &_virtual_block), "virtual block creation failed, shouldn't be here!");
-
     if (_buffer_info.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
         _addr_info.range = _buffer_info.size;
         // TODO
@@ -83,11 +76,7 @@ void Buffer::destroy() {
     }
     vmaDestroyBuffer(_allocator, _vk_buffer, _allocation);
 }
-Buffer::~Buffer() {
-    vmaClearVirtualBlock(_virtual_block);
-    vmaDestroyVirtualBlock(_virtual_block);
-    destroy();
-}
+Buffer::~Buffer() { destroy(); }
 
 void Buffer::map() {
     vmaMapMemory(_allocator, _allocation, &_data);
@@ -135,8 +124,11 @@ bool inline Buffer::check_usage(VkBufferUsageFlags usage) {
         return false;
     }
 }
-void Buffer::copy(VkBuffer dst, VkDeviceSize copy_size) {
-    VkBufferCopy buffer_copy{0, 0, copy_size};
+
+void Buffer::copy(VkBuffer dst, VkDeviceSize copy_size) { copy(dst, 0, 0, copy_size); }
+
+void Buffer::copy(VkBuffer dst, VkDeviceSize src_offset, VkDeviceSize dst_offset, VkDeviceSize copy_size) {
+    VkBufferCopy buffer_copy{src_offset, dst_offset, copy_size};
     std::vector<VkBufferCopy> buffer_copies;
     buffer_copies.push_back(buffer_copy);
     CommandRunner command_runner;
@@ -144,13 +136,45 @@ void Buffer::copy(VkBuffer dst, VkDeviceSize copy_size) {
     command_runner.run();
 }
 
-void Buffer::alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset) {
+bool Buffer::alloc(std::size_t const& byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset, VkDeviceSize alignment) {
     VmaVirtualAllocationCreateInfo alloc_create_info{};
     alloc_create_info.size = byte_size;
+    alloc_create_info.alignment = alignment;
     check_result(vmaVirtualAllocate(_virtual_block, &alloc_create_info, &alloc, &offset),
                  "failed to allocate inside virtual block, shouldn't be here!");
-    if (offset + byte_size > _buffer_info.size) {
-        resize(offset + byte_size);
+    if (align(offset + byte_size, alignment) > _buffer_info.size) {
+        resize(align(offset + byte_size, alignment));
+        return true;
+    }
+    return false;
+}
+
+void Buffer::realloc(VkDeviceSize const& new_byte_size, VmaVirtualAllocation& alloc, VkDeviceSize& offset, VkDeviceSize alignment) {
+    if (alloc != VK_NULL_HANDLE) {
+        // get current alloc size
+        VmaVirtualAllocationInfo alloc_info;
+        vmaGetVirtualAllocationInfo(_virtual_block, alloc, &alloc_info);
+        VkDeviceSize curr_byte_size = alloc_info.size;
+        // TODO
+        // shrink allocation if the size difference is large
+        if (curr_byte_size > new_byte_size) {
+            VmaVirtualAllocation new_alloc;
+            VkDeviceSize new_offset;
+            // create new allocation
+            this->alloc(new_byte_size, new_alloc, new_offset, alignment);
+            // get passed alloc size
+            // copy old data to new allocation
+            copy(vk_buffer(), offset, new_offset, curr_byte_size);
+            // free old allocation
+            free(alloc);
+
+            // set passed alloc and offset to new alloc and offset
+            alloc = new_alloc;
+            offset = new_offset;
+        }
+    } else {
+        // If null allocation, just pass to alloc
+        this->alloc(new_byte_size, alloc, offset, alignment);
     }
 }
 

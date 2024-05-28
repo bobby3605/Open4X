@@ -8,11 +8,10 @@
 
 class Shader {
   public:
-    Shader(std::filesystem::path file_path);
+    Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout);
     ~Shader();
     VkPipelineBindPoint bind_point() const { return _bind_point; }
     VkPipelineShaderStageCreateInfo stage_info() const { return _stage_info; }
-    DescriptorLayout const& descriptor_layout() const { return _descriptor_layout; }
 
   private:
     std::filesystem::path _path;
@@ -25,7 +24,7 @@ class Shader {
     VkPipelineShaderStageCreateInfo _stage_info{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     void create_module();
     void reflect();
-    DescriptorLayout _descriptor_layout;
+    DescriptorLayout* _pipeline_descriptor_layout;
 };
 
 #endif // SHADER_H_
