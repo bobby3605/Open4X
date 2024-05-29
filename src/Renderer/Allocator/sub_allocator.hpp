@@ -6,28 +6,30 @@
 #include <type_traits>
 
 template <typename AllocatorT> class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT> {
-
   public:
+    // NOTE:
+    // only call alloc if parent_allocator is a SubAllocator
     SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator)
-        // FIXME:
-        // SubAllocator<GPUAllocator> needs to work for any SubAllocator<T>
-        requires(std::is_base_of<SubAllocator<GPUAllocator>, AllocatorT>::value)
+        requires(std::is_same<typename AllocatorT::AllocT, SubAllocation>::value)
         : _parent_allocator(parent_allocator) {
         this->_base_alloc = _parent_allocator->alloc(byte_size);
     }
-    // FIXME:
-    // Make this work for CPU and GPU, not just GPU
+    // NOTE:
+    // get _base_alloc from parent_allocator if parent_allocator is a BaseAllocator
     SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator)
-        requires(std::is_base_of<BaseAllocator<GPUAllocation>, AllocatorT>::value)
+        requires(std::is_base_of<BaseAllocator<typename AllocatorT::AllocT>, AllocatorT>::value)
         : _parent_allocator(parent_allocator) {
         this->_base_alloc = _parent_allocator->base_alloc();
     }
+    // NOTE: Only free if parent_allocator is a SubAllocator
     ~SubAllocator()
-        requires(std::is_base_of<SubAllocator<typename AllocatorT::BaseT>, AllocatorT>::value)
+        requires(std::is_same<typename AllocatorT::AllocT, SubAllocation>::value)
     {
         _parent_allocator->free(this->_base_alloc);
     }
-    ~SubAllocator() {}
+    ~SubAllocator()
+        requires(std::is_base_of<BaseAllocator<typename AllocatorT::AllocT>, AllocatorT>::value)
+    {}
 
     void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
         std::lock_guard<std::mutex> lock(this->_realloc_lock);
