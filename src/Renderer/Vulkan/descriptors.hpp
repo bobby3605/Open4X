@@ -1,7 +1,6 @@
 #ifndef DESCRIPTORS_H_
 #define DESCRIPTORS_H_
-#include "../Allocator/allocator.hpp"
-#include "buffer.hpp"
+#include "../Allocator/sub_allocator.hpp"
 #include <map>
 #include <string>
 #include <vector>

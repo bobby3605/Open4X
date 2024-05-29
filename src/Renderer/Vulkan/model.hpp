@@ -7,7 +7,7 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
-#include "buffer.hpp"
+#include "draw.hpp"
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <glm/glm.hpp>
@@ -88,9 +88,8 @@ template <> struct hash<NewVertex> {
 
 class Model {
   public:
-    Model(std::filesystem::path path);
-    ~Model();
-
+    Model(std::filesystem::path path, LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
+          StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator);
     void load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data);
     const std::size_t model_matrices_size() { return _model_matrices_size; }
 
@@ -132,8 +131,12 @@ class Model {
         class Primitive {
           public:
             Primitive(Model* _model, fastgltf::Primitive* primitive);
+            Draw* _draw;
 
           protected:
+            // TODO
+            // vertices should be generic
+            // char* and a byte size
             std::vector<NewVertex> _vertices;
             std::vector<uint32_t> _indices;
 
@@ -168,6 +171,11 @@ class Model {
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
     std::unordered_map<uint32_t, Mesh> _meshes;
+
+    LinearAllocator<GPUAllocator>* _vertex_allocator;
+    LinearAllocator<GPUAllocator>* _index_allocator;
+    StackAllocator<GPUAllocator>* _indirect_commands_allocator;
+    LinearAllocator<GPUAllocator>* _instance_indices_allocator;
 
   public:
     std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }

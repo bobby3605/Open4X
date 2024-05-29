@@ -10,11 +10,11 @@
 // Needed to ensure at compile time that one of the if constexpr branches will be taken
 #define is_allocator is_sub_allocator || is_base_allocator
 
-template <typename AllocatorT> class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT> {
+template <typename AllocatorT>
+    requires(is_allocator)
+class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT> {
   public:
-    SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator)
-        requires(is_allocator)
-        : _parent_allocator(parent_allocator) {
+    SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator) : _parent_allocator(parent_allocator) {
         if constexpr (is_sub_allocator) {
             this->_base_alloc = _parent_allocator->alloc(byte_size);
         } else if constexpr (is_base_allocator) {
@@ -23,18 +23,14 @@ template <typename AllocatorT> class SubAllocator : public Allocator<SubAllocati
             this->_base_alloc = _parent_allocator->base_alloc();
         }
     }
-    ~SubAllocator()
-        requires(is_allocator)
-    {
+    ~SubAllocator() {
         if constexpr (is_sub_allocator) {
             // NOTE: Only free if parent_allocator is a SubAllocator
             _parent_allocator->free(this->_base_alloc);
         }
     }
 
-    void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size)
-        requires(is_allocator)
-    {
+    void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
         std::lock_guard<std::mutex> lock(this->_realloc_lock);
         if constexpr (is_sub_allocator) {
             SubAllocation dst = dst_allocation;
@@ -44,9 +40,7 @@ template <typename AllocatorT> class SubAllocator : public Allocator<SubAllocati
             _parent_allocator->write(dst_allocation, data, byte_size);
         }
     }
-    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& copy_size)
-        requires(is_allocator)
-    {
+    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& copy_size) {
         if constexpr (is_sub_allocator) {
             // TODO:
             // realloc lock here

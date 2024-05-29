@@ -31,7 +31,7 @@ GPUAllocator* MemoryManager::create_gpu_allocator(std::string name, VkDeviceSize
 
     // FIXME:
     // Thread safety
-    _gpu_allocators.insert(std::pair{name, buffer});
+    _gpu_allocators.insert({name, buffer});
     return buffer;
 }
 
@@ -78,7 +78,7 @@ MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t widt
     check_result(vmaCreateImage(_allocator, &image_info, &alloc_info, &image.vk_image, &image.allocation, nullptr),
                  "failed to create image!");
     Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.vk_image, name);
-    _images.insert(std::pair{name, image});
+    _images.insert({name, image});
     return image;
 }
 

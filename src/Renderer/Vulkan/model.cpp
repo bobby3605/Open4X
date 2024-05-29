@@ -12,7 +12,10 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-Model::Model(std::filesystem::path path) {
+Model::Model(std::filesystem::path path, LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
+             StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator)
+    : _vertex_allocator(vertex_allocator), _index_allocator(index_allocator), _indirect_commands_allocator(indirect_commands_allocator),
+      _instance_indices_allocator(instance_indices_allocator) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -30,18 +33,8 @@ Model::Model(std::filesystem::path path) {
     _default_scene = _asset->defaultScene.has_value() ? _asset->defaultScene.value() : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
-        _scenes.push_back(Scene(this, &scene));
+        _scenes.emplace_back(Scene{this, &scene});
     }
-}
-
-Model::~Model() {
-    /*
-     * TODO:
-     * Confirm that I don't need these.
-     * I probably don't because fastgltf is memory mapped io
-    delete _data;
-    delete _asset;
-    */
 }
 
 Model::Scene::Scene(Model* model, fastgltf::Scene* scene) : _model(model), _scene(scene) {
@@ -92,7 +85,7 @@ Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh) : _model(model), _mesh(mes
     // Load primitives
     _primitives.reserve(mesh->primitives.size());
     for (auto primitive : mesh->primitives) {
-        _primitives.push_back(Primitive(_model, &primitive));
+        _primitives.emplace_back(_model, &primitive);
     }
 }
 
@@ -138,6 +131,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive) 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
+    _draw = new Draw(model->_vertex_allocator, model->_index_allocator, model->_indirect_commands_allocator,
+                     model->_instance_indices_allocator, vertices.data(), vertices.size(), indices());
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {

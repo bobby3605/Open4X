@@ -1,7 +1,7 @@
 #ifndef RENDERER_H_
 #define RENDERER_H_
 
-#include "../Allocator/allocator.hpp"
+#include "../Allocator/sub_allocator.hpp"
 #include "common.hpp"
 #include "rendergraph.hpp"
 #include <vulkan/vulkan_core.h>

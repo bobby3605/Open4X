@@ -8,8 +8,6 @@ class ModelManager {
     ModelManager();
     ~ModelManager();
     Model* get_model(std::filesystem::path model_path);
-    void upload_model(std::filesystem::path model_path);
-    void upload_model(Model* model);
 
   private:
     std::unordered_map<std::filesystem::path, Model*> _models;

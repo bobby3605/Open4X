@@ -3,18 +3,16 @@
 
 Draw::Draw(LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
            StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator,
-           Model::Mesh::Primitive* primitive)
+           const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices)
     : _vertex_allocator(vertex_allocator), _index_allocator(index_allocator), _indirect_commands_allocator(indirect_commands_allocator),
-      _instance_indices_allocator(sizeof(uint32_t), instance_indices_allocator), _primitive(primitive) {
+      _instance_indices_allocator(sizeof(uint32_t), instance_indices_allocator) {
 
-    auto& vertices = _primitive->vertices();
-    auto& indices = _primitive->indices();
     _indirect_command.indexCount = indices.size();
     // NOTE:
     // Need VkDeviceSize for alloc, so _indirect_command can't be used directly
-    _vertex_alloc = vertex_allocator->alloc(vertices.size());
+    _vertex_alloc = vertex_allocator->alloc(vertices_size);
     _indirect_command.vertexOffset = _vertex_alloc.offset;
-    vertex_allocator->write(_vertex_alloc, vertices.data(), vertices.size());
+    vertex_allocator->write(_vertex_alloc, vertices, vertices_size);
 
     _index_alloc = index_allocator->alloc(_indirect_command.indexCount);
     _indirect_command.firstIndex = _index_alloc.offset;

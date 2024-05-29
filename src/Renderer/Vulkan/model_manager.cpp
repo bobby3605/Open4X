@@ -1,4 +1,5 @@
 #include "model_manager.hpp"
+#include "draw.hpp"
 #include <vulkan/vulkan_core.h>
 
 ModelManager::ModelManager() {}
@@ -12,13 +13,12 @@ Model* ModelManager::get_model(std::filesystem::path model_path) {
     if (_models.count(model_path) == 1) {
         return _models.at(model_path);
     } else {
-        Model* model = new Model(model_path);
-        // FIXME:
-        // Initialize Draw for model
-        _models.insert(std::pair{model_path, model});
+        LinearAllocator<GPUAllocator>* vertex_allocator;
+        LinearAllocator<GPUAllocator>* index_allocator;
+        StackAllocator<GPUAllocator>* indirect_commands_allocator;
+        LinearAllocator<GPUAllocator>* instance_indices_allocator;
+        Model* model = new Model(model_path, vertex_allocator, index_allocator, indirect_commands_allocator, instance_indices_allocator);
+        _models.insert({model_path, model});
         return model;
     }
 }
-
-void ModelManager::upload_model(std::filesystem::path model_path) { upload_model(get_model(model_path)); }
-void ModelManager::upload_model(Model* model) { model->alloc(_vertex_buffer, _index_buffer); }

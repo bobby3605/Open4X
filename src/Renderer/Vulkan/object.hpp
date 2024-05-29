@@ -1,8 +1,7 @@
 #ifndef OBJECT_H_
 #define OBJECT_H_
 #include "../../utils.hpp"
-#include "../Allocator/allocator.hpp"
-#include "buffer.hpp"
+#include "../Allocator/sub_allocator.hpp"
 #include "model.hpp"
 
 class Object {
