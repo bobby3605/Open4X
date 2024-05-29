@@ -12,6 +12,8 @@ Object::Object(Model* model, safe_queue<Object*>* invalid_callback, StackAllocat
     for (size_t i = 0; i < _instance_data_allocs.capacity(); ++i) {
         _instance_data_allocs.push_back(_instances_sub_allocator->alloc());
     }
+    // FIXME:
+    // Get indices data indices from Draw
 }
 
 Object::~Object() {

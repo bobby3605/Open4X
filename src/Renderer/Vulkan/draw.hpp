@@ -8,19 +8,23 @@
 
 class Draw {
   public:
-    Draw(Buffer* vertex_buffer, Buffer* index_buffer, Buffer* instance_indices_buffer, Model::Mesh::Primitive* primitive);
+    Draw(LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
+         StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator,
+         Model::Mesh::Primitive* primitive);
     uint32_t add_instance();
     void remove_instance(uint32_t instance_index);
 
   private:
     VkDrawIndexedIndirectCommand _indirect_command;
-    Buffer* _vertex_buffer;
-    Buffer* _index_buffer;
-    Buffer* _instance_indices_buffer;
+    LinearAllocator<GPUAllocator>* _vertex_allocator;
+    SubAllocation _vertex_alloc;
+    LinearAllocator<GPUAllocator>* _index_allocator;
+    SubAllocation _index_alloc;
+    StackAllocator<GPUAllocator>* _indirect_commands_allocator;
+    SubAllocation _indirect_commands_alloc;
+    StackAllocator<LinearAllocator<GPUAllocator>> _instance_indices_allocator;
     Model::Mesh::Primitive* _primitive;
-    VmaVirtualAllocation _vertex_alloc = VK_NULL_HANDLE;
-    VmaVirtualAllocation _index_alloc = VK_NULL_HANDLE;
-    VmaVirtualAllocation _instance_indices_alloc = VK_NULL_HANDLE;
+    void update_indirect_command();
 };
 
 #endif // DRAW_H_

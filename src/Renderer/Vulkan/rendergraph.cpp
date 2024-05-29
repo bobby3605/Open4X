@@ -11,10 +11,10 @@
 #include <vulkan/vulkan_core.h>
 
 RenderGraph::RenderGraph(VkCommandPool pool) : _pool{pool} {
-    MemoryManager::memory_manager->create_buffer(_descriptor_buffer_name, 1,
-                                                 VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT |
-                                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    _descriptor_buffer_allocator = new LinearAllocator<GPUAllocator>(MemoryManager::memory_manager->create_gpu_allocator(
+        "_descriptor_buffer_allocator", 1,
+        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 }
 
 RenderGraph::~RenderGraph() {
@@ -37,7 +37,7 @@ void RenderGraph::compile() {
     // Bind descriptor buffer
     auto descriptor_buffers_binding_info = std::make_shared<VkDescriptorBufferBindingInfoEXT>();
     descriptor_buffers_binding_info->sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
-    descriptor_buffers_binding_info->address = MemoryManager::memory_manager->get_buffer(_descriptor_buffer_name)->device_address();
+    descriptor_buffers_binding_info->address = _descriptor_buffer_allocator->parent()->addr_info().address;
     descriptor_buffers_binding_info->usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
 
     std::vector<RenderNode>& first_nodes = _primary_graphs.begin()->second;
@@ -59,25 +59,20 @@ void RenderGraph::compile() {
     for (auto const& pipeline : _pipelines) {
         for (auto const& set_layout : pipeline->descriptor_layout().set_layouts()) {
             for (auto const& binding_layout : set_layout.second.bindings) {
-                Buffer* tmp;
+                GPUAllocator* tmp;
                 std::string buffer_name = binding_layout.second.buffer_name;
-                if (MemoryManager::memory_manager->buffer_exists(buffer_name)) {
+                if (MemoryManager::memory_manager->gpu_allocator_exists(buffer_name)) {
                     // TODO:
                     // Maybe
                     // support recreating buffer with new mem props if needed from the graph
                     // Other option is just to error out if you manually created a buffer with the wrong mem_props
-                    tmp = MemoryManager::memory_manager->get_buffer(buffer_name);
+                    tmp = MemoryManager::memory_manager->get_gpu_allocator(buffer_name);
                 } else {
                     if (_buffer_size_registry.count(buffer_name) == 0) {
                         throw std::runtime_error("trying to create unregistered buffer: " + buffer_name);
                     }
-                    VkDeviceSize size = _buffer_size_registry.at(buffer_name);
-                    // FIXME:
-                    // Get size from dynamic resizing instead of _buffer_size_registry
-                    // Support shaders that have a buffer named the same
-                    // Get mem_props by reading what the buffer will be used for in the graph
-                    tmp = MemoryManager::memory_manager->create_buffer(
-                        buffer_name, size,
+                    tmp = MemoryManager::memory_manager->create_gpu_allocator(
+                        buffer_name, 1,
                         type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                         binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                 }
@@ -134,8 +129,8 @@ void RenderGraph::bad_workaround(SwapChain* swap_chain) {
 
     uint32_t bind_index_buffer_index = begin_rendering_index + 4;
     nodes[bind_index_buffer_index] =
-        RenderNode(RenderDeps{}, vkCmdBindIndexBuffer, MemoryManager::memory_manager->get_buffer("index_buffer")->vk_buffer(), 0,
-                   VK_INDEX_TYPE_UINT32);
+        RenderNode(RenderDeps{}, vkCmdBindIndexBuffer,
+                   MemoryManager::memory_manager->get_gpu_allocator("index_buffer")->base_alloc().buffer, 0, VK_INDEX_TYPE_UINT32);
 
     uint32_t present_transition_index = nodes.size() - 1;
     tmp_barrier = reinterpret_cast<VkImageMemoryBarrier2*>(nodes[present_transition_index].deps[tmp_barrier_index].get());
@@ -313,8 +308,9 @@ void RenderGraph::image_barrier(VkImageMemoryBarrier2& barrier) {
     add_node({tmp_barrier, dependency_info}, vkCmdPipelineBarrier2, dependency_info.get());
 }
 
-void RenderGraph::graphics_pass(std::string const& vert_path, std::string const& frag_path, std::string const& vertex_buffer_name,
-                                std::string const& index_buffer_name, SwapChain* swap_chain_defaults) {
+void RenderGraph::graphics_pass(std::string const& vert_path, std::string const& frag_path,
+                                LinearAllocator<GPUAllocator>* vertex_buffer_allocator,
+                                LinearAllocator<GPUAllocator>* index_buffer_allocator, SwapChain* swap_chain_defaults) {
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     // TODO:
@@ -324,16 +320,13 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     pipeline_rendering_info.depthAttachmentFormat = swap_chain_defaults->depth_format();
 
     auto pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, swap_chain_defaults->extent(), vert_path, frag_path,
-                                                       _descriptor_buffer_name);
+                                                       _descriptor_buffer_allocator);
     // NOTE:
     // push instead of emplace because of template errors
     // emplace calls shared_ptr, not make_shared
     _pipelines.push_back(pipeline);
 
-    // NOTE:
-    // Technically passing _pipeline isn't needed here,
-    // but it's being put here to ensure that the render node holds the lifetime of it
-    add_node({pipeline}, vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
+    add_node(vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
 
     // Set descriptor offsets
     auto descriptor_buffer_offsets = std::make_shared<VkSetDescriptorBufferOffsetsInfoEXT>();
@@ -347,13 +340,10 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     // vertex and fragment at 1 and 2
     // So only 1 and 2 need to be updated
     descriptor_buffer_offsets->firstSet = 0;
-    descriptor_buffer_offsets->setCount = pipeline->descriptor_layout().set_layouts().size();
-    VkDeviceSize descriptor_buffer_offset = pipeline->descriptor_layout().descriptor_buffer_offset();
     auto set_offsets = std::make_shared<std::vector<VkDeviceSize>>(pipeline->descriptor_layout().set_offsets());
-    auto buffer_indices = std::make_shared<std::vector<uint32_t>>();
-    buffer_indices->reserve(descriptor_buffer_offsets->setCount);
-    for (auto& offset : *set_offsets) {
-        offset += descriptor_buffer_offset;
+    descriptor_buffer_offsets->setCount = set_offsets->size();
+    auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount);
+    for (auto const& buffer_index : *buffer_indices) {
         buffer_indices->push_back(0);
     }
     descriptor_buffer_offsets->pOffsets = set_offsets->data();
@@ -363,10 +353,13 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
              descriptor_buffer_offsets.get());
 
     // push constants
+
+    // set vertex and index buffers
     auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
-    add_node({offsets}, vkCmdBindVertexBuffers, 0, 1, &MemoryManager::memory_manager->get_buffer(vertex_buffer_name)->vk_buffer(),
-             offsets->data());
-    add_node(vkCmdBindIndexBuffer, MemoryManager::memory_manager->get_buffer(index_buffer_name)->vk_buffer(), 0, VK_INDEX_TYPE_UINT32);
+    // FIXME:
+    // support gpu_allocator reallocs
+    add_node({offsets}, vkCmdBindVertexBuffers, 0, 1, &vertex_buffer_allocator->base_alloc().buffer, offsets->data());
+    add_node(vkCmdBindIndexBuffer, index_buffer_allocator->base_alloc().buffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
 void RenderGraph::buffer(std::string name, VkDeviceSize size) { _buffer_size_registry.insert_or_assign(name, size); }

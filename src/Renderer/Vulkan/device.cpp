@@ -22,6 +22,20 @@ Device::Device() {
     load_device_addr(vkGetDescriptorEXT, _device);
     load_device_addr(vkCmdBindDescriptorBuffersEXT, _device);
     load_device_addr(vkCmdSetDescriptorBufferOffsets2EXT, _device);
+
+    VmaVulkanFunctions vulkan_functions = {};
+    vulkan_functions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
+    vulkan_functions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    allocatorCreateInfo.vulkanApiVersion = Device::API_VERSION;
+    allocatorCreateInfo.physicalDevice = Device::device->physical_device();
+    allocatorCreateInfo.device = Device::device->vk_device();
+    allocatorCreateInfo.instance = Device::device->instance();
+    allocatorCreateInfo.pVulkanFunctions = &vulkan_functions;
+
+    vmaCreateAllocator(&allocatorCreateInfo, &_vma_allocator);
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
@@ -37,6 +51,7 @@ Device::~Device() {
     }
     vkDestroyCommandPool(_device, _command_pool, nullptr);
     delete _command_pool_allocator;
+    vmaDestroyAllocator(_vma_allocator);
     vkDestroyDevice(_device, nullptr);
 
     if (enable_validation_layers) {

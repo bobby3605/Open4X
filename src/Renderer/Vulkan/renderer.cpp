@@ -1,8 +1,8 @@
 #include "renderer.hpp"
 #include "device.hpp"
+#include "globals.hpp"
 #include "memory_manager.hpp"
 #include "model.hpp"
-#include "object_manager.hpp"
 #include "swapchain.hpp"
 #include "window.hpp"
 #include <cstdint>
@@ -10,7 +10,9 @@
 
 Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     new Device();
+    globals.device = Device::device;
     new MemoryManager();
+    globals.memory_manager = MemoryManager::memory_manager;
     create_data_buffers();
     _swap_chain = new SwapChain(Window::window->extent());
     _command_pool = Device::device->command_pools()->get_pool();
@@ -28,45 +30,43 @@ Renderer::~Renderer() {
 }
 
 void Renderer::create_data_buffers() {
-    Buffer* vertex_buffer = MemoryManager::memory_manager->create_buffer(
+    vertex_buffer_allocator = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
         "vertex_buffer", sizeof(NewVertex),
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    Buffer* index_buffer = MemoryManager::memory_manager->create_buffer(
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+
+    index_buffer_allocator = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
         "index_buffer", sizeof(uint32_t),
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    /*
-    Buffer* instance_data_buffer = MemoryManager::memory_manager->create_buffer(
-        "Instances", sizeof(InstanceData),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-        */
+    instances_stack_allocator = new StackAllocator(
+        sizeof(InstanceData),
+        MemoryManager::memory_manager->create_gpu_allocator("Instances", sizeof(InstanceData),
+                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                                                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    instance_data_allocator =
-        new GPUAllocator(sizeof(InstanceData),
-                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Instances");
+    indirect_commands_allocator =
+        new StackAllocator(sizeof(VkDrawIndexedIndirectCommand),
+                           MemoryManager::memory_manager->create_gpu_allocator(
+                               "indirect_commands", sizeof(VkDrawIndexedIndirectCommand),
+                               VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    instances_stack_allocator = new StackAllocator<GPUAllocator>(sizeof(InstanceData), instance_data_allocator);
+    // NOTE:
+    // Has to be created now and not in rg->compile() because rg->graphics_pass depends on this buffer existing
+    MemoryManager::memory_manager->create_gpu_allocator("indirect_count", sizeof(uint32_t),
+                                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    MemoryManager::memory_manager->create_buffer("indirect_commands", sizeof(VkDrawIndexedIndirectCommand),
-                                                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    MemoryManager::memory_manager->create_buffer("indirect_count", sizeof(uint32_t),
-                                                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    Buffer* culled_instance_indices_buffer = MemoryManager::memory_manager->create_buffer(
+    GPUAllocator* culled_instance_indices_buffer = MemoryManager::memory_manager->create_gpu_allocator(
         "CulledInstanceIndices", sizeof(uint32_t),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    Buffer* culled_material_indices_buffer = MemoryManager::memory_manager->create_buffer(
+    GPUAllocator* culled_material_indices_buffer = MemoryManager::memory_manager->create_gpu_allocator(
         "CulledMaterialIndices", sizeof(uint32_t),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -173,10 +173,6 @@ RenderOp memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 sr
 
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
-    rg->buffer("Globals", 1);
-    rg->buffer("Materials", 1);
-    rg->buffer("CulledInstanceIndices", 1);
-    rg->buffer("CulledMaterialIndices", 1);
 
     rg->define_primary(false);
     // FIXME:
@@ -189,7 +185,7 @@ void Renderer::create_rendergraph() {
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
     std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
 
-    rg->graphics_pass(vert_shader_path, frag_shader_path, "vertex_buffer", "index_buffer", _swap_chain);
+    rg->graphics_pass(vert_shader_path, frag_shader_path, vertex_buffer_allocator, index_buffer_allocator, _swap_chain);
 
     VkExtent2D extent = _swap_chain->extent();
 
@@ -206,11 +202,9 @@ void Renderer::create_rendergraph() {
     rg->add_node(vkCmdSetViewport, 0, 1, &viewport);
     rg->add_node(vkCmdSetScissor, 0, 1, &scissor);
 
-    std::vector<VkDrawIndexedIndirectCommand> indirect_draws;
-
-    rg->add_node(vkCmdDrawIndexedIndirectCount, MemoryManager::memory_manager->get_buffer("indirect_commands")->vk_buffer(), 0,
-                 MemoryManager::memory_manager->get_buffer("indirect_count")->vk_buffer(), 0, indirect_draws.size(),
-                 sizeof(indirect_draws[0]));
+    rg->add_node(vkCmdDrawIndexedIndirectCount, indirect_commands_allocator->base_alloc().buffer, 0,
+                 MemoryManager::memory_manager->get_gpu_allocator("indirect_count")->base_alloc().buffer, 0,
+                 indirect_commands_allocator->block_count(), indirect_commands_allocator->block_size());
 
     rg->end_rendering(_swap_chain);
 

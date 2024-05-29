@@ -1,33 +1,28 @@
 #include "draw.hpp"
 #include <vulkan/vulkan_core.h>
 
-Draw::Draw(Buffer* vertex_buffer, Buffer* index_buffer, Buffer* instance_indices_buffer, Model::Mesh::Primitive* primitive)
-    : _vertex_buffer(vertex_buffer), _index_buffer(index_buffer), _instance_indices_buffer(instance_indices_buffer), _primitive(primitive) {
+Draw::Draw(LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
+           StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator,
+           Model::Mesh::Primitive* primitive)
+    : _vertex_allocator(vertex_allocator), _index_allocator(index_allocator), _indirect_commands_allocator(indirect_commands_allocator),
+      _instance_indices_allocator(sizeof(uint32_t), instance_indices_allocator), _primitive(primitive) {
 
     auto& vertices = _primitive->vertices();
     auto& indices = _primitive->indices();
-    _indirect_command.indexCount = indices.capacity();
+    _indirect_command.indexCount = indices.size();
     // NOTE:
     // Need VkDeviceSize for alloc, so _indirect_command can't be used directly
-    VkDeviceSize vertex_offset;
-    vertex_buffer->alloc(vertices.capacity(), _vertex_alloc, vertex_offset);
-    _indirect_command.vertexOffset = vertex_offset;
-    memcpy(vertex_buffer->data(), vertices.data(), vertices.capacity());
+    _vertex_alloc = vertex_allocator->alloc(vertices.size());
+    _indirect_command.vertexOffset = _vertex_alloc.offset;
+    vertex_allocator->write(_vertex_alloc, vertices.data(), vertices.size());
 
-    VkDeviceSize first_index;
-    index_buffer->alloc(indices.capacity(), _index_alloc, first_index);
-    _indirect_command.firstIndex = first_index;
-    memcpy(index_buffer->data(), indices.data(), indices.capacity());
+    _index_alloc = index_allocator->alloc(_indirect_command.indexCount);
+    _indirect_command.firstIndex = _index_alloc.offset;
+    index_allocator->write(_index_alloc, indices.data(), indices.size());
 
-    StackAllocator<GPUAllocator>* indirect_commands_allocator;
-    SubAllocation indirect_alloc = indirect_commands_allocator->alloc();
-    // FIXME:
-    // That isn't right
-    // indirect_alloc.offset is the location of the indirect command
-    // Need to allocate space for the instances
-    //    _indirect_command.firstInstance = indirect_alloc.offset;
+    _indirect_commands_alloc = indirect_commands_allocator->alloc();
+
     _indirect_command.instanceCount = 0;
-    // indirect_commands_allocator->write(&_indirect_command, indirect_alloc);
 }
 
 // TODO
@@ -67,10 +62,10 @@ uint32_t Draw::add_instance() {
     _indirect_command.firstInstance = new_first_instance;
     return _indirect_command.instanceCount - 1;
     */
-    StackAllocator<GPUAllocator>* indirect_commands_allocator;
-    SubAllocation indirect_alloc;
+    SubAllocation instance_index_alloc = _instance_indices_allocator.alloc();
+    _indirect_command.firstInstance = _instance_indices_allocator.base_alloc().offset;
     uint32_t instance_id = _indirect_command.instanceCount++;
-    //    indirect_commands_allocator->write(&_indirect_command, indirect_alloc);
+    update_indirect_command();
     return instance_id;
     // Need to allocate instance ids and first instance
     // allocator could keep track of that
@@ -78,8 +73,12 @@ uint32_t Draw::add_instance() {
 }
 
 void Draw::remove_instance(uint32_t instance_index) {
-    char* data = _instance_indices_buffer->data();
+    //    char* data = _instance_indices_buffer->data();
     // Subtract 1 from instance count
     // Copy last instance index to the instance index being removed
-    data[_indirect_command.firstInstance + instance_index] = data[_indirect_command.firstInstance + --_indirect_command.instanceCount];
+    // data[_indirect_command.firstInstance + instance_index] = data[_indirect_command.firstInstance + --_indirect_command.instanceCount];
+}
+
+void Draw::update_indirect_command() {
+    _indirect_commands_allocator->write(_indirect_commands_alloc, &_indirect_command, _indirect_commands_alloc.size());
 }

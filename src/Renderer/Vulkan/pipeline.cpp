@@ -18,8 +18,8 @@ GraphicsPipeline::~GraphicsPipeline() {
 }
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
-                                   std::string const& frag_path, std::string descriptor_buffer_name)
-    : Pipeline(descriptor_buffer_name) {
+                                   std::string const& frag_path, LinearAllocator<GPUAllocator>* descriptor_buffer_allocator)
+    : Pipeline(descriptor_buffer_allocator) {
     _bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
     _pipeline_name = get_filename_no_ext(vert_path);
 

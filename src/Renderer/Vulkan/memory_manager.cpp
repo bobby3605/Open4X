@@ -10,59 +10,44 @@
 
 MemoryManager* MemoryManager::memory_manager;
 
-MemoryManager::MemoryManager() {
-    VmaVulkanFunctions vulkan_functions = {};
-    vulkan_functions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
-    vulkan_functions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
-
-    VmaAllocatorCreateInfo allocatorCreateInfo = {};
-    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    allocatorCreateInfo.vulkanApiVersion = Device::API_VERSION;
-    allocatorCreateInfo.physicalDevice = Device::device->physical_device();
-    allocatorCreateInfo.device = Device::device->vk_device();
-    allocatorCreateInfo.instance = Device::device->instance();
-    allocatorCreateInfo.pVulkanFunctions = &vulkan_functions;
-
-    vmaCreateAllocator(&allocatorCreateInfo, &_allocator);
-    memory_manager = this;
-}
+MemoryManager::MemoryManager() { memory_manager = this; }
 
 MemoryManager::~MemoryManager() {
-    for (auto buffer : _buffers) {
-        delete buffer.second;
+    for (auto gpu_allocator : _gpu_allocators) {
+        delete gpu_allocator.second;
     }
     for (auto image : _images) {
         vmaDestroyImage(_allocator, image.second.vk_image, image.second.allocation);
     }
-    vmaDestroyAllocator(_allocator);
 }
 
-Buffer* MemoryManager::create_buffer(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
-    if (_buffers.count(name) != 0) {
+GPUAllocator* MemoryManager::create_gpu_allocator(std::string name, VkDeviceSize size, VkBufferUsageFlags usage,
+                                                  VkMemoryPropertyFlags properties) {
+    if (_gpu_allocators.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
     }
 
-    Buffer* buffer = new Buffer(_allocator, size, usage, properties, name);
+    GPUAllocator* buffer = new GPUAllocator(size, usage, properties, name);
 
     // FIXME:
     // Thread safety
-    _buffers.insert({name, buffer});
+    _gpu_allocators.insert(std::pair{name, buffer});
     return buffer;
 }
 
-Buffer* MemoryManager::get_buffer(std::string name) {
-    if (_buffers.count(name) == 0) {
+GPUAllocator* MemoryManager::get_gpu_allocator(std::string name) {
+    if (_gpu_allocators.count(name) == 0) {
         throw std::runtime_error("tried to get buffer that doesn't exist: " + name);
     }
-    return _buffers.at(name);
+    return _gpu_allocators.at(name);
 }
 
-void MemoryManager::delete_buffer(std::string name) {
-    delete _buffers[name];
-    _buffers.erase(name);
+void MemoryManager::delete_gpu_allocator(std::string name) {
+    delete _gpu_allocators[name];
+    _gpu_allocators.erase(name);
 };
 
-void MemoryManager::set_buffer(std::string const& name, Buffer* buffer) { _buffers.insert_or_assign(name, buffer); }
+void MemoryManager::set_gpu_allocator(std::string const& name, GPUAllocator* buffer) { _gpu_allocators.insert_or_assign(name, buffer); }
 
 MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels,
                                                  VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
@@ -93,7 +78,7 @@ MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t widt
     check_result(vmaCreateImage(_allocator, &image_info, &alloc_info, &image.vk_image, &image.allocation, nullptr),
                  "failed to create image!");
     Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.vk_image, name);
-    _images.insert({name, image});
+    _images.insert(std::pair{name, image});
     return image;
 }
 

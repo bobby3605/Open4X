@@ -65,8 +65,7 @@ Open4X::Open4X() {
         new Window(640, 480, "Open 4X");
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
         renderer = new Renderer((NewSettings*)settings.get());
-        _model_manager = new ModelManager(MemoryManager::memory_manager->get_buffer("vertex_buffer"),
-                                          MemoryManager::memory_manager->get_buffer("index_buffer"));
+        _model_manager = new ModelManager();
         _object_manager = new ObjectManager(renderer->instances_stack_allocator);
     } else {
         creationTime = std::chrono::high_resolution_clock::now();

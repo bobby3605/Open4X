@@ -69,8 +69,8 @@ class RenderGraph {
     void end_rendering(SwapChain* const swap_chain);
     // TODO
     // Remove the SwapChain dependency
-    void graphics_pass(std::string const& vert_path, std::string const& frag_path, std::string const& vertex_buffer_name,
-                       std::string const& index_buffer_name, SwapChain* swap_chain_defaults);
+    void graphics_pass(std::string const& vert_path, std::string const& frag_path, LinearAllocator<GPUAllocator>* vertex_buffer_allocator,
+                       LinearAllocator<GPUAllocator>* index_buffer_allocator, SwapChain* swap_chain_defaults);
     void buffer(std::string name, VkDeviceSize size);
     void define_primary(bool per_frame);
     void define_secondary(bool per_frame);
@@ -88,7 +88,7 @@ class RenderGraph {
     void image_barrier(VkImageMemoryBarrier2& barrier);
     std::vector<std::shared_ptr<Pipeline>> _pipelines;
     std::unordered_map<std::string, VkDeviceSize> _buffer_size_registry;
-    std::string _descriptor_buffer_name = "descriptor_buffer";
+    LinearAllocator<GPUAllocator>* _descriptor_buffer_allocator;
 
     void bad_workaround(SwapChain* swap_chain);
 };

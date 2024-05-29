@@ -1,10 +1,12 @@
 #include "base_allocator.hpp"
 #include "../Vulkan/command_runner.hpp"
 #include "../Vulkan/common.hpp"
+#include <cstddef>
 #include <cstring>
 #include <vulkan/vulkan_core.h>
 
-CPUAllocator::CPUAllocator(size_t const& byte_size) : BaseAllocator(byte_size) {}
+CPUAllocator::CPUAllocator(size_t const& byte_size) { _base_alloc = alloc(byte_size); }
+CPUAllocator::~CPUAllocator() { free(_base_alloc); }
 
 CPUAllocation CPUAllocator::alloc(size_t const& byte_size) {
     CPUAllocation allocation;
@@ -20,6 +22,7 @@ void CPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void CPUAllocator::write(SubAllocation const& allocation, const void* data, size_t const& byte_size) {
+    std::lock_guard<std::mutex> lock(_realloc_lock);
     std::memcpy(_base_alloc.data + allocation.offset, data, byte_size);
 }
 
@@ -28,7 +31,7 @@ void CPUAllocator::copy(CPUAllocation const& dst_allocation, CPUAllocation const
 }
 
 GPUAllocator::GPUAllocator(VkDeviceSize byte_size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::string name)
-    : BaseAllocator(byte_size), _name(name) {
+    : _name(name) {
     _buffer_info.usage = usage;
 
     _alloc_info.requiredFlags = properties;
@@ -53,10 +56,12 @@ GPUAllocator::GPUAllocator(VkDeviceSize byte_size, VkBufferUsageFlags usage, VkM
     }
 }
 
+GPUAllocator::~GPUAllocator() { free(_base_alloc); }
+
 GPUAllocation GPUAllocator::alloc(size_t const& byte_size) {
     GPUAllocation gpu_allocation{};
     _buffer_info.size = byte_size;
-    check_result(vmaCreateBuffer(globals.device->vma_allocator(), &_buffer_info, &_alloc_info, &gpu_allocation.buffer,
+    check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &gpu_allocation.buffer,
                                  &gpu_allocation.vma_allocation, nullptr),
                  "failed to create buffer " + _name);
     Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)gpu_allocation.buffer, _name);
@@ -67,14 +72,16 @@ GPUAllocation GPUAllocator::alloc(size_t const& byte_size) {
     if (_buffer_info.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
         VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
         info.buffer = gpu_allocation.buffer;
-        _addr_info.address = vkGetBufferDeviceAddress(globals.device->vk_device(), &info);
+        _addr_info.address = vkGetBufferDeviceAddress(Device::device->vk_device(), &info);
     }
+    // FIXME:
+    // update descriptor buffers with new address info
 
     return gpu_allocation;
 }
 
 void GPUAllocator::free(GPUAllocation const& allocation) {
-    vmaDestroyBuffer(globals.device->vma_allocator(), allocation.buffer, allocation.vma_allocation);
+    vmaDestroyBuffer(Device::device->vma_allocator(), allocation.buffer, allocation.vma_allocation);
 }
 
 void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size) {
@@ -90,7 +97,9 @@ void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& copy_size) {
-    vmaCopyMemoryToAllocation(globals.device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, copy_size);
+    std::lock_guard<std::mutex> lock(_realloc_lock);
+
+    vmaCopyMemoryToAllocation(Device::device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, copy_size);
 }
 
 void GPUAllocator::copy(GPUAllocation const& dst_allocation, GPUAllocation const& src_allocation, size_t const& byte_size) {

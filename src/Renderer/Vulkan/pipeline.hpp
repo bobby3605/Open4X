@@ -1,7 +1,6 @@
 #ifndef PIPELINE_H_
 #define PIPELINE_H_
 #include "descriptors.hpp"
-#include "memory_manager.hpp"
 #include "shader.hpp"
 #include <string>
 #include <unordered_map>
@@ -10,7 +9,7 @@
 
 class Pipeline {
   public:
-    Pipeline(std::string descriptor_buffer_name) : _descriptor_layout(MemoryManager::memory_manager->get_buffer(descriptor_buffer_name)) {}
+    Pipeline(LinearAllocator<GPUAllocator>* descriptor_buffer_allocator) : _descriptor_layout(descriptor_buffer_allocator) {}
     ~Pipeline();
     VkPipeline const& vk_pipeline() { return _pipeline; }
     VkPipelineLayout const& vk_pipeline_layout() { return _pipeline_layout; }
@@ -31,7 +30,7 @@ class Pipeline {
 class GraphicsPipeline : public Pipeline {
   public:
     GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
-                     std::string const& frag_path, std::string descriptor_buffer_name);
+                     std::string const& frag_path, LinearAllocator<GPUAllocator>* descriptor_buffer_allocator);
     ~GraphicsPipeline();
 };
 

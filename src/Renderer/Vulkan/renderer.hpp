@@ -13,8 +13,10 @@ class Renderer {
     void create_data_buffers();
     // Return true if swapchain was recreated
     bool render();
-    GPUAllocator* instance_data_allocator;
     StackAllocator<GPUAllocator>* instances_stack_allocator;
+    StackAllocator<GPUAllocator>* indirect_commands_allocator;
+    LinearAllocator<GPUAllocator>* vertex_buffer_allocator;
+    LinearAllocator<GPUAllocator>* index_buffer_allocator;
 
   private:
     NewSettings* _settings;
