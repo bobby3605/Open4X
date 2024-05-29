@@ -5,43 +5,62 @@
 #include <stack>
 #include <type_traits>
 
+#define is_sub_allocator std::is_same<typename AllocatorT::AllocT, SubAllocation>::value
+#define is_base_allocator std::is_base_of<BaseAllocator<typename AllocatorT::AllocT>, AllocatorT>::value
+// Needed to ensure at compile time that one of the if constexpr branches will be taken
+#define is_allocator is_sub_allocator || is_base_allocator
+
 template <typename AllocatorT> class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT> {
   public:
-    // NOTE:
-    // only call alloc if parent_allocator is a SubAllocator
     SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator)
-        requires(std::is_same<typename AllocatorT::AllocT, SubAllocation>::value)
+        requires(is_allocator)
         : _parent_allocator(parent_allocator) {
-        this->_base_alloc = _parent_allocator->alloc(byte_size);
+        if constexpr (is_sub_allocator) {
+            this->_base_alloc = _parent_allocator->alloc(byte_size);
+        } else if constexpr (is_base_allocator) {
+            // NOTE:
+            // get _base_alloc from parent_allocator if parent_allocator is a BaseAllocator
+            this->_base_alloc = _parent_allocator->base_alloc();
+        }
     }
-    // NOTE:
-    // get _base_alloc from parent_allocator if parent_allocator is a BaseAllocator
-    SubAllocator(size_t const& byte_size, AllocatorT* parent_allocator)
-        requires(std::is_base_of<BaseAllocator<typename AllocatorT::AllocT>, AllocatorT>::value)
-        : _parent_allocator(parent_allocator) {
-        this->_base_alloc = _parent_allocator->base_alloc();
-    }
-    // NOTE: Only free if parent_allocator is a SubAllocator
     ~SubAllocator()
-        requires(std::is_same<typename AllocatorT::AllocT, SubAllocation>::value)
+        requires(is_allocator)
     {
-        _parent_allocator->free(this->_base_alloc);
+        if constexpr (is_sub_allocator) {
+            // NOTE: Only free if parent_allocator is a SubAllocator
+            _parent_allocator->free(this->_base_alloc);
+        }
     }
-    ~SubAllocator()
-        requires(std::is_base_of<BaseAllocator<typename AllocatorT::AllocT>, AllocatorT>::value)
-    {}
 
-    void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
+    void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size)
+        requires(is_allocator)
+    {
         std::lock_guard<std::mutex> lock(this->_realloc_lock);
-        // FIXME:
-        // This isn't right
-        // I need to add _base_alloc to this or something like that
-        _parent_allocator->write(dst_allocation, data, byte_size);
+        if constexpr (is_sub_allocator) {
+            SubAllocation dst = dst_allocation;
+            dst.offset += this->_base_alloc;
+            _parent_allocator->write(dst, data, byte_size);
+        } else if constexpr (is_base_allocator) {
+            _parent_allocator->write(dst_allocation, data, byte_size);
+        }
     }
-    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& copy_size) {
-        _parent_allocator->copy(dst_allocation, src_allocation, copy_size);
-    }
+    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& copy_size)
+        requires(is_allocator)
+    {
+        if constexpr (is_sub_allocator) {
+            // TODO:
+            // realloc lock here
+            // can't do it now because realloc calls that lock and it calls this function;
+            SubAllocation dst = dst_allocation;
+            dst.offset += this->_base_alloc.offset;
+            SubAllocation src = src_allocation;
+            src.offset += this->_base_alloc.offset;
+            _parent_allocator->copy(dst, src, copy_size);
+        } else if constexpr (is_base_allocator) {
 
+            _parent_allocator->copy(dst_allocation, src_allocation, copy_size);
+        }
+    }
     const AllocatorT* parent() const { return _parent_allocator; }
 
   protected:
