@@ -26,6 +26,11 @@ void CPUAllocator::write(SubAllocation const& allocation, const void* data, size
     std::memcpy(_base_alloc.data + allocation.offset, data, byte_size);
 }
 
+void CPUAllocator::get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) {
+    std::lock_guard<std::mutex> lock(_realloc_lock);
+    std::memcpy(dst, _base_alloc.data + src_allocation.offset, byte_size);
+}
+
 void CPUAllocator::copy(CPUAllocation const& dst_allocation, CPUAllocation const& src_allocation, size_t const& byte_size) {
     std::memcpy(dst_allocation.data, src_allocation.data, byte_size);
 }
@@ -96,10 +101,14 @@ void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
     command_runner.run();
 }
 
-void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& copy_size) {
+void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
     std::lock_guard<std::mutex> lock(_realloc_lock);
+    vmaCopyMemoryToAllocation(Device::device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, byte_size);
+}
 
-    vmaCopyMemoryToAllocation(Device::device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, copy_size);
+void GPUAllocator::get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) {
+    std::lock_guard<std::mutex> lock(_realloc_lock);
+    vmaCopyAllocationToMemory(Device::device->vma_allocator(), _base_alloc.vma_allocation, src_allocation.offset, dst, byte_size);
 }
 
 void GPUAllocator::copy(GPUAllocation const& dst_allocation, GPUAllocation const& src_allocation, size_t const& byte_size) {

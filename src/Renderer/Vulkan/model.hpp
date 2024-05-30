@@ -1,22 +1,15 @@
 #ifndef MODEL_H_
 #define MODEL_H_
+#include "draw.hpp"
 #include "fastgltf/types.hpp"
 #include <cstdint>
-#include <optional>
-#include <unordered_map>
-#include <vulkan/vulkan_core.h>
-#define GLM_FORCE_RADIANS
-#define GLM_ENABLE_EXPERIMENTAL
-#include "draw.hpp"
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
-#include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
+#include <optional>
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
-
-struct InstanceData {
-    glm::mat4 model_matrix;
-};
+#include <vulkan/vulkan_core.h>
 
 template <typename T> std::vector<T> load_accessor(fastgltf::Asset& asset, unsigned long accessor_index) {
     fastgltf::Accessor* accessor = &asset.accessors[accessor_index];
@@ -88,14 +81,13 @@ template <> struct hash<NewVertex> {
 
 class Model {
   public:
-    Model(std::filesystem::path path, LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
-          StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator);
-    void load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data);
-    const std::size_t model_matrices_size() { return _model_matrices_size; }
+    Model(std::filesystem::path path, DrawAllocators& draw_allocators);
+    void write_instance_data(glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids);
+    std::vector<uint32_t> add_instance();
 
     class Scene {
       public:
-        Scene(Model* model, fastgltf::Scene* scene);
+        Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_allocators);
 
       protected:
         std::vector<std::optional<std::size_t>> _root_node_indices;
@@ -109,10 +101,12 @@ class Model {
 
     class Node {
       public:
-        Node(Model* _model, fastgltf::Node* node, glm::mat4 const& parent_transform);
-        void load_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceData>& instance_data);
+        Node(Model* _model, fastgltf::Node* node, glm::mat4 const& parent_transform, DrawAllocators& draw_allocators);
+        void write_instance_data(Model* _model, glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids,
+                                 size_t& id_index);
 
       protected:
+        void add_instance(Model* model, std::vector<uint32_t>& instance_ids);
         std::optional<std::size_t> _mesh_index;
         std::vector<std::optional<std::size_t>> _child_node_indices;
         glm::mat4 _transform;
@@ -126,11 +120,11 @@ class Model {
 
     class Mesh {
       public:
-        Mesh(Model* _model, fastgltf::Mesh* mesh);
+        Mesh(Model* _model, fastgltf::Mesh* mesh, DrawAllocators const& draw_allocators);
 
         class Primitive {
           public:
-            Primitive(Model* _model, fastgltf::Primitive* primitive);
+            Primitive(Model* _model, fastgltf::Primitive* primitive, DrawAllocators const& draw_allocators);
             Draw* _draw;
 
           protected:
@@ -172,11 +166,6 @@ class Model {
     std::vector<std::optional<Node>> _nodes;
     std::unordered_map<uint32_t, Mesh> _meshes;
 
-    LinearAllocator<GPUAllocator>* _vertex_allocator;
-    LinearAllocator<GPUAllocator>* _index_allocator;
-    StackAllocator<GPUAllocator>* _indirect_commands_allocator;
-    LinearAllocator<GPUAllocator>* _instance_indices_allocator;
-
   public:
     std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }
 
@@ -186,7 +175,7 @@ class Model {
     fastgltf::Parser _parser;
     fastgltf::MappedGltfFile* _data;
     std::size_t _default_scene;
-    std::size_t _model_matrices_size = 0;
+    std::size_t _total_instance_data_count;
 };
 
 #endif // MODEL_H_

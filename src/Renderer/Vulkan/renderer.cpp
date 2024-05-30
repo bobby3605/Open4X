@@ -30,24 +30,24 @@ Renderer::~Renderer() {
 }
 
 void Renderer::create_data_buffers() {
-    vertex_buffer_allocator = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
+    draw_allocators.vertex = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
         "vertex_buffer", sizeof(NewVertex),
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    index_buffer_allocator = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
+    draw_allocators.index = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
         "index_buffer", sizeof(uint32_t),
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    instances_stack_allocator = new StackAllocator(
+    draw_allocators.instance_data = new StackAllocator(
         sizeof(InstanceData),
         MemoryManager::memory_manager->create_gpu_allocator("Instances", sizeof(InstanceData),
                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
-    indirect_commands_allocator =
+    draw_allocators.indirect_commands =
         new StackAllocator(sizeof(VkDrawIndexedIndirectCommand),
                            MemoryManager::memory_manager->create_gpu_allocator(
                                "indirect_commands", sizeof(VkDrawIndexedIndirectCommand),
@@ -61,25 +61,15 @@ void Renderer::create_data_buffers() {
                                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    GPUAllocator* culled_instance_indices_buffer = MemoryManager::memory_manager->create_gpu_allocator(
+    draw_allocators.instance_indices = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
         "CulledInstanceIndices", sizeof(uint32_t),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
     GPUAllocator* culled_material_indices_buffer = MemoryManager::memory_manager->create_gpu_allocator(
         "CulledMaterialIndices", sizeof(uint32_t),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    /*
-    ObjectManager* manager;
-    Object* box = manager->get_object("box");
-    uint32_t instance_index;
-    // This isn't right
-    // gl_InstanceIndex will be different
-    // Transposed with the primitives or something like that
-    culled_instance_indices_buffer->data()[instance_index] = box->instance_data_offset();
-    */
 }
 
 void Renderer::recreate_swap_chain() {
@@ -185,7 +175,7 @@ void Renderer::create_rendergraph() {
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
     std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
 
-    rg->graphics_pass(vert_shader_path, frag_shader_path, vertex_buffer_allocator, index_buffer_allocator, _swap_chain);
+    rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index, _swap_chain);
 
     VkExtent2D extent = _swap_chain->extent();
 
@@ -202,9 +192,9 @@ void Renderer::create_rendergraph() {
     rg->add_node(vkCmdSetViewport, 0, 1, &viewport);
     rg->add_node(vkCmdSetScissor, 0, 1, &scissor);
 
-    rg->add_node(vkCmdDrawIndexedIndirectCount, indirect_commands_allocator->base_alloc().buffer, 0,
+    rg->add_node(vkCmdDrawIndexedIndirectCount, draw_allocators.indirect_commands->base_alloc().buffer, 0,
                  MemoryManager::memory_manager->get_gpu_allocator("indirect_count")->base_alloc().buffer, 0,
-                 indirect_commands_allocator->block_count(), indirect_commands_allocator->block_size());
+                 draw_allocators.indirect_commands->block_count(), draw_allocators.indirect_commands->block_size());
 
     rg->end_rendering(_swap_chain);
 

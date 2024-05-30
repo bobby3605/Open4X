@@ -1,82 +1,97 @@
 #include "draw.hpp"
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
 
-Draw::Draw(LinearAllocator<GPUAllocator>* vertex_allocator, LinearAllocator<GPUAllocator>* index_allocator,
-           StackAllocator<GPUAllocator>* indirect_commands_allocator, LinearAllocator<GPUAllocator>* instance_indices_allocator,
-           const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices)
-    : _vertex_allocator(vertex_allocator), _index_allocator(index_allocator), _indirect_commands_allocator(indirect_commands_allocator),
-      _instance_indices_allocator(sizeof(uint32_t), instance_indices_allocator) {
+Draw::Draw(DrawAllocators const& draw_allocators, const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices)
+    : _allocators(draw_allocators), _instance_indices(sizeof(uint32_t), _allocators.instance_indices),
+      _instance_indices_allocs(sizeof(SubAllocation), new CPUAllocator(sizeof(SubAllocation))) {
 
     _indirect_command.indexCount = indices.size();
     // NOTE:
     // Need VkDeviceSize for alloc, so _indirect_command can't be used directly
-    _vertex_alloc = vertex_allocator->alloc(vertices_size);
+    _vertex_alloc = _allocators.vertex->alloc(vertices_size);
     _indirect_command.vertexOffset = _vertex_alloc.offset;
-    vertex_allocator->write(_vertex_alloc, vertices, vertices_size);
+    _allocators.vertex->write(_vertex_alloc, vertices, vertices_size);
 
-    _index_alloc = index_allocator->alloc(_indirect_command.indexCount);
+    _index_alloc = _allocators.index->alloc(_indirect_command.indexCount);
     _indirect_command.firstIndex = _index_alloc.offset;
-    index_allocator->write(_index_alloc, indices.data(), indices.size());
+    _allocators.index->write(_index_alloc, indices.data(), indices.size());
 
-    _indirect_commands_alloc = indirect_commands_allocator->alloc();
+    _indirect_commands_alloc = _allocators.indirect_commands->alloc();
 
     _indirect_command.instanceCount = 0;
+    _last_instance_index_alloc.offset = 0;
+
+    write_indirect_command();
 }
 
-// TODO
-// After add_instance returns an index
-// instance_indices_buffer[instance_index] = instance_data_index
-// instance_data_buffer[instance_data_index] = InstanceData
-//
-// add_instance needs to run in the same order that load_instance_data runs in
-// so the whole list of instance indices are at the same position as the instance data vector
-//
-// model->load_instance_data(,instance_data)
-// instance_indices; for node: instance_indices.push_back(add_instance)
-//
-// for i in instance_indices.size():
-//
-// instance_data_index = i + object->_instance_data_offset
-//
-// instance_indices_buffer[instance_indices[i]] = instance_data_index
-// instance_data_buffer[instance_data_index] = instance_data[i]
-
-// FIXME:
-// When remove_instance deletes an instance and copies the last index to the remove position,
-// the instance index that was obtained from add_instance at the end of the buffer is now invalid,
-// and needs to be updated to the new index before updating instance_data_buffer
-//
-// Doing this almost certainly breaks the well-defined order of instance_data_buffer,
-// so it can't be just directly uploaded, it has to be corrected for the swap
-//
-// maybe after the first time, instance_data_index can be read from instance_indices_buffer??
+Draw::~Draw() {
+    delete _instance_indices_allocs.parent();
+    // NOTE:
+    // _instance_indices will get cleaned up automatically
+    for (auto& instance_data_alloc : _instance_data_allocs) {
+        _allocators.instance_data->free(instance_data_alloc.second);
+    }
+}
 
 uint32_t Draw::add_instance() {
-    /*
-    VkDeviceSize new_first_instance;
     // TODO
     // preallocate when creating a large amount of instances
-    _instance_indices_buffer->realloc(++_indirect_command.instanceCount, _instance_indices_alloc, new_first_instance);
-    _indirect_command.firstInstance = new_first_instance;
-    return _indirect_command.instanceCount - 1;
-    */
-    SubAllocation instance_index_alloc = _instance_indices_allocator.alloc();
-    _indirect_command.firstInstance = _instance_indices_allocator.base_alloc().offset;
-    uint32_t instance_id = _indirect_command.instanceCount++;
-    update_indirect_command();
-    return instance_id;
-    // Need to allocate instance ids and first instance
-    // allocator could keep track of that
-    // first instance needs to update if a sub allocation is realloced
+    SubAllocation instance_data_alloc = _allocators.instance_data->alloc();
+    SubAllocation instance_index_alloc = _instance_indices.alloc();
+    SubAllocation instance_index_alloc_alloc = _instance_indices_allocs.alloc();
+    // NOTE:
+    // Keep track of the instance_index_allocs so that remove can easily change an instance index
+    _instance_indices_allocs.write(instance_index_alloc_alloc, &instance_index_alloc, sizeof(instance_index_alloc));
+    // NOTE:
+    // Keep track of the last instance index allocation for pop and swap in remove_instance
+    if (instance_index_alloc.offset > _last_instance_index_alloc.offset) {
+        _last_instance_index_alloc = instance_index_alloc;
+        _last_instance_index_instance_id = instance_index_alloc_alloc.offset;
+    }
+    _instance_data_allocs.insert({instance_index_alloc, instance_data_alloc});
+    // Write instance data index to instance indices buffer
+    _instance_indices.write(instance_index_alloc, &instance_data_alloc.offset, sizeof(instance_data_alloc.offset));
+    // NOTE:
+    // Always update firstInstance in case of a reallocation
+    _indirect_command.firstInstance = _instance_indices.base_alloc().offset;
+    _indirect_command.instanceCount++;
+    write_indirect_command();
+    return instance_index_alloc_alloc.offset;
 }
 
-void Draw::remove_instance(uint32_t instance_index) {
-    //    char* data = _instance_indices_buffer->data();
-    // Subtract 1 from instance count
+void Draw::remove_instance(uint32_t instance_id) {
+    SubAllocation instance_index_alloc_alloc;
+    instance_index_alloc_alloc.offset = instance_id;
+    SubAllocation instance_to_be_removed_alloc;
+    _instance_indices_allocs.get(&instance_to_be_removed_alloc, instance_index_alloc_alloc, sizeof(instance_to_be_removed_alloc));
     // Copy last instance index to the instance index being removed
-    // data[_indirect_command.firstInstance + instance_index] = data[_indirect_command.firstInstance + --_indirect_command.instanceCount];
+    // This keeps the memory contiguous for the instance indices
+    _instance_indices.copy(instance_to_be_removed_alloc, _last_instance_index_alloc, sizeof(_last_instance_index_alloc));
+    _instance_indices.free(_last_instance_index_alloc);
+    // Update the SubAllocation for _last_instance_index_instance_id, since it was moved to instance_index_alloc
+    SubAllocation last_instance_index_alloc_alloc;
+    last_instance_index_alloc_alloc.offset = _last_instance_index_instance_id;
+    _instance_indices_allocs.write(last_instance_index_alloc_alloc, &instance_id, sizeof(instance_id));
+    // NOTE:
+    // The pointer to the last allocated instance index needs to be updated
+    // This should be correct, because the memory should be contiguous
+    _last_instance_index_alloc.offset -= _last_instance_index_alloc.size();
+    SubAllocation& instance_data_alloc = _instance_data_allocs.at(instance_to_be_removed_alloc);
+    _allocators.instance_data->free(instance_data_alloc);
+    _instance_data_allocs.erase(instance_data_alloc);
+    --_indirect_command.instanceCount;
+    write_indirect_command();
 }
 
-void Draw::update_indirect_command() {
-    _indirect_commands_allocator->write(_indirect_commands_alloc, &_indirect_command, _indirect_commands_alloc.size());
+void Draw::write_indirect_command() {
+    _allocators.indirect_commands->write(_indirect_commands_alloc, &_indirect_command, _indirect_commands_alloc.size());
+}
+
+void Draw::write_instance_data(uint32_t instance_id, InstanceData const& instance_data) {
+    SubAllocation instance_indices_allocs_alloc;
+    instance_indices_allocs_alloc.offset = instance_id;
+    SubAllocation instance_data_alloc;
+    _instance_indices_allocs.get(&instance_data_alloc, instance_indices_allocs_alloc, sizeof(instance_data_alloc));
+    _allocators.instance_data->write(instance_data_alloc, &instance_data, sizeof(instance_data));
 }

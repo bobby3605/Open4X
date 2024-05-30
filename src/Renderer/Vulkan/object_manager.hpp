@@ -9,17 +9,14 @@
 
 class ObjectManager {
   public:
-    ObjectManager(StackAllocator<GPUAllocator>* instances_sub_allocator);
     ~ObjectManager();
     Object* add_object(std::string name, Model* model);
     void remove_object(std::string name);
     Object* get_object(std::string name);
-    void update_instance_data();
+    void refresh_instance_data();
 
   private:
     std::unordered_map<std::string, Object*> _objects;
-    void upload_instance_data(std::vector<SubAllocation> const& instance_data_allocs, std::vector<InstanceData> const& instance_data);
-    StackAllocator<GPUAllocator>* _instances_sub_allocator;
     safe_queue<Object*> invalid_callback;
 };
 

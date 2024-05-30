@@ -87,7 +87,6 @@ class RenderGraph {
     void record_buffer(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags, std::vector<RenderNode> const& render_nodes);
     void image_barrier(VkImageMemoryBarrier2& barrier);
     std::vector<std::shared_ptr<Pipeline>> _pipelines;
-    std::unordered_map<std::string, VkDeviceSize> _buffer_size_registry;
     LinearAllocator<GPUAllocator>* _descriptor_buffer_allocator;
 
     void bad_workaround(SwapChain* swap_chain);

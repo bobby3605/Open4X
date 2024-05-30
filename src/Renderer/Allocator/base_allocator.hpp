@@ -14,7 +14,16 @@ struct SubAllocation : BaseAllocation {
     size_t offset;
     size_t size_;
     size_t inline size() { return size_; };
+    bool operator==(const SubAllocation& other) const { return offset == other.offset && size_ == other.size_; }
 };
+
+namespace std {
+template <> struct hash<SubAllocation> {
+    size_t operator()(SubAllocation const& allocation) const {
+        return (hash<size_t>()(allocation.offset) ^ (hash<size_t>()(allocation.size_)));
+    }
+};
+} // namespace std
 
 struct CPUAllocation : BaseAllocation {
     char* data;
@@ -59,6 +68,7 @@ template <typename BaseAllocationT> class BaseAllocator : public Allocator<BaseA
   public:
     virtual void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
     virtual void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) = 0;
+    virtual void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
 };
 
 class CPUAllocator : public BaseAllocator<CPUAllocation> {
@@ -67,6 +77,7 @@ class CPUAllocator : public BaseAllocator<CPUAllocation> {
     ~CPUAllocator();
     void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size);
     void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size);
+    void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
 
     CPUAllocation alloc(size_t const& byte_size);
     void free(CPUAllocation const& allocation);
@@ -81,6 +92,7 @@ class GPUAllocator : public BaseAllocator<GPUAllocation> {
     ~GPUAllocator();
     void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size);
     void write(SubAllocation const& allocation, const void* data, size_t const& byte_size);
+    void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
 
     GPUAllocation alloc(size_t const& byte_size);
     void free(GPUAllocation const& allocation);

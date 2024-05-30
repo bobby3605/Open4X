@@ -23,7 +23,6 @@
 #include "Vulkan/vulkan_buffer.hpp"
 #include "Vulkan/vulkan_object.hpp"
 #include "Vulkan/vulkan_objects.hpp"
-#include "Vulkan/vulkan_swapchain.hpp"
 #include "open4x.hpp"
 #include "rapidjson/istreamwrapper.h"
 #include <GLFW/glfw3.h>
@@ -65,8 +64,8 @@ Open4X::Open4X() {
         new Window(640, 480, "Open 4X");
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
         renderer = new Renderer((NewSettings*)settings.get());
-        _model_manager = new ModelManager();
-        _object_manager = new ObjectManager(renderer->instances_stack_allocator);
+        _model_manager = new ModelManager(renderer->draw_allocators);
+        _object_manager = new ObjectManager();
     } else {
         creationTime = std::chrono::high_resolution_clock::now();
         vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
@@ -137,10 +136,9 @@ void Open4X::run() {
 
     std::string base_path = std::filesystem::current_path().string();
     Model* simple_texture_model = _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
-    _model_manager->upload_model(simple_texture_model);
     Object* simple_texture_object_0 = _object_manager->add_object("simple_texture_0", simple_texture_model);
     simple_texture_object_0->position({1, 0, 0});
-    _object_manager->update_instance_data();
+    _object_manager->refresh_instance_data();
     Camera cam;
 
     if (NEW_RENDERER) {

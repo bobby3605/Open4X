@@ -2,7 +2,6 @@
 #include "model.hpp"
 #include "object.hpp"
 
-ObjectManager::ObjectManager(StackAllocator<GPUAllocator>* instances_sub_allocator) : _instances_sub_allocator(instances_sub_allocator) {}
 ObjectManager::~ObjectManager() {
     for (auto object : _objects) {
         delete object.second;
@@ -12,7 +11,7 @@ ObjectManager::~ObjectManager() {
 Object* ObjectManager::add_object(std::string name, Model* model) {
     // TODO
     // Don't pass _model_matrices_buffer into object
-    Object* object = new Object(model, &invalid_callback, _instances_sub_allocator);
+    Object* object = new Object(model, &invalid_callback);
     _objects.insert(std::pair<std::string, Object*>{name, object});
     return object;
 }
@@ -31,17 +30,8 @@ Object* ObjectManager::get_object(std::string name) {
     }
 }
 
-void ObjectManager::update_instance_data() {
+void ObjectManager::refresh_instance_data() {
     while (!invalid_callback.empty()) {
-        Object* object = invalid_callback.pop();
-        object->update_instance_data();
-        upload_instance_data(object->instance_data_allocs(), object->instance_data());
-    }
-}
-
-void ObjectManager::upload_instance_data(std::vector<SubAllocation> const& instance_data_allocs,
-                                         std::vector<InstanceData> const& instance_data) {
-    for (size_t i = 0; i < instance_data_allocs.size(); ++i) {
-        _instances_sub_allocator->write(instance_data_allocs[i], &instance_data[i], sizeof(InstanceData));
+        invalid_callback.pop()->refresh_instance_data();
     }
 }

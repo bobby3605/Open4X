@@ -24,13 +24,7 @@ RenderGraph::~RenderGraph() {
     for (auto& graph : _secondary_graphs) {
         Device::device->command_pools()->release_buffer(_pool, graph.first);
     }
-    // TODO:
-    // Fix double free error so that this can be re-created
-    // When the shader destructor is called, it frees the allocation
-    // When this delete runs, it deletes the whole buffer,
-    // which clears the virtual block
-    // So there's a double free and then a segfault
-    // MemoryManager::memory_manager->delete_buffer("descriptor_buffer");
+    MemoryManager::memory_manager->delete_gpu_allocator("_descriptor_buffer_allocator");
 }
 
 void RenderGraph::compile() {
@@ -68,9 +62,6 @@ void RenderGraph::compile() {
                     // Other option is just to error out if you manually created a buffer with the wrong mem_props
                     tmp = MemoryManager::memory_manager->get_gpu_allocator(buffer_name);
                 } else {
-                    if (_buffer_size_registry.count(buffer_name) == 0) {
-                        throw std::runtime_error("trying to create unregistered buffer: " + buffer_name);
-                    }
                     tmp = MemoryManager::memory_manager->create_gpu_allocator(
                         buffer_name, 1,
                         type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
@@ -140,6 +131,7 @@ void RenderGraph::bad_workaround(SwapChain* swap_chain) {
 }
 
 VkResult RenderGraph::submit(SwapChain* swap_chain) {
+
     // Flatten primaries for submission
     // TODO
     // Move this into compile so it's only done once
@@ -157,6 +149,28 @@ VkResult RenderGraph::submit(SwapChain* swap_chain) {
     // FIXME:
     // Sets the per-frame values
     bad_workaround(swap_chain);
+    for (auto const& pipeline : _pipelines) {
+        for (auto const& set_layout : pipeline->descriptor_layout().set_layouts()) {
+            for (auto const& binding_layout : set_layout.second.bindings) {
+                GPUAllocator* tmp;
+                std::string buffer_name = binding_layout.second.buffer_name;
+                if (MemoryManager::memory_manager->gpu_allocator_exists(buffer_name)) {
+                    // TODO:
+                    // Maybe
+                    // support recreating buffer with new mem props if needed from the graph
+                    // Other option is just to error out if you manually created a buffer with the wrong mem_props
+                    tmp = MemoryManager::memory_manager->get_gpu_allocator(buffer_name);
+                } else {
+                    tmp = MemoryManager::memory_manager->create_gpu_allocator(
+                        buffer_name, 1,
+                        type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                        binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                }
+                pipeline->descriptor_layout().set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
+            }
+        }
+    }
+
     // Return true if swapchain recreated
     return swap_chain->submit_command_buffers(primary_buffers);
 }
@@ -361,5 +375,3 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     add_node({offsets}, vkCmdBindVertexBuffers, 0, 1, &vertex_buffer_allocator->base_alloc().buffer, offsets->data());
     add_node(vkCmdBindIndexBuffer, index_buffer_allocator->base_alloc().buffer, 0, VK_INDEX_TYPE_UINT32);
 }
-
-void RenderGraph::buffer(std::string name, VkDeviceSize size) { _buffer_size_registry.insert_or_assign(name, size); }

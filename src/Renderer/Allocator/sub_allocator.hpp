@@ -34,7 +34,7 @@ class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT
         std::lock_guard<std::mutex> lock(this->_realloc_lock);
         if constexpr (is_sub_allocator) {
             SubAllocation dst = dst_allocation;
-            dst.offset += this->_base_alloc;
+            dst.offset += this->_base_alloc.offset;
             _parent_allocator->write(dst, data, byte_size);
         } else if constexpr (is_base_allocator) {
             _parent_allocator->write(dst_allocation, data, byte_size);
@@ -53,6 +53,15 @@ class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT
         } else if constexpr (is_base_allocator) {
 
             _parent_allocator->copy(dst_allocation, src_allocation, copy_size);
+        }
+    }
+    void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) {
+        if constexpr (is_sub_allocator) {
+            SubAllocation src = src_allocation;
+            src.offset += this->_base_alloc.offset;
+            _parent_allocator->get(dst, src, byte_size);
+        } else if constexpr (is_base_allocator) {
+            _parent_allocator->get(dst, src_allocation, byte_size);
         }
     }
     const AllocatorT* parent() const { return _parent_allocator; }
