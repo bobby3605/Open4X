@@ -17,7 +17,6 @@ Object* ObjectManager::add_object(std::string name, Model* model) {
 }
 
 void ObjectManager::remove_object(std::string name) {
-    Object* object = _objects.at(name);
     delete _objects.at(name);
     _objects.erase(name);
 }

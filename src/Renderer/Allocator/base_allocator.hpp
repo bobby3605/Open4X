@@ -66,7 +66,7 @@ template <typename AllocationT, typename BaseAllocationT> class Allocator {
 
 template <typename BaseAllocationT> class BaseAllocator : public Allocator<BaseAllocationT, BaseAllocationT> {
   public:
-    virtual void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
+    virtual ~BaseAllocator() = default;
     virtual void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) = 0;
     virtual void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
 };

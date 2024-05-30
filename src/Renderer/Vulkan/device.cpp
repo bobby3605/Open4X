@@ -334,7 +334,8 @@ bool Device::check_features(VkPhysicalDevice device) {
 
     bool descriptor_buffer_features_available = compdb(descriptorBuffer); //&& compdb(descriptorBufferCaptureReplay);
 
-    return device_features_available && vk11_features_available && vk12_features_available && vk13_features_available;
+    return device_features_available && vk11_features_available && vk12_features_available && vk13_features_available &&
+           descriptor_buffer_features_available;
 }
 
 bool Device::is_device_suitable(VkPhysicalDevice device) {
@@ -500,7 +501,7 @@ VkFence Device::get_fence() {
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (int i = 0; i < createCount; i++) {
+        for (uint32_t i = 0; i < createCount; i++) {
             check_result(vkCreateFence(_device, &fenceInfo, nullptr, &fence), "failed to create single time fence");
             fence_pool.push_back(fence);
         }

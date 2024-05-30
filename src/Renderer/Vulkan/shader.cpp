@@ -105,7 +105,7 @@ void Shader::compile() {
     bool forward_compatible = false;
 
     EShMessages rules;
-    rules = static_cast<EShMessages>(rules | EShMsgSpvRules | EShMsgVulkanRules);
+    rules = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
     bool debug = false;
     if (debug) {
         rules = static_cast<EShMessages>(rules | EShMsgDebugInfo);

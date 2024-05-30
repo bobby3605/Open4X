@@ -181,7 +181,7 @@ void SwapChain::create_sync_objects() {
     VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         check_result((vkCreateSemaphore(Device::device->vk_device(), &semaphore_info, nullptr, &_image_available_semaphores[i]) |
                       vkCreateSemaphore(Device::device->vk_device(), &semaphore_info, nullptr, &_render_finished_semaphores[i]) |
                       vkCreateFence(Device::device->vk_device(), &fence_info, nullptr, &_in_flight_fences[i])),

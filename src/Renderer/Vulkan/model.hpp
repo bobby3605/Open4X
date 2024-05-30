@@ -15,7 +15,8 @@ template <typename T> std::vector<T> load_accessor(fastgltf::Asset& asset, unsig
     fastgltf::Accessor* accessor = &asset.accessors[accessor_index];
     std::vector<T> data;
     data.reserve(accessor->count);
-    for (T element : fastgltf::iterateAccessor<T>(asset, *accessor)) {
+    auto iterate_accessor = fastgltf::iterateAccessor<T>(asset, *accessor);
+    for (T element : iterate_accessor) {
         data.push_back(element);
     }
     return data;
