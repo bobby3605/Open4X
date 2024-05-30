@@ -1,7 +1,6 @@
 #ifndef OBJECT_MANAGER_H_
 #define OBJECT_MANAGER_H_
 
-#include "buffer.hpp"
 #include "object.hpp"
 #include <glm/fwd.hpp>
 #include <string>

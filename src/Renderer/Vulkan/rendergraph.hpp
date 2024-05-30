@@ -2,7 +2,6 @@
 #define RENDEROPS_H_
 
 #include "../../utils.hpp"
-#include "buffer.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
 #include <cstdint>

@@ -30,9 +30,9 @@ Device::Device() {
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
     allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     allocatorCreateInfo.vulkanApiVersion = Device::API_VERSION;
-    allocatorCreateInfo.physicalDevice = Device::device->physical_device();
-    allocatorCreateInfo.device = Device::device->vk_device();
-    allocatorCreateInfo.instance = Device::device->instance();
+    allocatorCreateInfo.physicalDevice = _physical_device;
+    allocatorCreateInfo.device = _device;
+    allocatorCreateInfo.instance = _instance;
     allocatorCreateInfo.pVulkanFunctions = &vulkan_functions;
 
     vmaCreateAllocator(&allocatorCreateInfo, &_vma_allocator);
@@ -308,6 +308,7 @@ bool Device::check_features(VkPhysicalDevice device) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
 
     VkPhysicalDeviceVulkan13Features vk13_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
+    vk13_features_check.pNext = &descriptor_buffer_features_check;
 
     VkPhysicalDeviceVulkan12Features vk12_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
     vk12_features_check.pNext = &vk13_features_check;

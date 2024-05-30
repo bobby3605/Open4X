@@ -105,7 +105,7 @@ class GPUAllocator : public BaseAllocator<GPUAllocation> {
 
   private:
     VkBufferCreateInfo _buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    VmaAllocationCreateInfo _alloc_info;
+    VmaAllocationCreateInfo _alloc_info{};
     std::string _name;
     std::optional<VkDescriptorDataEXT> _descriptor_data;
     VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};

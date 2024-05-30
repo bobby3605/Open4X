@@ -3,6 +3,7 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
+#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 CPUAllocator::CPUAllocator(size_t const& byte_size) { _base_alloc = alloc(byte_size); }
