@@ -17,7 +17,7 @@ MemoryManager::~MemoryManager() {
         delete gpu_allocator.second;
     }
     for (auto image : _images) {
-        vmaDestroyImage(_allocator, image.second.vk_image, image.second.allocation);
+        vmaDestroyImage(Device::device->vma_allocator(), image.second.vk_image, image.second.allocation);
     }
 }
 
