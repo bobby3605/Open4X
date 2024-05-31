@@ -44,7 +44,7 @@ class Device {
     static const uint32_t API_VERSION = VK_API_VERSION_1_3;
     VkQueue graphics_queue() { return _graphics_queue; }
     VkQueue present_queue() { return _present_queue; }
-    VmaAllocator& vma_allocator() { return _vma_allocator; }
+    VmaAllocator const& vma_allocator() const { return _vma_allocator; }
 
 #ifdef NDEBUG
     static const bool enable_validation_layers = false;

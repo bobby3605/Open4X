@@ -75,7 +75,7 @@ MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t widt
     alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
     Image image;
-    check_result(vmaCreateImage(_allocator, &image_info, &alloc_info, &image.vk_image, &image.allocation, nullptr),
+    check_result(vmaCreateImage(Device::device->vma_allocator(), &image_info, &alloc_info, &image.vk_image, &image.allocation, nullptr),
                  "failed to create image!");
     Device::device->set_debug_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.vk_image, name);
     _images.insert({name, image});
@@ -84,6 +84,6 @@ MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t widt
 
 void MemoryManager::delete_image(std::string name) {
     Image image = get_image(name);
-    vmaDestroyImage(_allocator, image.vk_image, image.allocation);
+    vmaDestroyImage(Device::device->vma_allocator(), image.vk_image, image.allocation);
     _images.erase(name);
 };

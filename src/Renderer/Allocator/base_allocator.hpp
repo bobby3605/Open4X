@@ -34,11 +34,8 @@ struct CPUAllocation : BaseAllocation {
 struct GPUAllocation : BaseAllocation {
     VkBuffer buffer;
     VmaAllocation vma_allocation;
-    size_t inline size() {
-        VmaAllocationInfo info{};
-        vmaGetAllocationInfo(Device::device->vma_allocator(), vma_allocation, &info);
-        return info.size;
-    };
+    VmaAllocationInfo info{};
+    size_t inline size() { return info.size; };
 };
 
 template <typename AllocationT, typename BaseAllocationT> class Allocator {
@@ -53,7 +50,9 @@ template <typename AllocationT, typename BaseAllocationT> class Allocator {
     void realloc(AllocationT& allocation, size_t const& byte_size) {
         std::lock_guard<std::mutex> lock(_realloc_lock);
         AllocationT new_alloc = alloc(byte_size);
-        copy(new_alloc, allocation, byte_size);
+        // NOTE:
+        // std::min to support grow and shrink
+        copy(new_alloc, allocation, std::min(byte_size, allocation.size()));
         free(allocation);
         allocation = new_alloc;
     }

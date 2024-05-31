@@ -30,9 +30,9 @@ Device::Device() {
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
     allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     allocatorCreateInfo.vulkanApiVersion = Device::API_VERSION;
-    allocatorCreateInfo.physicalDevice = _physical_device;
-    allocatorCreateInfo.device = _device;
-    allocatorCreateInfo.instance = _instance;
+    allocatorCreateInfo.physicalDevice = Device::device->physical_device();
+    allocatorCreateInfo.device = Device::device->vk_device();
+    allocatorCreateInfo.instance = Device::device->instance();
     allocatorCreateInfo.pVulkanFunctions = &vulkan_functions;
 
     vmaCreateAllocator(&allocatorCreateInfo, &_vma_allocator);

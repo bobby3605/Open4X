@@ -74,7 +74,8 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
   public:
     StackAllocator(size_t const& block_size, AllocatorT* parent_allocator)
         : SubAllocator<AllocatorT>(block_size, parent_allocator), _block_size(block_size) {
-        _block_count = this->_base_alloc.size() / block_size;
+        // SubAllocator constructor makes a buffer with block_size total byte size
+        _block_count = 1;
         // _free_blocks is a stack of indices to blocks allocated from a base allocator
         // NOTE:
         // stack instead of queue so that the last freed blocks will be used first,
@@ -82,7 +83,7 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
         // _free_blocks is created in reverse order so that the base offset will be used first
         // NOTE:
         // can't get c++ 23 ranges to work correctly
-        for (size_t i = _block_count - 1; i >= 0; --i) {
+        for (int i = (int)(_block_count - 1); i >= 0; --i) {
             _free_blocks.push(i);
         }
     }
