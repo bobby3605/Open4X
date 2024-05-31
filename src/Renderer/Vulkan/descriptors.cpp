@@ -7,10 +7,10 @@
 
 DescriptorLayout::~DescriptorLayout() {
     for (auto& set_layout_pair : _set_layouts) {
-        // FIXME:
-        // Only destroy if it has been created
-        vkDestroyDescriptorSetLayout(Device::device->vk_device(), set_layout_pair.second.layout, nullptr);
-        _descriptor_buffer->free(set_layout_pair.second.allocation);
+        if (set_layout_pair.second.layout != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(Device::device->vk_device(), set_layout_pair.second.layout, nullptr);
+            _descriptor_buffer->free(set_layout_pair.second.allocation);
+        }
     }
 }
 

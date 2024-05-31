@@ -18,7 +18,7 @@ class DescriptorLayout {
 
     struct SetLayout {
         std::map<uint32_t, BindingLayout> bindings;
-        VkDescriptorSetLayout layout;
+        VkDescriptorSetLayout layout = VK_NULL_HANDLE;
         SubAllocation allocation;
     };
 
