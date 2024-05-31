@@ -7,6 +7,10 @@
 
 Device* Device::device;
 Device::Device() {
+    if (use_descriptor_buffers) {
+        device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+        device_extensions.push_back(VK_KHR_MAINTENANCE_6_EXTENSION_NAME);
+    }
     set_required_features();
     create_instance();
     check_result(glfwCreateWindowSurface(_instance, Window::window->glfw_window(), nullptr, &_surface), "failed to create window surface");
@@ -273,13 +277,13 @@ void Device::set_required_features() {
     vk13_features.subgroupSizeControl = VK_TRUE;
     vk13_features.maintenance4 = VK_TRUE;
 
-    descriptor_buffer_features.descriptorBuffer = VK_TRUE;
+    descriptor_buffer_features.descriptorBuffer = use_descriptor_buffers ? VK_TRUE : VK_FALSE;
     // NOTE:
     // Neither mesa nor renderdoc support this
     // amdgpu does, but without renderdoc support it's useless
     // Until capture replay works in mesa and renderdoc,
     // descriptor buffers are dead in the water for development
-    //    descriptor_buffer_features.descriptorBufferCaptureReplay = enable_validation_layers ? VK_TRUE : VK_FALSE;
+    descriptor_buffer_features.descriptorBufferCaptureReplay = VK_FALSE; // use_descriptor_buffers ? VK_TRUE : VK_FALSE;
 
     device_features.pNext = &vk11_features;
     vk11_features.pNext = &vk12_features;

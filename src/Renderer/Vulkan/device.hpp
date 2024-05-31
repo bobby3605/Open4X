@@ -75,8 +75,8 @@ class Device {
     void create_instance();
     VkSurfaceKHR _surface;
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    static constexpr std::array<const char*, 3> device_extensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME, VK_KHR_MAINTENANCE_6_EXTENSION_NAME};
+    std::vector<const char*> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    bool use_descriptor_buffers = true;
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);
     bool check_features(VkPhysicalDevice device);
