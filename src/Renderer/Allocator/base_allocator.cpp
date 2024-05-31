@@ -3,12 +3,13 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
+#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 CPUAllocator::CPUAllocator(size_t const& byte_size) { _base_alloc = alloc(byte_size); }
 CPUAllocator::~CPUAllocator() { free(_base_alloc); }
 
-CPUAllocation CPUAllocator::alloc(size_t const& byte_size) {
+CPUAllocation CPUAllocator::alloc(size_t const& byte_size, size_t const& alignment) {
     CPUAllocation allocation;
     allocation.size_ = byte_size;
     allocation.data = new char[byte_size];
@@ -21,9 +22,12 @@ void CPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
     std::memcpy(_base_alloc.data + dst_allocation.offset, _base_alloc.data + src_allocation.offset, byte_size);
 }
 
-void CPUAllocator::write(SubAllocation const& allocation, const void* data, size_t const& byte_size) {
+void CPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
+    if (_base_alloc.size() < dst_allocation.offset + byte_size) {
+        realloc(_base_alloc, _base_alloc.size() + dst_allocation.offset + byte_size);
+    }
     std::lock_guard<std::mutex> lock(_realloc_lock);
-    std::memcpy(_base_alloc.data + allocation.offset, data, byte_size);
+    std::memcpy(_base_alloc.data + dst_allocation.offset, data, byte_size);
 }
 
 void CPUAllocator::get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) {
@@ -65,7 +69,7 @@ GPUAllocator::GPUAllocator(VkDeviceSize byte_size, VkBufferUsageFlags usage, VkM
 
 GPUAllocator::~GPUAllocator() { free(_base_alloc); }
 
-GPUAllocation GPUAllocator::alloc(size_t const& byte_size) {
+GPUAllocation GPUAllocator::alloc(size_t const& byte_size, size_t const& alignment) {
     GPUAllocation gpu_allocation{};
     _buffer_info.size = byte_size;
     check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &gpu_allocation.buffer,
@@ -113,6 +117,9 @@ void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
+    if (_base_alloc.size() < dst_allocation.offset + byte_size) {
+        realloc(_base_alloc, _base_alloc.size() + dst_allocation.offset + byte_size);
+    }
     std::lock_guard<std::mutex> lock(_realloc_lock);
     vmaCopyMemoryToAllocation(Device::device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, byte_size);
 }

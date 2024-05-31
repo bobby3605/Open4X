@@ -6,7 +6,6 @@
 #include "swapchain.hpp"
 #include "window.hpp"
 #include <cstdint>
-#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 Renderer::Renderer(NewSettings* settings) : _settings(settings) {
@@ -18,7 +17,6 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     _swap_chain = new SwapChain(Window::window->extent());
     _command_pool = Device::device->command_pools()->get_pool();
     create_rendergraph();
-    std::cout << "done with renderer" << std::endl;
 }
 
 Renderer::~Renderer() {

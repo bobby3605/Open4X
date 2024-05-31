@@ -6,10 +6,7 @@
 #include "swapchain.hpp"
 #include <cstdint>
 #include <functional>
-#include <future>
-#include <iterator>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vulkan/vulkan_core.h>

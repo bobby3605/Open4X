@@ -92,11 +92,11 @@ Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh, DrawAllocators const& draw
 
 Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, DrawAllocators const& draw_allocators)
     : _model(model), _primitive(primitive) {
-    std::vector<NewVertex> vertices;
+    std::vector<NewVertex> tmp_vertices;
     std::vector<glm::vec3> positions = get_positions();
-    vertices.resize(positions.size());
-    for (std::size_t i = 0; i < vertices.size(); ++i) {
-        vertices[i].pos = positions[i];
+    tmp_vertices.resize(positions.size());
+    for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
+        tmp_vertices[i].pos = positions[i];
     }
 
     if (primitive->materialIndex.has_value()) {
@@ -104,8 +104,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
         if (base_color_texture.has_value()) {
             std::vector<texcoord> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
-            for (std::size_t i = 0; i < vertices.size(); ++i) {
-                vertices[i].base = texcoords[i];
+            for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
+                tmp_vertices[i].base = texcoords[i];
             }
         }
     }
@@ -113,16 +113,16 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
     // Handle normal textures and normal coordinates
 
     if (primitive->indicesAccessor.has_value()) {
-        _vertices = std::move(vertices);
+        _vertices = std::move(tmp_vertices);
         _indices = load_accessor<uint32_t>(_model->_asset, primitive->indicesAccessor.value());
     } else {
         // Generate indices if none exist
         std::unordered_map<NewVertex, uint32_t> unique_vertices;
         // Preallocate
-        unique_vertices.reserve(vertices.size());
-        _indices.reserve(vertices.size());
-        _vertices.reserve(vertices.size());
-        for (NewVertex& vertex : vertices) {
+        unique_vertices.reserve(tmp_vertices.size());
+        _indices.reserve(tmp_vertices.size());
+        _vertices.reserve(tmp_vertices.size());
+        for (NewVertex& vertex : tmp_vertices) {
             if (unique_vertices.count(vertex) == 0) {
                 unique_vertices[vertex] = static_cast<uint32_t>(_vertices.size());
                 _vertices.push_back(vertex);
@@ -133,7 +133,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
-    _draw = new Draw(draw_allocators, vertices.data(), vertices.size(), indices());
+    _draw = new Draw(draw_allocators, _vertices.data(), _vertices.size(), indices());
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {

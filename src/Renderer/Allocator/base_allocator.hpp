@@ -7,35 +7,30 @@
 #include <vulkan/vulkan_core.h>
 
 struct BaseAllocation {
-    virtual size_t inline size() = 0;
+    virtual ~BaseAllocation() = default;
 };
 
 struct SubAllocation : BaseAllocation {
     size_t offset;
-    size_t size_;
-    size_t inline size() { return size_; };
-    bool operator==(const SubAllocation& other) const { return offset == other.offset && size_ == other.size_; }
+    size_t size;
+    bool operator==(const SubAllocation& other) const { return offset == other.offset && size == other.size; }
 };
 
 namespace std {
 template <> struct hash<SubAllocation> {
     size_t operator()(SubAllocation const& allocation) const {
-        return (hash<size_t>()(allocation.offset) ^ (hash<size_t>()(allocation.size_)));
+        return (hash<size_t>()(allocation.offset) ^ (hash<size_t>()(allocation.size)));
     }
 };
 } // namespace std
 
 struct CPUAllocation : BaseAllocation {
     char* data;
-    size_t size_;
-    size_t inline size() { return size_; };
 };
 
 struct GPUAllocation : BaseAllocation {
     VkBuffer buffer;
     VmaAllocation vma_allocation;
-    VmaAllocationInfo info{};
-    size_t inline size() { return info.size; };
 };
 
 template <typename AllocationT, typename BaseAllocationT> class Allocator {
@@ -44,7 +39,7 @@ template <typename AllocationT, typename BaseAllocationT> class Allocator {
   public:
     typedef AllocationT AllocT;
     typedef BaseAllocationT BaseT;
-    virtual AllocationT alloc(size_t const& byte_size) = 0;
+    virtual AllocationT alloc(size_t const& byte_size, size_t const& alignment = 1) = 0;
     virtual void free(AllocationT const& base_alloc) = 0;
     virtual void copy(AllocationT const& dst_allocation, AllocationT const& src_allocation, size_t const& byte_size) = 0;
     void realloc(AllocationT& allocation, size_t const& byte_size) {
@@ -78,7 +73,7 @@ class CPUAllocator : public BaseAllocator<CPUAllocation> {
     void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size);
     void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
 
-    CPUAllocation alloc(size_t const& byte_size);
+    CPUAllocation alloc(size_t const& byte_size, size_t const& alignment = 1);
     void free(CPUAllocation const& allocation);
 
   private:
@@ -93,7 +88,7 @@ class GPUAllocator : public BaseAllocator<GPUAllocation> {
     void write(SubAllocation const& allocation, const void* data, size_t const& byte_size);
     void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
 
-    GPUAllocation alloc(size_t const& byte_size);
+    GPUAllocation alloc(size_t const& byte_size, size_t const& alignment = 1);
     void free(GPUAllocation const& allocation);
 
     VkDescriptorDataEXT const& descriptor_data() const { return _descriptor_data.value(); }

@@ -92,20 +92,18 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
     // byte_size does nothing,
     // but this is needed to get the virtual function to compile
     // There's probably a better way to do this
-    SubAllocation alloc(size_t const& byte_size = 0) {
+    SubAllocation alloc(size_t const& byte_size = 0, size_t const& alignment = 1) {
         if (_free_blocks.empty()) {
             // Out of memory error
             // realloc
             size_t base_size = this->_base_alloc.size();
             size_t new_block_index = ++_block_count;
             size_t new_parent_size = base_size + _block_size;
-            // NOTE:
-            // This doesn't set BaseAllocation::_base_alloc
             this->_parent_allocator->realloc(this->_base_alloc, new_parent_size);
             _free_blocks.push(new_block_index);
         }
         SubAllocation allocation;
-        allocation.size_ = _block_size;
+        allocation.size = _block_size;
         // offset is the block index * the block size
         allocation.offset = _block_size * _free_blocks.top();
         _free_blocks.pop();
@@ -127,25 +125,32 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
     std::vector<SubAllocation> _free_blocks;
 
   public:
-    LinearAllocator(AllocatorT* parent_allocator) : SubAllocator<AllocatorT>(0, parent_allocator) {}
+    LinearAllocator(AllocatorT* parent_allocator) : SubAllocator<AllocatorT>(0, parent_allocator) {
+        SubAllocation allocation{};
+        allocation.offset = 0;
+        allocation.size = this->_base_alloc.size();
+        _free_blocks.emplace_back(allocation);
+    }
 
-    SubAllocation alloc(size_t const& byte_size) {
+    // TODO
+    // explore moving alignment into constructor
+    SubAllocation alloc(size_t const& byte_size, size_t const& alignment = 1) {
         SubAllocation allocation;
-        allocation.size_ = byte_size;
+        allocation.size = align(byte_size, alignment);
         for (auto free_block = _free_blocks.begin(); free_block != _free_blocks.end(); ++free_block) {
             // If block has enough size,
             // shrink it
             // return the sub allocation
-            if (free_block->size() > allocation.size()) {
+            if (free_block->size > allocation.size) {
                 allocation.offset = free_block->offset;
-                free_block->offset += allocation.size();
-                free_block->size_ -= allocation.size();
+                free_block->offset += allocation.size;
+                free_block->size -= allocation.size;
                 return allocation;
             }
             // If blocks are equal,
             // remove the block from the free blocks
             // return the free block
-            if (free_block->size() == allocation.size()) {
+            if (free_block->size == allocation.size) {
                 allocation.offset = free_block->offset;
                 // TODO
                 // Replace this with a vector made from Allocator
@@ -157,8 +162,15 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
         // No free block found,
         // out of memory error
         // allocate a new block and return it
-        allocation.offset = this->_base_alloc.size();
-        this->_parent_allocator->realloc(this->_base_alloc, allocation.offset + allocation.size());
+        // TODO:
+        // Expand free block for any extra memory created by alignment
+        // This isn't right. I need to expand the last block in an _created_blocks vector
+        // _free_blocks.end()->size(align(this->_base_alloc.size(), alignment));
+        // NOTE:
+        // adding alignment here to ensure that the last block doesn't get overwritten
+        allocation.offset = align(this->_base_alloc.size, alignment) + alignment;
+        size_t new_size = allocation.offset + allocation.size;
+        this->_parent_allocator->realloc(this->_base_alloc, new_size);
         return allocation;
     }
 

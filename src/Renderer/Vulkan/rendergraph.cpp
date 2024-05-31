@@ -356,10 +356,7 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     descriptor_buffer_offsets->firstSet = 0;
     auto set_offsets = std::make_shared<std::vector<VkDeviceSize>>(pipeline->descriptor_layout().set_offsets());
     descriptor_buffer_offsets->setCount = set_offsets->size();
-    auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount);
-    for (size_t i = 0; i < buffer_indices->size(); ++i) {
-        buffer_indices->push_back(0);
-    }
+    auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount, 0);
     descriptor_buffer_offsets->pOffsets = set_offsets->data();
     descriptor_buffer_offsets->pBufferIndices = buffer_indices->data();
 

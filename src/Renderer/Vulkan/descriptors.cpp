@@ -59,10 +59,9 @@ void DescriptorLayout::create_layouts() {
         vkCreateDescriptorSetLayout(Device::device->vk_device(), &info, nullptr, &set_layout.layout);
         // Get size of layout and align it
         vkGetDescriptorSetLayoutSizeEXT_(Device::device->vk_device(), set_layout.layout, &set_layout.allocation.size_);
-        set_layout.allocation.size_ =
-            align(set_layout.allocation.size_, Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
         // Allocate size and get the offset for the set
-        set_layout.allocation = _descriptor_buffer->alloc(set_layout.allocation.size_);
+        set_layout.allocation = _descriptor_buffer->alloc(set_layout.allocation.size(),
+                                                          Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
         // Get size of each binding in the layout
         for (auto& binding_layout : set_layout.bindings) {
             vkGetDescriptorSetLayoutBindingOffsetEXT_(Device::device->vk_device(), set_layout.layout, binding_layout.second.binding.binding,
@@ -100,7 +99,7 @@ std::vector<VkDeviceSize> DescriptorLayout::set_offsets() const {
     std::vector<VkDeviceSize> set_offsets;
     set_offsets.reserve(_set_layouts.size());
     for (auto const& set_layout : _set_layouts) {
-        set_offsets.push_back(set_layout.second.allocation.size_);
+        set_offsets.push_back(set_layout.second.allocation.offset);
     }
     return set_offsets;
 }

@@ -49,7 +49,9 @@ std::string get_filename_no_ext(std::string file_path);
 
 std::vector<char> read_file(const std::string& filename);
 
-inline std::size_t align(std::size_t offset, std::size_t alignment) { return offset + offset % alignment; }
+// NOTE:
+// align to a power of 2
+inline std::size_t align(std::size_t offset, std::size_t alignment) { return (offset + (alignment - 1)) & -alignment; }
 
 const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = {
     {VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER},
