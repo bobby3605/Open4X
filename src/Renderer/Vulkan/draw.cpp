@@ -76,7 +76,7 @@ void Draw::remove_instance(uint32_t instance_id) {
     // NOTE:
     // The pointer to the last allocated instance index needs to be updated
     // This should be correct, because the memory should be contiguous
-    _last_instance_index_alloc.offset -= _last_instance_index_alloc.size();
+    _last_instance_index_alloc.offset -= _last_instance_index_alloc.size;
     SubAllocation& instance_data_alloc = _instance_data_allocs.at(instance_to_be_removed_alloc);
     _allocators.instance_data->free(instance_data_alloc);
     _instance_data_allocs.erase(instance_data_alloc);
@@ -85,7 +85,7 @@ void Draw::remove_instance(uint32_t instance_id) {
 }
 
 void Draw::write_indirect_command() {
-    _allocators.indirect_commands->write(_indirect_commands_alloc, &_indirect_command, _indirect_commands_alloc.size());
+    _allocators.indirect_commands->write(_indirect_commands_alloc, &_indirect_command, _indirect_commands_alloc.size);
 }
 
 void Draw::write_instance_data(uint32_t instance_id, InstanceData const& instance_data) {

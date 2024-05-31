@@ -8,11 +8,11 @@
 
 struct BaseAllocation {
     virtual ~BaseAllocation() = default;
+    size_t offset;
+    size_t size;
 };
 
 struct SubAllocation : BaseAllocation {
-    size_t offset;
-    size_t size;
     bool operator==(const SubAllocation& other) const { return offset == other.offset && size == other.size; }
 };
 
@@ -47,7 +47,7 @@ template <typename AllocationT, typename BaseAllocationT> class Allocator {
         AllocationT new_alloc = alloc(byte_size);
         // NOTE:
         // std::min to support grow and shrink
-        copy(new_alloc, allocation, std::min(byte_size, allocation.size()));
+        copy(new_alloc, allocation, std::min(byte_size, allocation.size));
         free(allocation);
         allocation = new_alloc;
     }
@@ -63,6 +63,7 @@ template <typename BaseAllocationT> class BaseAllocator : public Allocator<BaseA
     virtual ~BaseAllocator() = default;
     virtual void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) = 0;
     virtual void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
+    void set_base_alloc(BaseAllocationT const& base_alloc) { this->_base_alloc = base_alloc; }
 };
 
 class CPUAllocator : public BaseAllocator<CPUAllocation> {

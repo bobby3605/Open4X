@@ -1,5 +1,6 @@
 #ifndef SUB_ALLOCATOR_H_
 #define SUB_ALLOCATOR_H_
+#include "../Vulkan/common.hpp"
 #include "base_allocator.hpp"
 #include <mutex>
 #include <stack>
@@ -68,6 +69,15 @@ class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT
 
   protected:
     AllocatorT* _parent_allocator;
+    void realloc_check_parent(AllocatorT::AllocT& allocation, size_t const& byte_size) {
+        _parent_allocator->realloc(this->_base_alloc, byte_size);
+        // NOTE:
+        // Ensure that the base allocator for a BaseAllocator is updated whenever there's a reallocation
+        // This is needed for functions like write()
+        if constexpr (is_base_allocator) {
+            _parent_allocator->set_base_alloc(this->_base_alloc);
+        }
+    }
 };
 
 template <typename AllocatorT> class StackAllocator : public SubAllocator<AllocatorT> {
@@ -96,10 +106,10 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
         if (_free_blocks.empty()) {
             // Out of memory error
             // realloc
-            size_t base_size = this->_base_alloc.size();
+            size_t base_size = this->_base_alloc.size;
             size_t new_block_index = ++_block_count;
             size_t new_parent_size = base_size + _block_size;
-            this->_parent_allocator->realloc(this->_base_alloc, new_parent_size);
+            this->realloc_check_parent(this->_base_alloc, new_parent_size);
             _free_blocks.push(new_block_index);
         }
         SubAllocation allocation;
@@ -128,7 +138,7 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
     LinearAllocator(AllocatorT* parent_allocator) : SubAllocator<AllocatorT>(0, parent_allocator) {
         SubAllocation allocation{};
         allocation.offset = 0;
-        allocation.size = this->_base_alloc.size();
+        allocation.size = this->_base_alloc.size;
         _free_blocks.emplace_back(allocation);
     }
 
@@ -170,7 +180,7 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
         // adding alignment here to ensure that the last block doesn't get overwritten
         allocation.offset = align(this->_base_alloc.size, alignment) + alignment;
         size_t new_size = allocation.offset + allocation.size;
-        this->_parent_allocator->realloc(this->_base_alloc, new_size);
+        this->realloc_check_parent(this->_base_alloc, new_size);
         return allocation;
     }
 

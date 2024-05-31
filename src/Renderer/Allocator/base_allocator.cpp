@@ -3,7 +3,6 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
-#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 CPUAllocator::CPUAllocator(size_t const& byte_size) { _base_alloc = alloc(byte_size); }
@@ -11,7 +10,7 @@ CPUAllocator::~CPUAllocator() { free(_base_alloc); }
 
 CPUAllocation CPUAllocator::alloc(size_t const& byte_size, size_t const& alignment) {
     CPUAllocation allocation;
-    allocation.size_ = byte_size;
+    allocation.size = byte_size;
     allocation.data = new char[byte_size];
     return allocation;
 }
@@ -23,8 +22,8 @@ void CPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void CPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
-    if (_base_alloc.size() < dst_allocation.offset + byte_size) {
-        realloc(_base_alloc, _base_alloc.size() + dst_allocation.offset + byte_size);
+    if (_base_alloc.size < dst_allocation.offset + byte_size) {
+        realloc(_base_alloc, _base_alloc.size + dst_allocation.offset + byte_size);
     }
     std::lock_guard<std::mutex> lock(_realloc_lock);
     std::memcpy(_base_alloc.data + dst_allocation.offset, data, byte_size);
@@ -72,8 +71,9 @@ GPUAllocator::~GPUAllocator() { free(_base_alloc); }
 GPUAllocation GPUAllocator::alloc(size_t const& byte_size, size_t const& alignment) {
     GPUAllocation gpu_allocation{};
     _buffer_info.size = byte_size;
+    gpu_allocation.size = byte_size;
     check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &gpu_allocation.buffer,
-                                 &gpu_allocation.vma_allocation, &gpu_allocation.info),
+                                 &gpu_allocation.vma_allocation, nullptr),
                  "failed to create buffer " + _name);
     Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)gpu_allocation.buffer, _name);
 
@@ -87,15 +87,6 @@ GPUAllocation GPUAllocator::alloc(size_t const& byte_size, size_t const& alignme
     }
     // FIXME:
     // update descriptor buffers with new address info
-
-    /**
-    https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/struct_vma_allocation_info.html#aac76d113a6a5ccbb09fea00fb25fd18f
-    Note
-    Allocation size returned in this variable may be greater than the size requested for the resource e.g. as VkBufferCreateInfo::size.
-    Whole size of the allocation is accessible for operations on memory e.g. using a pointer after mapping with vmaMapMemory(), but
-    operations on the resource e.g. using vkCmdCopyBuffer must be limited to the size of the resource.
-    **/
-    gpu_allocation.info.size = byte_size;
 
     return gpu_allocation;
 }
@@ -117,8 +108,8 @@ void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
-    if (_base_alloc.size() < dst_allocation.offset + byte_size) {
-        realloc(_base_alloc, _base_alloc.size() + dst_allocation.offset + byte_size);
+    if (_base_alloc.size < dst_allocation.offset + byte_size) {
+        realloc(_base_alloc, _base_alloc.size + dst_allocation.offset + byte_size);
     }
     std::lock_guard<std::mutex> lock(_realloc_lock);
     vmaCopyMemoryToAllocation(Device::device->vma_allocator(), data, _base_alloc.vma_allocation, dst_allocation.offset, byte_size);
