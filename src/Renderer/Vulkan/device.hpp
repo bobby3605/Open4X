@@ -45,6 +45,7 @@ class Device {
     VkQueue graphics_queue() { return _graphics_queue; }
     VkQueue present_queue() { return _present_queue; }
     VmaAllocator const& vma_allocator() const { return _vma_allocator; }
+    const bool use_descriptor_buffers() const { return _use_descriptor_buffers; }
 
 #ifdef NDEBUG
     static const bool enable_validation_layers = false;
@@ -76,7 +77,7 @@ class Device {
     VkSurfaceKHR _surface;
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
     std::vector<const char*> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    bool use_descriptor_buffers = true;
+    bool _use_descriptor_buffers = false;
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);
     bool check_features(VkPhysicalDevice device);

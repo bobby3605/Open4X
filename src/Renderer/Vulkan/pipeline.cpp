@@ -175,7 +175,6 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     }
 
     _descriptor_layout.create_layouts();
-    update_descriptors();
     std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts = _descriptor_layout.vk_set_layouts();
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

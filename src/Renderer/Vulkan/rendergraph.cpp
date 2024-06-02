@@ -13,11 +13,13 @@
 RenderGraph::RenderGraph(VkCommandPool pool) : _pool{pool} {
 
     _swap_chain = new SwapChain(Window::window->extent());
-    _descriptor_buffer_allocator = new LinearAllocator<GPUAllocator>(MemoryManager::memory_manager->create_gpu_allocator(
-        "_descriptor_buffer_allocator", 1,
-        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
-
+    if (Device::device->use_descriptor_buffers()) {
+        _descriptor_buffer_allocator = new LinearAllocator<GPUAllocator>(MemoryManager::memory_manager->create_gpu_allocator(
+            "_descriptor_buffer_allocator", 1,
+            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+    }
     for (uint32_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; ++i) {
         _command_buffers.emplace_back(Device::device->command_pools()->get_primary(_pool));
         Device::device->set_debug_name(VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)_command_buffers.back(),
@@ -30,7 +32,9 @@ RenderGraph::~RenderGraph() {
     for (auto& command_buffer : _command_buffers) {
         Device::device->command_pools()->release_buffer(_pool, command_buffer);
     }
-    MemoryManager::memory_manager->delete_gpu_allocator("_descriptor_buffer_allocator");
+    if (Device::device->use_descriptor_buffers()) {
+        MemoryManager::memory_manager->delete_gpu_allocator("_descriptor_buffer_allocator");
+    }
 }
 
 void RenderGraph::record_buffer(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags,
@@ -191,18 +195,21 @@ void RenderGraph::begin_rendering() {
         },
         vkCmdBeginRendering, pass_info.get());
 
-    // bind descriptor buffer
-    auto descriptor_buffers_binding_info = std::make_shared<VkDescriptorBufferBindingInfoEXT>();
-    descriptor_buffers_binding_info->sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
-    descriptor_buffers_binding_info->address = _descriptor_buffer_allocator->parent()->addr_info().address;
-    descriptor_buffers_binding_info->usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
+    if (Device::device->use_descriptor_buffers()) {
 
-    add_node(
-        {descriptor_buffers_binding_info},
-        [&, descriptor_buffers_binding_info]() {
-            descriptor_buffers_binding_info->address = _descriptor_buffer_allocator->parent()->addr_info().address;
-        },
-        vkCmdBindDescriptorBuffersEXT_, 1, descriptor_buffers_binding_info.get());
+        // bind descriptor buffer
+        auto descriptor_buffers_binding_info = std::make_shared<VkDescriptorBufferBindingInfoEXT>();
+        descriptor_buffers_binding_info->sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
+        descriptor_buffers_binding_info->address = _descriptor_buffer_allocator->parent()->addr_info().address;
+        descriptor_buffers_binding_info->usage = VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
+
+        add_node(
+            {descriptor_buffers_binding_info},
+            [&, descriptor_buffers_binding_info]() {
+                descriptor_buffers_binding_info->address = _descriptor_buffer_allocator->parent()->addr_info().address;
+            },
+            vkCmdBindDescriptorBuffersEXT_, 1, descriptor_buffers_binding_info.get());
+    }
 }
 void RenderGraph::end_rendering() {
     add_node(vkCmdEndRendering);
@@ -238,24 +245,28 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
             // global set at 0
             // vertex and fragment at 1 and 2
             // So only 1 and 2 need to be updated
-            pipeline->update_descriptors();
+            if (Device::device->use_descriptor_buffers()) {
+                pipeline->update_descriptors();
+            }
         },
         vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
 
-    // Set descriptor offsets
-    auto descriptor_buffer_offsets = std::make_shared<VkSetDescriptorBufferOffsetsInfoEXT>();
-    descriptor_buffer_offsets->sType = VK_STRUCTURE_TYPE_SET_DESCRIPTOR_BUFFER_OFFSETS_INFO_EXT;
-    descriptor_buffer_offsets->stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptor_buffer_offsets->layout = pipeline->vk_pipeline_layout();
-    descriptor_buffer_offsets->firstSet = 0;
-    auto set_offsets = std::make_shared<std::vector<VkDeviceSize>>(pipeline->descriptor_layout().set_offsets());
-    descriptor_buffer_offsets->setCount = set_offsets->size();
-    auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount, 0);
-    descriptor_buffer_offsets->pOffsets = set_offsets->data();
-    descriptor_buffer_offsets->pBufferIndices = buffer_indices->data();
+    if (Device::device->use_descriptor_buffers()) {
+        // Set descriptor offsets
+        auto descriptor_buffer_offsets = std::make_shared<VkSetDescriptorBufferOffsetsInfoEXT>();
+        descriptor_buffer_offsets->sType = VK_STRUCTURE_TYPE_SET_DESCRIPTOR_BUFFER_OFFSETS_INFO_EXT;
+        descriptor_buffer_offsets->stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        descriptor_buffer_offsets->layout = pipeline->vk_pipeline_layout();
+        descriptor_buffer_offsets->firstSet = 0;
+        auto set_offsets = std::make_shared<std::vector<VkDeviceSize>>(pipeline->descriptor_layout().set_offsets());
+        descriptor_buffer_offsets->setCount = set_offsets->size();
+        auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount, 0);
+        descriptor_buffer_offsets->pOffsets = set_offsets->data();
+        descriptor_buffer_offsets->pBufferIndices = buffer_indices->data();
 
-    add_node({descriptor_buffer_offsets, set_offsets, buffer_indices}, void_update, vkCmdSetDescriptorBufferOffsets2EXT_,
-             descriptor_buffer_offsets.get());
+        add_node({descriptor_buffer_offsets, set_offsets, buffer_indices}, void_update, vkCmdSetDescriptorBufferOffsets2EXT_,
+                 descriptor_buffer_offsets.get());
+    }
 
     // push constants
 

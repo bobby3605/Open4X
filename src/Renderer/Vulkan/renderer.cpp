@@ -122,8 +122,6 @@ RenderOp memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 sr
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
 
-    // FIXME:
-    // rg should hold the swap chain
     rg->begin_rendering();
 
     std::string baseShaderPath = "assets/shaders/graphics/";

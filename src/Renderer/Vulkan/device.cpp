@@ -7,7 +7,7 @@
 
 Device* Device::device;
 Device::Device() {
-    if (use_descriptor_buffers) {
+    if (_use_descriptor_buffers) {
         device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
         device_extensions.push_back(VK_KHR_MAINTENANCE_6_EXTENSION_NAME);
     }
@@ -277,7 +277,7 @@ void Device::set_required_features() {
     vk13_features.subgroupSizeControl = VK_TRUE;
     vk13_features.maintenance4 = VK_TRUE;
 
-    descriptor_buffer_features.descriptorBuffer = use_descriptor_buffers ? VK_TRUE : VK_FALSE;
+    descriptor_buffer_features.descriptorBuffer = _use_descriptor_buffers ? VK_TRUE : VK_FALSE;
     // NOTE:
     // Neither mesa nor renderdoc support this
     // amdgpu does, but without renderdoc support it's useless
