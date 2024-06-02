@@ -14,7 +14,6 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     new MemoryManager();
     globals.memory_manager = MemoryManager::memory_manager;
     create_data_buffers();
-    _swap_chain = new SwapChain(Window::window->extent());
     _command_pool = Device::device->command_pools()->get_pool();
     create_rendergraph();
 }
@@ -23,7 +22,6 @@ Renderer::~Renderer() {
     Device::device->command_pools()->release_pool(_command_pool);
     vkDeviceWaitIdle(Device::device->vk_device());
     delete rg;
-    delete _swap_chain;
     delete MemoryManager::memory_manager;
     delete Device::device;
 }
@@ -71,46 +69,7 @@ void Renderer::create_data_buffers() {
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 }
 
-void Renderer::recreate_swap_chain() {
-    // pause on minimization
-    if (_settings->pauseOnMinimization) {
-        int width = 0, height = 0;
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(Window::window->glfw_window(), &width, &height);
-            glfwWaitEvents();
-        }
-    }
-
-    vkDeviceWaitIdle(Device::device->vk_device());
-
-    // FIXME:
-    // recreate swap chain
-    //    swapChain = new VulkanSwapChain(_device, _window->getExtent(), swapChain);
-}
-
-bool Renderer::render() {
-    // Start Frame
-    VkResult result = _swap_chain->acquire_next_image();
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        // TODO
-        // Do I need to run acquireNextImage after this?
-        recreate_swap_chain();
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("failed to acquire swap chain image");
-    }
-    // Submit Frame
-    //    result = _swap_chain->submit_command_buffers(rg->command_buffer());
-    result = rg->submit(_swap_chain);
-    // End Frame
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        recreate_swap_chain();
-        // return true if framebuffer was resized
-        return true;
-    } else if (result != VK_SUCCESS) {
-        throw std::runtime_error("failed to present swap chain image");
-    }
-    return false;
-}
+bool Renderer::render() { return rg->render(); }
 
 /*
 
@@ -163,10 +122,9 @@ RenderOp memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 sr
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
 
-    rg->define_primary(false);
     // FIXME:
     // rg should hold the swap chain
-    rg->begin_rendering(_swap_chain);
+    rg->begin_rendering();
 
     std::string baseShaderPath = "assets/shaders/graphics/";
     std::string baseShaderName = "triangle";
@@ -174,28 +132,11 @@ void Renderer::create_rendergraph() {
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
     std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
 
-    rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index, _swap_chain);
-
-    VkExtent2D extent = _swap_chain->extent();
-
-    viewport.x = 0.0f;
-    viewport.y = extent.height;
-    viewport.width = extent.width;
-    viewport.height = extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    scissor.offset = {0, 0};
-    scissor.extent = extent;
-
-    rg->add_node(vkCmdSetViewport, 0, 1, &viewport);
-    rg->add_node(vkCmdSetScissor, 0, 1, &scissor);
+    rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index);
 
     rg->add_node(vkCmdDrawIndexedIndirectCount, draw_allocators.indirect_commands->base_alloc().buffer, 0,
                  MemoryManager::memory_manager->get_gpu_allocator("indirect_count")->base_alloc().buffer, 0,
                  draw_allocators.indirect_commands->block_count(), draw_allocators.indirect_commands->block_size());
 
-    rg->end_rendering(_swap_chain);
-
-    rg->compile();
+    rg->end_rendering();
 }

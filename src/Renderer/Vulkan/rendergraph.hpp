@@ -15,6 +15,7 @@ typedef std::function<void(VkCommandBuffer)> RenderOp;
 // Needs to be shared and not unique for type erasure
 typedef std::shared_ptr<void> RenderDep;
 typedef std::vector<RenderDep> RenderDeps;
+#define void_update []() {}
 
 enum HazardType { READ, WRITE, READ_WRITE };
 
@@ -28,7 +29,9 @@ struct WriteHazard : Hazard {};
 
 class RenderNode {
   public:
-    template <typename F, typename... Args> RenderNode(RenderDeps in_deps, F f, Args... args) : op{partial(f, args...)}, deps{in_deps} {}
+    template <typename F, typename... Args>
+    RenderNode(RenderDeps in_deps, std::function<void()> update_func, F f, Args... args)
+        : op{partial(f, args...)}, deps{in_deps}, update{update_func} {}
     RenderOp op;
     std::vector<Hazard> hazards;
     // NOTE:
@@ -38,54 +41,53 @@ class RenderNode {
     // It can't be stack allocated, because the VkDependencyInfo will be deleted by the time the node is recorded
     // Keeping track of it as a shared pointer allows the data to persist for the lifetime of the RenderNode
     RenderDeps deps;
+    std::function<void()> update;
 };
 
 class RenderGraph {
   public:
     RenderGraph(VkCommandPool pool);
     ~RenderGraph();
-    void compile();
-    VkResult submit(SwapChain* swap_chain);
+    // NOTE:
+    // return true if swapchain recreated
+    bool render();
     // TODO
     // Clean this and RenderNode up,
     // shouldn't be templating it twice,
     // really 3 times because of the partial template
-    template <typename F, typename... Args> void add_node(RenderDeps deps, F f, Args... args) {
-        if (_secondary) {
-            _secondary_graphs.try_emplace(_curr_secondary_cmd_buffer).first->second.emplace_back(deps, f, args...);
-        } else {
-            _primary_graphs.try_emplace(_curr_primary_cmd_buffer).first->second.emplace_back(deps, f, args...);
-        }
+    template <typename F, typename... Args> void add_node(RenderDeps deps, std::function<void()> update_func, F f, Args... args) {
+        _graph.emplace_back(deps, update_func, f, args...);
     }
-    template <typename F, typename... Args> void add_node(F f, Args... args) { add_node({}, f, args...); }
+    template <typename F, typename... Args> void add_node(F f, Args... args) { add_node({}, void_update, f, args...); }
+    void add_dynamic_node(RenderDeps deps, std::function<void(RenderNode& node)> set_op_func) {
+        std::function<void()> update_func = []() {};
+        auto op = [](VkCommandBuffer c, int a) {};
+        add_node(deps, update_func, op, 0);
 
-    void transition_image(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels);
-    void transition_image(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource_range);
-    void begin_rendering(SwapChain* const swap_chain);
-    void end_rendering(SwapChain* const swap_chain);
+        // TODO
+        // Better solution for non-struct vkCmd that need an update_func
+        size_t last_node_index = _graph.size();
+        _graph.back().update = [&, last_node_index, set_op_func]() { set_op_func(_graph[last_node_index]); };
+    }
+
+    void begin_rendering();
+    void end_rendering();
     // TODO
     // Remove the SwapChain dependency
     void graphics_pass(std::string const& vert_path, std::string const& frag_path, LinearAllocator<GPUAllocator>* vertex_buffer_allocator,
-                       LinearAllocator<GPUAllocator>* index_buffer_allocator, SwapChain* swap_chain_defaults);
+                       LinearAllocator<GPUAllocator>* index_buffer_allocator);
     void buffer(std::string name, VkDeviceSize size);
-    void define_primary(bool per_frame);
-    void define_secondary(bool per_frame);
 
   private:
     VkCommandPool _pool;
-    bool _secondary = false;
-    VkCommandBuffer _curr_primary_cmd_buffer;
-    VkCommandBuffer _curr_secondary_cmd_buffer;
-    std::unordered_map<VkCommandBuffer, std::vector<RenderNode>> _primary_graphs;
-    std::vector<VkCommandBuffer> _per_frame_primary;
-    std::unordered_map<VkCommandBuffer, std::vector<RenderNode>> _secondary_graphs;
-    std::vector<VkCommandBuffer> _per_frame_secondary;
+    std::vector<VkCommandBuffer> _command_buffers;
+    std::vector<RenderNode> _graph;
     void record_buffer(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags, std::vector<RenderNode> const& render_nodes);
     void image_barrier(VkImageMemoryBarrier2& barrier);
-    std::vector<std::shared_ptr<Pipeline>> _pipelines;
     LinearAllocator<GPUAllocator>* _descriptor_buffer_allocator;
-
-    void bad_workaround(SwapChain* swap_chain);
+    SwapChain* _swap_chain;
+    VkResult submit();
+    void recreate_swap_chain();
 };
 
 #endif // RENDEROPS_H_

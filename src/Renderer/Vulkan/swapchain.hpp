@@ -10,7 +10,7 @@ class SwapChain {
     ~SwapChain();
     size_t current_frame() const { return _current_frame; }
     VkResult acquire_next_image();
-    VkResult submit_command_buffers(std::vector<VkCommandBuffer>& cmd_buffers);
+    VkResult submit_command_buffer(VkCommandBuffer& cmd_buffer);
     VkSurfaceFormatKHR const& surface_format() { return _surface_format; }
     VkFormat const& depth_format() { return _depth_format; }
     VkImageView color_image_view() { return _color_image_view; }

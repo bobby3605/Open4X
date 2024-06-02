@@ -200,7 +200,7 @@ VkResult SwapChain::acquire_next_image() {
     return result;
 }
 
-VkResult SwapChain::submit_command_buffers(std::vector<VkCommandBuffer>& cmd_buffers) {
+VkResult SwapChain::submit_command_buffer(VkCommandBuffer& cmd_buffer) {
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -210,8 +210,8 @@ VkResult SwapChain::submit_command_buffers(std::vector<VkCommandBuffer>& cmd_buf
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = cmd_buffers.size();
-    submitInfo.pCommandBuffers = cmd_buffers.data();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd_buffer;
 
     VkSemaphore signalSemaphores[] = {_render_finished_semaphores[current_frame()]};
     submitInfo.signalSemaphoreCount = 1;

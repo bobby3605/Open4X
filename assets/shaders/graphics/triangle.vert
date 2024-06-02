@@ -50,15 +50,15 @@ layout(location = 13) out float occulsion_strength;
 void main() {
     /*
     MaterialData material = materials[culled_material_indices[gl_BaseInstance]];
-    InstanceData instance = instances[culled_instance_indices[gl_InstanceIndex]];
     */
     MaterialData material = materials[0];
-    InstanceData instance = instances[gl_InstanceIndex];
+    InstanceData instance = instances[culled_instance_indices[gl_InstanceIndex]];
 
     vec4 vert_pos = instance.model_matrix * vec4(in_position, 1.0);
     gl_Position = proj_view * vert_pos;
 
-    base_color_factor = material.base_color_factor;
+   // base_color_factor = material.base_color_factor;
+   base_color_factor = vec4(1.0, 0.0, 0.0, 1.0);
 
     sampler_index = material.sampler_index;
     image_index = material.image_index;

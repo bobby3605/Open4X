@@ -17,17 +17,10 @@ class Renderer {
 
   private:
     NewSettings* _settings;
-    SwapChain* _swap_chain;
     VkCommandPool _command_pool;
-    void recreate_swap_chain();
 
     void create_rendergraph();
     RenderGraph* rg;
-
-    // FIXME:
-    // set these dynamically
-    VkViewport viewport{};
-    VkRect2D scissor{};
 };
 
 #endif // RENDERER_H_

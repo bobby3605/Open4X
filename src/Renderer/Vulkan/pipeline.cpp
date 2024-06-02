@@ -1,6 +1,7 @@
 #include "pipeline.hpp"
 #include "common.hpp"
 #include "device.hpp"
+#include "memory_manager.hpp"
 #include "model.hpp"
 #include <tuple>
 #include <unordered_map>
@@ -10,6 +11,30 @@
 Pipeline::~Pipeline() {
     vkDestroyPipelineLayout(Device::device->vk_device(), _pipeline_layout, nullptr);
     vkDestroyPipeline(Device::device->vk_device(), _pipeline, nullptr);
+}
+
+void Pipeline::update_descriptors() {
+    // FIXME:
+    // Support only re-binding needed sets
+    // For example, a global set at 0 only needs to be set once per GPUAllocator->realloc
+    for (auto const& set_layout : _descriptor_layout.set_layouts()) {
+        for (auto const& binding_layout : set_layout.second.bindings) {
+            GPUAllocator* tmp;
+            std::string buffer_name = binding_layout.second.buffer_name;
+            if (MemoryManager::memory_manager->gpu_allocator_exists(buffer_name)) {
+                // TODO:
+                // Maybe
+                // support recreating buffer with new mem props if needed from the graph
+                // Other option is just to error out if you manually created a buffer with the wrong mem_props
+                tmp = MemoryManager::memory_manager->get_gpu_allocator(buffer_name);
+            } else {
+                tmp = MemoryManager::memory_manager->create_gpu_allocator(
+                    buffer_name, 1, type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                    binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            }
+            _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
+        }
+    }
 }
 
 GraphicsPipeline::~GraphicsPipeline() {
@@ -150,6 +175,7 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     }
 
     _descriptor_layout.create_layouts();
+    update_descriptors();
     std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts = _descriptor_layout.vk_set_layouts();
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

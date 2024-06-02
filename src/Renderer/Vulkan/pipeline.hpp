@@ -17,6 +17,7 @@ class Pipeline {
     std::string const& name() { return _pipeline_name; }
     std::unordered_map<std::string, Shader> const& shaders() const { return _shaders; }
     DescriptorLayout const& descriptor_layout() const { return _descriptor_layout; }
+    void update_descriptors();
 
   protected:
     VkPipeline _pipeline;
