@@ -66,7 +66,7 @@ class RenderGraph {
 
         // TODO
         // Better solution for non-struct vkCmd that need an update_func
-        size_t last_node_index = _graph.size();
+        size_t last_node_index = _graph.size() - 1;
         _graph.back().update = [&, last_node_index, set_op_func]() { set_op_func(_graph[last_node_index]); };
     }
 

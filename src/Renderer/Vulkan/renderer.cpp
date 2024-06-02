@@ -134,9 +134,14 @@ void Renderer::create_rendergraph() {
 
     rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index);
 
-    rg->add_node(vkCmdDrawIndexedIndirectCount, draw_allocators.indirect_commands->base_alloc().buffer, 0,
-                 MemoryManager::memory_manager->get_gpu_allocator("indirect_count")->base_alloc().buffer, 0,
-                 draw_allocators.indirect_commands->block_count(), draw_allocators.indirect_commands->block_size());
+    rg->add_dynamic_node({}, [&](RenderNode& node) {
+        node.op = [&](VkCommandBuffer cmd_buffer) {
+            vkCmdDrawIndexedIndirectCount(cmd_buffer, draw_allocators.indirect_commands->base_alloc().buffer, 0,
+                                          MemoryManager::memory_manager->get_gpu_allocator("indirect_count")->base_alloc().buffer, 0,
+                                          draw_allocators.indirect_commands->block_count(),
+                                          draw_allocators.indirect_commands->block_size());
+        };
+    });
 
     rg->end_rendering();
 }
