@@ -13,13 +13,11 @@ class SwapChain {
     VkResult submit_command_buffer(VkCommandBuffer& cmd_buffer);
     VkSurfaceFormatKHR const& surface_format() { return _surface_format; }
     VkFormat const& depth_format() { return _depth_format; }
-    VkImageView color_image_view() { return _color_image_view; }
     VkImageView depth_image_view() { return _depth_image_view; }
-    VkImage const& color_image() { return _color_image; }
     VkImage const& depth_image() { return _depth_image; }
     VkExtent2D extent() { return _extent; }
     VkImage current_image() const { return _swap_chain_images[_image_index]; }
-    VkImageView current_image_view() const { return _swap_chain_image_views[current_frame()]; }
+    VkImageView current_image_view() const { return _swap_chain_image_views[_image_index]; }
 
     static const uint32_t MAX_FRAMES_IN_FLIGHT = 1;
 
@@ -33,6 +31,8 @@ class SwapChain {
     void create_swap_chain(VkSwapchainKHR _old_swap_chain = VK_NULL_HANDLE);
     std::vector<VkImageView> _swap_chain_image_views;
     void create_image_views();
+    // FIXME:
+    // color image probably isn't needed
     VkImage _color_image;
     VkDeviceMemory _color_image_memory;
     VkImageView _color_image_view;
