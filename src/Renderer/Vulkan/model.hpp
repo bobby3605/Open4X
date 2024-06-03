@@ -166,6 +166,7 @@ class Model {
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
     std::unordered_map<uint32_t, Mesh> _meshes;
+    std::unordered_map<uint32_t, SubAllocation> _material_allocs;
 
   public:
     std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }

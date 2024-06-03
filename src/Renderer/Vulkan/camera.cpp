@@ -3,7 +3,27 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
-Camera::Camera() {}
+Camera::Camera() {
+    // perspective projection
+    assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
+    const float tanHalfFovy = tan(glm::radians(vertical_fov) / 2.f);
+    _proj[0][0] = 1.f / (aspect_ratio * tanHalfFovy);
+    _proj[1][1] = 1.f / (tanHalfFovy);
+    _proj[2][2] = far / (far - near);
+    _proj[2][3] = 1.f;
+    _proj[3][2] = -(far * near) / (far - near);
+}
+
+glm::mat4 const& Camera::proj_view() {
+    // TODO
+    // This probably gets called every frame,
+    // so caching is pointless
+    if (_instance_data_invalid) {
+        refresh_instance_data();
+        _proj_view = _proj * glm::inverse(_object_matrix);
+    }
+    return _proj_view;
+}
 
 void Camera::update_transform(float frame_time) {
     glm::vec3 rotate{0};

@@ -16,6 +16,11 @@
 #include <chrono>
 #include <memory>
 
+struct ShaderGlobals {
+    glm::mat4 proj_view;
+    glm::vec3 cam_pos;
+};
+
 class Open4X {
   public:
     Open4X();

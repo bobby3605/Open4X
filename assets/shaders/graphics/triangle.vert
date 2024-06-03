@@ -54,14 +54,10 @@ void main() {
     MaterialData material = materials[0];
     InstanceData instance = instances[culled_instance_indices[gl_InstanceIndex]];
 
-/*    vec4 vert_pos = instance.model_matrix * vec4(in_position, 1.0);
+    vec4 vert_pos = instance.model_matrix * vec4(in_position, 1.0);
     gl_Position = proj_view * vert_pos;
-    */
-    vec4 vert_pos = vec4(in_position, 1.0);
-    gl_Position = vert_pos;
 
-   // base_color_factor = material.base_color_factor;
-   base_color_factor = vec4(1.0, 0.0, 0.0, 1.0);
+    base_color_factor = material.base_color_factor;
 
     sampler_index = material.sampler_index;
     image_index = material.image_index;

@@ -92,7 +92,7 @@ class GPUAllocator : public BaseAllocator<GPUAllocation> {
     GPUAllocation alloc(size_t const& byte_size, size_t const& alignment = 1);
     void free(GPUAllocation const& allocation);
 
-    VkDescriptorDataEXT const& descriptor_data() const { return _descriptor_data.value(); }
+    VkDescriptorDataEXT const& descriptor_data() const;
     VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
 
   private:

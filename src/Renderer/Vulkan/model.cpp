@@ -41,8 +41,7 @@ Model::Scene::Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_a
         _root_node_indices.push_back(node_index);
         _model->_nodes.resize(node_index + 1);
         if (!_model->_nodes[node_index].has_value()) {
-            auto node_it = _model->_nodes.begin() + node_index;
-            _model->_nodes.emplace(node_it, std::move(Node(_model, &_model->_asset->nodes[node_index], glm::mat4(), draw_allocators)));
+            _model->_nodes[node_index] = Node(_model, &_model->_asset->nodes[node_index], glm::mat4(), draw_allocators);
         }
     }
 }
@@ -76,8 +75,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
         _child_node_indices.push_back(child_index);
         _model->_nodes.resize(child_index + 1);
         if (!_model->_nodes[child_index].has_value()) {
-            auto child_it = _model->_nodes.begin() + child_index;
-            _model->_nodes.emplace(child_it, std::move(Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators)));
+            _model->_nodes[child_index] = Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators);
         }
     }
 }
@@ -99,14 +97,28 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         tmp_vertices[i].pos = positions[i];
     }
 
+    // Default material
+    SubAllocation material_alloc;
+    material_alloc.offset = 0;
+    material_alloc.size = sizeof(NewMaterialData);
     if (primitive->materialIndex.has_value()) {
-        fastgltf::Material& material = model->_asset->materials[primitive->materialIndex.value()];
-        std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
-        if (base_color_texture.has_value()) {
-            std::vector<texcoord> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
-            for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
-                tmp_vertices[i].base = texcoords[i];
+        if (!model->_material_allocs.contains(primitive->materialIndex.value())) {
+            NewMaterialData material_data{};
+            fastgltf::Material& material = model->_asset->materials[primitive->materialIndex.value()];
+            material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
+            std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
+            if (base_color_texture.has_value()) {
+                std::vector<texcoord> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
+                for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
+                    tmp_vertices[i].base = texcoords[i];
+                }
             }
+            // Upload material
+            material_alloc = draw_allocators.material_data->alloc();
+            model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
+            draw_allocators.material_data->write(material_alloc, &material_data, sizeof(material_data));
+        } else {
+            material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
         }
     }
     // FIXME:
@@ -133,7 +145,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
-    _draw = new Draw(draw_allocators, _vertices.data(), _vertices.size(), indices());
+    _draw = new Draw(draw_allocators, _vertices.data(), _vertices.size(), indices(), material_alloc);
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {

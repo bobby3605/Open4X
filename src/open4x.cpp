@@ -1,3 +1,5 @@
+#include "Renderer/Allocator/base_allocator.hpp"
+#include "Renderer/Allocator/sub_allocator.hpp"
 #include "Renderer/Vulkan/memory_manager.hpp"
 #include "Renderer/Vulkan/object_manager.hpp"
 #include "Renderer/Vulkan/rendergraph.hpp"
@@ -134,14 +136,24 @@ void Open4X::loadSettings() {
 
 void Open4X::run() {
 
-    std::string base_path = std::filesystem::current_path().string();
-    Model* simple_texture_model = _model_manager->get_model(base_path + "/assets/glTF/simple_texture.gltf");
-    Object* simple_texture_object_0 = _object_manager->add_object("simple_texture_0", simple_texture_model);
-    simple_texture_object_0->position({1, 0, 0});
-    _object_manager->refresh_instance_data();
-    Camera cam;
-
     if (NEW_RENDERER) {
+        std::string base_path = std::filesystem::current_path().string();
+        Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
+        Object* box_object_0 = _object_manager->add_object("box_0", box_model);
+        box_object_0->position({1, 0, 0});
+        _object_manager->refresh_instance_data();
+        Camera cam;
+        // TODO
+        // Get ShaderGlobals from the shader itself
+        StackAllocator<GPUAllocator>* shader_globals_buffer = new StackAllocator(
+            sizeof(ShaderGlobals),
+            MemoryManager::memory_manager->create_gpu_allocator("Globals", sizeof(ShaderGlobals),
+                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+
+        SubAllocation globals_alloc = shader_globals_buffer->alloc();
+        ShaderGlobals shader_globals;
         auto start_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             glfwPollEvents();
@@ -149,6 +161,12 @@ void Open4X::run() {
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;
             cam.update_transform(frame_time);
+            // TODO
+            // cache camera matrix
+            shader_globals.proj_view = cam.proj_view();
+            shader_globals.cam_pos = cam.position();
+            shader_globals_buffer->write(globals_alloc, &shader_globals, sizeof(shader_globals));
+
             renderer->render();
         }
     } else {

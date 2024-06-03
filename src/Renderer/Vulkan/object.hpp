@@ -5,7 +5,7 @@
 
 class Object {
   public:
-    Object() = default;
+    Object();
     Object(Model* model, safe_queue<Object*>* invalid_callback);
 
     glm::vec3 const& position() { return _position; }
@@ -18,7 +18,7 @@ class Object {
     void register_invalid_matrices();
     void refresh_instance_data();
 
-  private:
+  protected:
     Model* _model;
     glm::vec3 _position;
     glm::quat _rotation;

@@ -69,7 +69,7 @@ class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT
 
   protected:
     AllocatorT* _parent_allocator;
-    void realloc_check_parent(AllocatorT::AllocT& allocation, size_t const& byte_size) {
+    void realloc_check_parent(size_t const& byte_size) {
         _parent_allocator->realloc(this->_base_alloc, byte_size);
         // NOTE:
         // Ensure that the base allocator for a BaseAllocator is updated whenever there's a reallocation
@@ -93,7 +93,7 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
         // _free_blocks is created in reverse order so that the base offset will be used first
         // NOTE:
         // can't get c++ 23 ranges to work correctly
-        for (int i = (int)(_block_count - 1); i >= 0; --i) {
+        for (int i = _block_count - 1; i >= 0; --i) {
             _free_blocks.push(i);
         }
     }
@@ -109,7 +109,7 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
             size_t base_size = this->_base_alloc.size;
             size_t new_block_index = ++_block_count;
             size_t new_parent_size = base_size + _block_size;
-            this->realloc_check_parent(this->_base_alloc, new_parent_size);
+            this->realloc_check_parent(new_parent_size);
             _free_blocks.push(new_block_index);
         }
         SubAllocation allocation;
@@ -122,11 +122,11 @@ template <typename AllocatorT> class StackAllocator : public SubAllocator<Alloca
 
     void free(SubAllocation const& alloc) { _free_blocks.push(alloc.offset / _block_size); }
     size_t const& block_size() const { return _block_size; }
-    size_t const& block_count() const { return _block_count; }
+    int const& block_count() const { return _block_count; }
 
   private:
     size_t _block_size;
-    size_t _block_count;
+    int _block_count;
     std::stack<size_t> _free_blocks;
 };
 
@@ -180,7 +180,7 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
         // adding alignment here to ensure that the last block doesn't get overwritten
         allocation.offset = align(this->_base_alloc.size, alignment) + alignment;
         size_t new_size = allocation.offset + allocation.size;
-        this->realloc_check_parent(this->_base_alloc, new_size);
+        this->realloc_check_parent(new_size);
         return allocation;
     }
 

@@ -3,16 +3,19 @@
 #include "object.hpp"
 #include <GLFW/glfw3.h>
 
-class Camera : Object {
+class Camera : public Object {
   public:
     Camera();
     void update_transform(float frame_time);
+    glm::mat4 const& proj_view();
 
     inline static const glm::vec3 up_vector = glm::vec3(0.f, -1.0f, 0.f);
     inline static const glm::vec3 forward_vector = glm::vec3(0.0f, 0.0f, 1.0f);
     inline static const glm::vec3 right_vector = glm::vec3(1.0f, 0.0, 0.0f);
 
   private:
+    glm::mat4 _proj{0.0f};
+    glm::mat4 _proj_view;
     struct KeyMappings {
         static const inline int move_left = GLFW_KEY_A;
         static const inline int move_right = GLFW_KEY_D;
@@ -30,6 +33,11 @@ class Camera : Object {
         static const inline int slow_down = GLFW_KEY_LEFT_ALT;
     };
     static constexpr KeyMappings keys{};
+
+    float vertical_fov;
+    float aspect_ratio;
+    float near;
+    float far;
 
     float move_speed{6.0f};
     float look_speed{2.0f};

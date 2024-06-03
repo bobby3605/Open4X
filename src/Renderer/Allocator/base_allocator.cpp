@@ -3,6 +3,7 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 CPUAllocator::CPUAllocator(size_t const& byte_size) { _base_alloc = alloc(byte_size); }
@@ -127,4 +128,12 @@ void GPUAllocator::copy(GPUAllocation const& dst_allocation, GPUAllocation const
     CommandRunner command_runner;
     command_runner.copy_buffer(dst_allocation.buffer, src_allocation.buffer, buffer_copies);
     command_runner.run();
+}
+
+VkDescriptorDataEXT const& GPUAllocator::descriptor_data() const {
+    if (_descriptor_data.has_value()) {
+        return _descriptor_data.value();
+    } else {
+        throw std::runtime_error("tried to get non-existent descriptor data for buffer: " + _name);
+    }
 }

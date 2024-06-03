@@ -2,7 +2,8 @@
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 
-Draw::Draw(DrawAllocators const& draw_allocators, const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices)
+Draw::Draw(DrawAllocators const& draw_allocators, const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices,
+           SubAllocation material_alloc)
     : _allocators(draw_allocators), _instance_indices(sizeof(uint32_t), _allocators.instance_indices),
       _instance_indices_allocs(sizeof(SubAllocation), new CPUAllocator(sizeof(SubAllocation))) {
 
@@ -13,11 +14,17 @@ Draw::Draw(DrawAllocators const& draw_allocators, const void* vertices, const si
     _indirect_command.vertexOffset = _vertex_alloc.offset;
     _allocators.vertex->write(_vertex_alloc, vertices, vertices_size);
 
-    _index_alloc = _allocators.index->alloc(_indirect_command.indexCount);
-    _indirect_command.firstIndex = _index_alloc.offset;
+    _index_alloc = _allocators.index->alloc(_indirect_command.indexCount * sizeof(indices[0]));
+    _indirect_command.firstIndex = _index_alloc.offset / sizeof(indices[0]);
     _allocators.index->write(_index_alloc, indices.data(), indices.size());
 
     _indirect_commands_alloc = _allocators.indirect_commands->alloc();
+    // TODO:
+    // thread safety
+    uint32_t new_size;
+    _allocators.indirect_count->get(&new_size, _allocators.indirect_count_alloc, sizeof(uint32_t));
+    ++new_size;
+    _allocators.indirect_count->write(draw_allocators.indirect_count_alloc, &new_size, sizeof(uint32_t));
 
     _indirect_command.instanceCount = 0;
     _last_instance_index_alloc.offset = 0;
@@ -55,6 +62,14 @@ uint32_t Draw::add_instance() {
     // NOTE:
     // Always update firstInstance in case of a reallocation
     _indirect_command.firstInstance = _instance_indices.base_alloc().offset;
+    // FIXME:
+    // get material index alloc and ensure its offset is _indirect_command.firstInstance
+    // _allocators.material_data->write(_material_index_alloc, _material_alloc.offset, sizeof(uint32_t));
+    // possible solution is to reserve firstInstance + 0 for material_index
+    // then all of the instance data goes after that
+    // putting material index at instance_indices[firstInstance]
+    //_material_index_alloc = _instance_indices.alloc();
+    // Problem is with culling and generally issues from mixing buffers together
     _indirect_command.instanceCount++;
     write_indirect_command();
     return instance_index_alloc_alloc.offset;
