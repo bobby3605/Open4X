@@ -128,8 +128,8 @@ void RenderGraph::begin_rendering() {
     add_node(
         {viewport},
         [&, viewport]() {
-            viewport->y = _swap_chain->extent().height;
             viewport->width = _swap_chain->extent().width;
+            viewport->y = 0;
             viewport->height = _swap_chain->extent().height;
         },
         vkCmdSetViewport, 0, 1, viewport.get());

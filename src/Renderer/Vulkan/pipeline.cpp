@@ -99,7 +99,7 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
 
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = extent.height;
+    viewport.y = 0.0f;
     viewport.width = extent.width;
     viewport.height = extent.height;
     viewport.minDepth = 0.0f;
