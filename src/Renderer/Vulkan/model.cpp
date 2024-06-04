@@ -108,9 +108,9 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
             std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
             if (base_color_texture.has_value()) {
-                std::vector<texcoord> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
+                std::vector<glm::vec2> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
                 for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
-                    tmp_vertices[i].base = texcoords[i];
+                    tmp_vertices[i].tex_coord = texcoords[i];
                 }
             }
             // Upload material
@@ -145,15 +145,15 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
-    _draw = new Draw(draw_allocators, _vertices.data(), _vertices.size(), indices(), material_alloc);
+    _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc);
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {
     return load_accessor<glm::vec3>(_model->_asset, _primitive->findAttribute("POSITION")->second);
 }
 
-std::vector<texcoord> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coord_selector) {
-    return load_accessor<texcoord>(_model->_asset, _primitive->findAttribute("TEXCOORD_" + std::to_string(tex_coord_selector))->second);
+std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coord_selector) {
+    return load_accessor<glm::vec2>(_model->_asset, _primitive->findAttribute("TEXCOORD_" + std::to_string(tex_coord_selector))->second);
 }
 
 void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids) {

@@ -1,19 +1,46 @@
 #include "descriptors.hpp"
 #include "common.hpp"
 #include "device.hpp"
+#include "swapchain.hpp"
 #include <cstdint>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
+
+DescriptorLayout::DescriptorLayout() {
+    // TODO
+    // Dynamic sized pools
+    int count = 10 * SwapChain::MAX_FRAMES_IN_FLIGHT;
+    std::vector<VkDescriptorPoolSize> pool_sizes{};
+    pool_sizes.reserve(usage_to_types.size() + extra_types.size());
+    for (auto type_pair : usage_to_types) {
+        pool_sizes.push_back({type_pair.second, uint32_t(count)});
+    }
+    for (auto type : extra_types) {
+        pool_sizes.push_back({type, uint32_t(count)});
+    }
+
+    VkDescriptorPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
+    pool_info.pPoolSizes = pool_sizes.data();
+    pool_info.maxSets = count * pool_sizes.size();
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
+    check_result(vkCreateDescriptorPool(Device::device->vk_device(), &pool_info, nullptr, &_pool), "failed to create descriptor pool");
+}
+
+DescriptorLayout::DescriptorLayout(LinearAllocator<GPUAllocator>* descriptor_buffer) : _descriptor_buffer(descriptor_buffer) {}
 
 DescriptorLayout::~DescriptorLayout() {
     for (auto& set_layout_pair : _set_layouts) {
         if (set_layout_pair.second.layout != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(Device::device->vk_device(), set_layout_pair.second.layout, nullptr);
-            if (Device::device->use_descriptor_buffers()) {
+            if (_descriptor_buffer != nullptr) {
                 _descriptor_buffer->free(set_layout_pair.second.allocation);
             }
         }
     }
+    if (_descriptor_buffer == nullptr)
+        vkDestroyDescriptorPool(Device::device->vk_device(), _pool, nullptr);
 }
 
 void DescriptorLayout::add_binding(uint32_t set, uint32_t binding, VkDescriptorType type, VkShaderStageFlags stage, std::string buffer_name,
@@ -54,13 +81,15 @@ void DescriptorLayout::create_layouts() {
         VkDescriptorSetLayoutCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         // TODO
         // Support more flags
-        info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+        info.flags = _descriptor_buffer == nullptr ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT
+                                                   : VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
         info.bindingCount = bindings.size();
         info.pBindings = bindings.data();
         // Create layout
         vkCreateDescriptorSetLayout(Device::device->vk_device(), &info, nullptr, &set_layout.layout);
-        // Get size of layout and align it
-        if (Device::device->use_descriptor_buffers()) {
+        // Set Descriptor Buffers
+        if (_descriptor_buffer != nullptr) {
+            // Get size of layout and align it
             vkGetDescriptorSetLayoutSizeEXT_(Device::device->vk_device(), set_layout.layout, &set_layout.allocation.size);
             // Align it
             set_layout.allocation.size =
@@ -73,6 +102,17 @@ void DescriptorLayout::create_layouts() {
                 vkGetDescriptorSetLayoutBindingOffsetEXT_(Device::device->vk_device(), set_layout.layout,
                                                           binding_layout.second.binding.binding, &binding_layout.second.allocation.offset);
             }
+        } else {
+            // Allocate descriptor sets
+            VkDescriptorSetAllocateInfo alloc_info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+            alloc_info.descriptorPool = _pool;
+            alloc_info.descriptorSetCount = 1;
+            alloc_info.pSetLayouts = &set_layout.layout;
+
+            // TODO
+            // allocate multiple sets at once
+            check_result(vkAllocateDescriptorSets(Device::device->vk_device(), &alloc_info, &set_layout.set),
+                         "failed to allocate descriptor sets");
         }
     }
 }
@@ -82,6 +122,15 @@ std::vector<VkDescriptorSetLayout> DescriptorLayout::vk_set_layouts() const {
     output.reserve(_set_layouts.size());
     for (auto const& set_layout : _set_layouts) {
         output.push_back(set_layout.second.layout);
+    }
+    return output;
+}
+
+std::vector<VkDescriptorSet> DescriptorLayout::vk_sets() const {
+    std::vector<VkDescriptorSet> output;
+    output.reserve(_set_layouts.size());
+    for (auto const& set_layout : _set_layouts) {
+        output.push_back(set_layout.second.set);
     }
     return output;
 }

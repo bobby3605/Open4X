@@ -2,18 +2,18 @@
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 
-Draw::Draw(DrawAllocators const& draw_allocators, const void* vertices, const size_t vertices_size, std::vector<uint32_t> const& indices,
+Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
            SubAllocation material_alloc)
     : _allocators(draw_allocators), _instance_indices(sizeof(uint32_t), _allocators.instance_indices),
       _instance_indices_allocs(sizeof(SubAllocation), new CPUAllocator(sizeof(SubAllocation))) {
 
-    _indirect_command.indexCount = indices.size();
-    // NOTE:
-    // Need VkDeviceSize for alloc, so _indirect_command can't be used directly
-    _vertex_alloc = _allocators.vertex->alloc(vertices_size);
-    _indirect_command.vertexOffset = _vertex_alloc.offset;
-    _allocators.vertex->write(_vertex_alloc, vertices, vertices_size);
+    _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
+    _indirect_command.vertexOffset = _vertex_alloc.offset / sizeof(vertices[0]);
+    _allocators.vertex->write(_vertex_alloc, vertices.data(), _vertex_alloc.size);
 
+    // FIXME:
+    // Do the indices values need to have _index_alloc.offset / sizeof(indices[0]) added to them?
+    _indirect_command.indexCount = indices.size();
     _index_alloc = _allocators.index->alloc(_indirect_command.indexCount * sizeof(indices[0]));
     _indirect_command.firstIndex = _index_alloc.offset / sizeof(indices[0]);
     _allocators.index->write(_index_alloc, indices.data(), indices.size());

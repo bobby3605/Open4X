@@ -9,7 +9,8 @@
 
 class Pipeline {
   public:
-    Pipeline(LinearAllocator<GPUAllocator>* descriptor_buffer_allocator) : _descriptor_layout(descriptor_buffer_allocator) {}
+    Pipeline();
+    Pipeline(LinearAllocator<GPUAllocator>* descriptor_buffer_allocator);
     ~Pipeline();
     VkPipeline const& vk_pipeline() { return _pipeline; }
     VkPipelineLayout const& vk_pipeline_layout() { return _pipeline_layout; }
@@ -31,8 +32,14 @@ class Pipeline {
 class GraphicsPipeline : public Pipeline {
   public:
     GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
+                     std::string const& frag_path);
+    GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
                      std::string const& frag_path, LinearAllocator<GPUAllocator>* descriptor_buffer_allocator);
     ~GraphicsPipeline();
+
+  private:
+    void create(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
+                std::string const& frag_path);
 };
 
 #endif // PIPELINE_H_

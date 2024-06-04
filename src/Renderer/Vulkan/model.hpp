@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
-#include <glm/gtx/hash.hpp>
 #include <optional>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -25,60 +24,6 @@ template <typename T> std::vector<T> load_accessor(fastgltf::Asset& asset, unsig
 template <typename T> inline std::vector<T> load_accessor(fastgltf::Asset* asset, unsigned long accessor_index) {
     return load_accessor<T>(*asset, accessor_index);
 }
-
-typedef glm::vec2 texcoord;
-struct NewVertex {
-    glm::vec3 pos = {0, 0, 0};
-    glm::vec3 norm = {0, 0, 1};
-    texcoord base = {0, 0};
-    texcoord normal = {0, 0};
-    texcoord tangent = {0, 0};
-    bool operator==(const NewVertex& other) const {
-        return pos == other.pos && base == other.base && normal == other.normal && tangent == other.tangent;
-    }
-
-    static VkVertexInputBindingDescription binding_description() {
-        VkVertexInputBindingDescription binding_description{};
-        binding_description.binding = 0;
-        binding_description.stride = sizeof(NewVertex);
-        binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return binding_description;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions;
-        attribute_descriptions[0].binding = 0;
-        attribute_descriptions[0].location = 0;
-        attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[0].offset = offsetof(NewVertex, pos);
-
-        attribute_descriptions[1].binding = 0;
-        attribute_descriptions[1].location = 1;
-        attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attribute_descriptions[1].offset = offsetof(NewVertex, base);
-
-        attribute_descriptions[2].binding = 0;
-        attribute_descriptions[2].location = 2;
-        attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[2].offset = offsetof(NewVertex, normal);
-
-        attribute_descriptions[3].binding = 0;
-        attribute_descriptions[3].location = 3;
-        attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        attribute_descriptions[3].offset = offsetof(NewVertex, tangent);
-        return attribute_descriptions;
-    }
-};
-
-namespace std {
-template <> struct hash<NewVertex> {
-    size_t operator()(NewVertex const& vertex) const {
-        return (hash<glm::vec3>()(vertex.pos) ^ (hash<texcoord>()(vertex.base)) ^ (hash<texcoord>()(vertex.normal)) ^
-                (hash<texcoord>()(vertex.tangent)) << 1);
-    }
-};
-} // namespace std
 
 class Model {
   public:
@@ -141,7 +86,7 @@ class Model {
 
           private:
             std::vector<glm::vec3> get_positions();
-            std::vector<texcoord> get_texcoords(std::size_t tex_coord_selector);
+            std::vector<glm::vec2> get_texcoords(std::size_t tex_coord_selector);
             Model* _model;
             fastgltf::Primitive* _primitive;
 

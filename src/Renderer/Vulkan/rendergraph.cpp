@@ -233,8 +233,19 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     pipeline_rendering_info.pColorAttachmentFormats = &_swap_chain->surface_format().format;
     pipeline_rendering_info.depthAttachmentFormat = _swap_chain->depth_format();
 
-    auto pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path,
-                                                       _descriptor_buffer_allocator);
+    std::shared_ptr<GraphicsPipeline> pipeline;
+    if (Device::device->use_descriptor_buffers()) {
+        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path,
+                                                      _descriptor_buffer_allocator);
+    } else {
+        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path);
+    }
+
+    if (!Device::device->use_descriptor_buffers()) {
+        auto vk_set_layouts = std::make_shared<std::vector<VkDescriptorSet>>(pipeline->descriptor_layout().vk_sets());
+        add_node({pipeline, vk_set_layouts}, void_update, vkCmdBindDescriptorSets, pipeline->bind_point(), pipeline->vk_pipeline_layout(),
+                 0, vk_set_layouts->size(), vk_set_layouts->data(), 0, nullptr);
+    }
 
     add_node(
         {pipeline},
@@ -245,9 +256,7 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
             // global set at 0
             // vertex and fragment at 1 and 2
             // So only 1 and 2 need to be updated
-            if (Device::device->use_descriptor_buffers()) {
-                pipeline->update_descriptors();
-            }
+            pipeline->update_descriptors();
         },
         vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
 

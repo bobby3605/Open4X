@@ -19,6 +19,7 @@
 struct ShaderGlobals {
     glm::mat4 proj_view;
     glm::vec3 cam_pos;
+    uint pad;
 };
 
 class Open4X {

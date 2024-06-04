@@ -141,7 +141,6 @@ void Open4X::run() {
         Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
         Object* box_object_0 = _object_manager->add_object("box_0", box_model);
         box_object_0->position({1, 0, 0});
-        _object_manager->refresh_instance_data();
         Camera cam;
         // TODO
         // Get ShaderGlobals from the shader itself
@@ -157,6 +156,7 @@ void Open4X::run() {
         auto start_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             glfwPollEvents();
+            _object_manager->refresh_instance_data();
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;

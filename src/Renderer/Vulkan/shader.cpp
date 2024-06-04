@@ -3,13 +3,13 @@
 #include "common.hpp"
 #include "descriptors.hpp"
 #include "device.hpp"
-#include "memory_manager.hpp"
 #include "spirv.hpp"
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/MachineIndependent/Versions.h>
 #include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
+#include <iostream>
 #include <spirv-tools/libspirv.h>
 #include <spirv-tools/libspirv.hpp>
 #include <spirv-tools/optimizer.hpp>

@@ -3,10 +3,15 @@
 #include "device.hpp"
 #include "memory_manager.hpp"
 #include "model.hpp"
+#include <iostream>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vulkan/vulkan_core.h>
+
+Pipeline::Pipeline() {}
+
+Pipeline::Pipeline(LinearAllocator<GPUAllocator>* descriptor_buffer_allocator) : _descriptor_layout(descriptor_buffer_allocator) {}
 
 Pipeline::~Pipeline() {
     vkDestroyPipelineLayout(Device::device->vk_device(), _pipeline_layout, nullptr);
@@ -32,7 +37,38 @@ void Pipeline::update_descriptors() {
                     buffer_name, 1, type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                     binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
             }
-            _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
+            if (Device::device->use_descriptor_buffers()) {
+                _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
+            } else {
+                VkWriteDescriptorSet descriptor_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                descriptor_write.dstSet = set_layout.second.set;
+                descriptor_write.dstBinding = binding_layout.second.binding.binding;
+                descriptor_write.dstArrayElement = 0;
+                descriptor_write.descriptorType = binding_layout.second.binding.descriptorType;
+                descriptor_write.descriptorCount = 1;
+                VkDescriptorBufferInfo buffer_info{};
+                buffer_info.buffer = tmp->base_alloc().buffer;
+                buffer_info.offset = 0;
+                buffer_info.range = VK_WHOLE_SIZE;
+                switch (descriptor_write.descriptorType) {
+                case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                    descriptor_write.pBufferInfo = &buffer_info;
+                    break;
+                case VK_DESCRIPTOR_TYPE_SAMPLER:
+                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                    // FIXME:
+                    descriptor_write.pImageInfo;
+                    break;
+                default:
+                    throw std::runtime_error("unknown descriptor type");
+                }
+                // FIXME:
+                // Allocate all sets in one call,
+                // the problem is that descriptor_write.pBufferInfo is a pointer,
+                // so a new VkDescriptorBufferInfo needs to be created for each descriptor_write, then destroyed
+                vkUpdateDescriptorSets(Device::device->vk_device(), 1, &descriptor_write, 0, nullptr);
+            }
         }
     }
 }
@@ -41,10 +77,19 @@ GraphicsPipeline::~GraphicsPipeline() {
     // NOTE:
     // ~Pipeline() should get called after this
 }
+GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
+                                   std::string const& frag_path) {
+    create(pipeline_rendering_info, extent, vert_path, frag_path);
+}
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
                                    std::string const& frag_path, LinearAllocator<GPUAllocator>* descriptor_buffer_allocator)
     : Pipeline(descriptor_buffer_allocator) {
+    create(pipeline_rendering_info, extent, vert_path, frag_path);
+}
+
+void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
+                              std::string const& frag_path) {
     _bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
     _pipeline_name = get_filename_no_ext(vert_path);
 
@@ -151,7 +196,9 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
     pipeline_info.basePipelineIndex = -1;
     pipeline_info.pDepthStencilState = &depth_stencil;
     pipeline_info.pNext = &pipeline_rendering_info;
-    pipeline_info.flags = VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+    if (Device::device->use_descriptor_buffers()) {
+        pipeline_info.flags = VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+    }
 
     // create shaders
     _shaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert"), std::forward_as_tuple(vert_path, &_descriptor_layout));

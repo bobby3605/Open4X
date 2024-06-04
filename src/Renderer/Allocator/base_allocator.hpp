@@ -94,6 +94,7 @@ class GPUAllocator : public BaseAllocator<GPUAllocation> {
 
     VkDescriptorDataEXT const& descriptor_data() const;
     VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
+    std::string const& name() const { return _name; }
 
   private:
     void copy(GPUAllocation const& dst_allocation, GPUAllocation const& src_allocation, size_t const& byte_size);
