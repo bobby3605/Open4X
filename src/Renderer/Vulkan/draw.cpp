@@ -1,7 +1,6 @@
 #include "draw.hpp"
 #include <cstdint>
 #include <glm/gtx/string_cast.hpp>
-#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
@@ -12,13 +11,6 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
     _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
     _indirect_command.vertexOffset = _vertex_alloc.offset / sizeof(vertices[0]);
     _allocators.vertex->write(_vertex_alloc, vertices.data(), _vertex_alloc.size);
-    std::cout << "wrote vertices" << std::endl;
-    std::cout << "offset: " << _vertex_alloc.offset << std::endl;
-    std::cout << "size: " << _vertex_alloc.size << std::endl;
-    std::cout << "count: " << vertices.size() << std::endl;
-    for (auto const& vertex : vertices) {
-        std::cout << glm::to_string(vertex.pos) << std::endl;
-    }
 
     _indirect_command.indexCount = indices.size();
     _index_alloc = _allocators.index->alloc(_indirect_command.indexCount * sizeof(indices[0]));
@@ -116,6 +108,4 @@ void Draw::write_instance_data(uint32_t instance_id, InstanceData const& instanc
     SubAllocation instance_data_alloc;
     _instance_indices_allocs.get(&instance_data_alloc, instance_indices_allocs_alloc, sizeof(instance_data_alloc));
     _allocators.instance_data->write(instance_data_alloc, &instance_data, sizeof(instance_data));
-    std::cout << "writing instance data to: " << instance_data_alloc.offset << std::endl;
-    std::cout << glm::to_string(instance_data.model_matrix) << std::endl;
 }

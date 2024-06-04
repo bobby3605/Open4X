@@ -23,10 +23,10 @@ class Camera : public Object {
         static const inline int move_backward = GLFW_KEY_S;
         static const inline int move_up = GLFW_KEY_Q;
         static const inline int move_down = GLFW_KEY_E;
-        static const inline int yaw_left = GLFW_KEY_LEFT;
-        static const inline int yaw_right = GLFW_KEY_RIGHT;
-        static const inline int pitch_up = GLFW_KEY_UP;
-        static const inline int pitch_down = GLFW_KEY_DOWN;
+        static const inline int yaw_left = GLFW_KEY_RIGHT;
+        static const inline int yaw_right = GLFW_KEY_LEFT;
+        static const inline int pitch_up = GLFW_KEY_DOWN;
+        static const inline int pitch_down = GLFW_KEY_UP;
         static const inline int roll_left = GLFW_KEY_LEFT_CONTROL;
         static const inline int roll_right = GLFW_KEY_RIGHT_CONTROL;
         static const inline int speed_up = GLFW_KEY_LEFT_SHIFT;

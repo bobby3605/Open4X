@@ -3,7 +3,6 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
-#include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -87,10 +86,6 @@ GPUAllocation GPUAllocator::alloc(size_t const& byte_size, size_t const& alignme
         info.buffer = gpu_allocation.buffer;
         _addr_info.address = vkGetBufferDeviceAddress(Device::device->vk_device(), &info);
     }
-    // FIXME:
-    // update descriptor buffers with new address info
-
-    std::cout << _name << " alloc with size: " << _buffer_info.size << std::endl;
 
     return gpu_allocation;
 }

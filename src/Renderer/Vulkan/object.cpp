@@ -1,9 +1,8 @@
 #include "object.hpp"
 #include <glm/gtx/string_cast.hpp>
-#include <iostream>
 #include <vulkan/vulkan_core.h>
 
-Object::Object() { _invalid_callback = nullptr; }
+Object::Object() { register_invalid_matrices(); }
 
 Object::Object(Model* model, safe_queue<Object*>* invalid_callback) : _model(model), _invalid_callback(invalid_callback) {
     register_invalid_matrices();
@@ -28,7 +27,6 @@ void Object::refresh_instance_data() {
         _object_matrix = glm::translate(glm::mat4(1.0f), position());
         _object_matrix = _object_matrix * glm::toMat4(rotation());
         _object_matrix = _object_matrix * glm::scale(_object_matrix, scale());
-        std::cout << "refreshing instances with object matrix: " << glm::to_string(_object_matrix) << std::endl;
         if (_invalid_callback != nullptr)
             _model->write_instance_data(_object_matrix, _instance_ids);
         _instance_data_invalid = false;
@@ -39,12 +37,12 @@ void Object::refresh_instance_data() {
 // Maybe get rid of this and call update_instance_data() on all objects
 // It's probably better to have it than not though
 void Object::register_invalid_matrices() {
-    // NOTE:
-    // Camera sets _invalid_callback to nullptr
-    if (_invalid_callback != nullptr) {
-        // Only register invalid once per update_instance_data call
-        if (_instance_data_invalid == false) {
-            _instance_data_invalid = true;
+    // Only register invalid once per update_instance_data call
+    if (_instance_data_invalid == false) {
+        _instance_data_invalid = true;
+        // NOTE:
+        // Camera sets _invalid_callback to nullptr
+        if (_invalid_callback != nullptr) {
             _invalid_callback->push(this);
         }
     }

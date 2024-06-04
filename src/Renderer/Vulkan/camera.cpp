@@ -4,7 +4,6 @@
 #include <iostream>
 
 Camera::Camera() {
-    _instance_data_invalid = true;
     // perspective projection
     assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
     const float tanHalfFovy = tan(glm::radians(vertical_fov) / 2.f);
@@ -22,13 +21,6 @@ glm::mat4 const& Camera::proj_view() {
     if (_instance_data_invalid) {
         refresh_instance_data();
         _proj_view = _proj * glm::inverse(_object_matrix);
-        std::cout << "_object_matrix: " << glm::to_string(_object_matrix) << std::endl;
-        std::cout << "proj:" << std::endl;
-        std::cout << glm::to_string(_proj) << std::endl;
-        std::cout << "view" << std::endl;
-        std::cout << glm::to_string(glm::inverse(_object_matrix)) << std::endl;
-        std::cout << "proj_view" << std::endl;
-        std::cout << glm::to_string(_proj_view) << std::endl;
     }
     return _proj_view;
 }

@@ -30,7 +30,7 @@ class Object {
     bool _instance_data_invalid = false;
     std::vector<uint32_t> _instance_ids;
 
-    safe_queue<Object*>* _invalid_callback;
+    safe_queue<Object*>* _invalid_callback = nullptr;
 };
 
 #endif // OBJECT_H_
