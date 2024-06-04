@@ -281,9 +281,11 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
 
     // set vertex and index buffers
     auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
-    // NOTE:
-    // can use void_update on vertex buffers because it's using a pointer to the vertex buffer VkBuffer
-    add_node({offsets}, void_update, vkCmdBindVertexBuffers, 0, 1, &vertex_buffer_allocator->base_alloc().buffer, offsets->data());
+    add_dynamic_node({offsets}, [&, offsets, vertex_buffer_allocator](RenderNode& node) {
+        node.op = [&, offsets, vertex_buffer_allocator](VkCommandBuffer cmd_buffer) {
+            vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &vertex_buffer_allocator->base_alloc().buffer, offsets->data());
+        };
+    });
     add_dynamic_node({}, [&, index_buffer_allocator](RenderNode& node) {
         node.op = [&, index_buffer_allocator](VkCommandBuffer cmd_buffer) {
             vkCmdBindIndexBuffer(cmd_buffer, index_buffer_allocator->base_alloc().buffer, 0, VK_INDEX_TYPE_UINT32);

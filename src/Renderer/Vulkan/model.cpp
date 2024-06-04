@@ -41,7 +41,7 @@ Model::Scene::Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_a
         _root_node_indices.push_back(node_index);
         _model->_nodes.resize(node_index + 1);
         if (!_model->_nodes[node_index].has_value()) {
-            _model->_nodes[node_index] = Node(_model, &_model->_asset->nodes[node_index], glm::mat4(), draw_allocators);
+            _model->_nodes[node_index] = Node(_model, &_model->_asset->nodes[node_index], glm::mat4(1.0f), draw_allocators);
         }
     }
 }
@@ -50,7 +50,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     : _model(model), _node(node) {
     if (std::holds_alternative<fastgltf::TRS>(node->transform)) {
         fastgltf::TRS trs = std::get<fastgltf::TRS>(node->transform);
-        _transform = glm::translate(glm::mat4(), glm::make_vec3(trs.translation.value_ptr()));
+        _transform = glm::translate(glm::mat4(1.0f), glm::make_vec3(trs.translation.value_ptr()));
         glm::quat r = glm::make_quat(trs.rotation.value_ptr());
         _transform = _transform * glm::toMat4(r);
         _transform = glm::scale(_transform, glm::make_vec3(trs.scale.value_ptr()));

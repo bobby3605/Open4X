@@ -178,7 +178,7 @@ template <typename AllocatorT> class LinearAllocator : public SubAllocator<Alloc
         // _free_blocks.end()->size(align(this->_base_alloc.size(), alignment));
         // NOTE:
         // adding alignment here to ensure that the last block doesn't get overwritten
-        allocation.offset = align(this->_base_alloc.size, alignment) + alignment;
+        allocation.offset = align(this->_base_alloc.size, alignment); //+ alignment;
         size_t new_size = allocation.offset + allocation.size;
         this->realloc_check_parent(new_size);
         return allocation;

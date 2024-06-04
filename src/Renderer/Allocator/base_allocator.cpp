@@ -3,6 +3,7 @@
 #include "../Vulkan/common.hpp"
 #include <cstddef>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -89,6 +90,8 @@ GPUAllocation GPUAllocator::alloc(size_t const& byte_size, size_t const& alignme
     // FIXME:
     // update descriptor buffers with new address info
 
+    std::cout << _name << " alloc with size: " << _buffer_info.size << std::endl;
+
     return gpu_allocation;
 }
 
@@ -109,7 +112,9 @@ void GPUAllocator::copy(SubAllocation const& dst_allocation, SubAllocation const
 }
 
 void GPUAllocator::write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) {
-    if (_base_alloc.size < dst_allocation.offset + byte_size) {
+    if (_base_alloc.size < (dst_allocation.offset + byte_size)) {
+        // FIXME:
+        // This should never trigger
         realloc(_base_alloc, _base_alloc.size + dst_allocation.offset + byte_size);
     }
     std::lock_guard<std::mutex> lock(_realloc_lock);

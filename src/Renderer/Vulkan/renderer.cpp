@@ -29,12 +29,12 @@ Renderer::~Renderer() {
 
 void Renderer::create_data_buffers() {
     draw_allocators.vertex = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
-        "vertex_buffer", sizeof(NewVertex),
+        "vertex_buffer", sizeof(NewVertex) * 3,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 
     draw_allocators.index = new LinearAllocator(MemoryManager::memory_manager->create_gpu_allocator(
-        "index_buffer", sizeof(uint32_t),
+        "index_buffer", sizeof(uint32_t) * 3,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
 

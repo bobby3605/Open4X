@@ -34,10 +34,12 @@ class Camera : public Object {
     };
     static constexpr KeyMappings keys{};
 
-    float vertical_fov;
-    float aspect_ratio;
-    float near;
-    float far;
+    // FIXME:
+    // Set these dynamically
+    float vertical_fov = 45.0f;
+    float aspect_ratio = 640.0f / 480.0f;
+    float near = 0.0001f;
+    float far = 1000.0f;
 
     float move_speed{6.0f};
     float look_speed{2.0f};

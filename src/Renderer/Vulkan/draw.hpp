@@ -87,8 +87,6 @@ template <> struct hash<NewVertex> {
 
 class Draw {
   public:
-    // NOTE:
-    // const void* vertices to allow for any vertex type without templating
     Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
          SubAllocation material_alloc);
     ~Draw();

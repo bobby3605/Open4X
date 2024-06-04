@@ -140,7 +140,7 @@ void Open4X::run() {
         std::string base_path = std::filesystem::current_path().string();
         Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
         Object* box_object_0 = _object_manager->add_object("box_0", box_model);
-        box_object_0->position({1, 0, 0});
+        box_object_0->position({0, 0, 0});
         Camera cam;
         // TODO
         // Get ShaderGlobals from the shader itself
