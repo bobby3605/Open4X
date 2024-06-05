@@ -1,5 +1,5 @@
 #include "object.hpp"
-#include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/transform.hpp>
 #include <vulkan/vulkan_core.h>
 
 Object::Object() { register_invalid_matrices(); }
@@ -24,9 +24,9 @@ void Object::scale(glm::vec3 const& new_scale) {
 
 void Object::refresh_instance_data() {
     if (_instance_data_invalid) {
-        _object_matrix = glm::translate(glm::mat4(1.0f), position());
+        _object_matrix = glm::translate(position());
         _object_matrix = _object_matrix * glm::toMat4(rotation());
-        _object_matrix = _object_matrix * glm::scale(_object_matrix, scale());
+        _object_matrix = _object_matrix * glm::scale(scale());
         if (_invalid_callback != nullptr)
             _model->write_instance_data(_object_matrix, _instance_ids);
         _instance_data_invalid = false;

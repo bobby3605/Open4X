@@ -39,6 +39,9 @@ class SubAllocator : public Allocator<SubAllocation, typename AllocatorT::AllocT
             _parent_allocator->write(dst, data, byte_size);
         } else if constexpr (is_base_allocator) {
             _parent_allocator->write(dst_allocation, data, byte_size);
+            // FIXME:
+            // write should never realloc, so this shouldn't be needed
+            this->_base_alloc = _parent_allocator->base_alloc();
         }
     }
     void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& copy_size) {

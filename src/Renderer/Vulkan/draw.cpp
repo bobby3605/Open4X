@@ -60,7 +60,7 @@ uint32_t Draw::add_instance() {
     _instance_indices.write(instance_index_alloc, &instance_data_alloc.offset, sizeof(instance_data_alloc.offset));
     // NOTE:
     // Always update firstInstance in case of a reallocation
-    _indirect_command.firstInstance = _instance_indices.base_alloc().offset;
+    _indirect_command.firstInstance = _instance_indices.base_alloc().offset / instance_index_alloc.size;
     // FIXME:
     // get material index alloc and ensure its offset is _indirect_command.firstInstance
     // _allocators.material_data->write(_material_index_alloc, _material_alloc.offset, sizeof(uint32_t));
