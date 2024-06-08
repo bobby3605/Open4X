@@ -13,19 +13,19 @@ class DescriptorLayout {
         VkDescriptorSetLayoutBinding binding;
         std::string buffer_name;
         VkMemoryPropertyFlags mem_props;
-        SubAllocation allocation;
+        SubAllocation<VoidAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* allocation;
     };
 
     struct SetLayout {
         std::map<uint32_t, BindingLayout> bindings;
         VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-        SubAllocation allocation;
+        SubAllocation<LinearAllocator, GPUAllocation>* allocation;
         VkDescriptorSet set;
     };
 
   public:
     DescriptorLayout();
-    DescriptorLayout(LinearAllocator<GPUAllocator>* descriptor_buffer);
+    DescriptorLayout(LinearAllocator<GPUAllocation>* descriptor_buffer);
     ~DescriptorLayout();
     void add_binding(uint32_t set, uint32_t binding, VkDescriptorType type, VkShaderStageFlags stage, std::string buffer_name,
                      VkMemoryPropertyFlags mem_props);
@@ -40,7 +40,7 @@ class DescriptorLayout {
   private:
     std::map<uint32_t, SetLayout> _set_layouts;
     VkDeviceSize _total_layout_size = 0;
-    LinearAllocator<GPUAllocator>* _descriptor_buffer = nullptr;
+    LinearAllocator<GPUAllocation>* _descriptor_buffer = nullptr;
     VkDescriptorPool _pool = VK_NULL_HANDLE;
     static inline const std::vector<VkDescriptorType> extra_types = {VK_DESCRIPTOR_TYPE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                                                      VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,

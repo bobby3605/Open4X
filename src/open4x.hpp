@@ -46,7 +46,6 @@ class Open4X {
     ModelManager* _model_manager;
     ObjectManager* _object_manager;
     Renderer* renderer;
-    GPUAllocator* instance_data_allocator;
 };
 
 #endif // OPEN4X_H_

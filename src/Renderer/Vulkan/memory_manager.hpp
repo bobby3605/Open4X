@@ -1,7 +1,6 @@
 #ifndef BUFFERS_H_
 #define BUFFERS_H_
 
-#include "../Allocator/base_allocator.hpp"
 #include "vk_mem_alloc.h"
 #include <string>
 #include <unordered_map>
@@ -14,17 +13,6 @@ class MemoryManager {
 
     static MemoryManager* memory_manager;
 
-    GPUAllocator* create_gpu_allocator(std::string name, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    GPUAllocator* get_gpu_allocator(std::string name);
-    void delete_gpu_allocator(std::string name);
-    bool gpu_allocator_exists(std::string name) const { return _gpu_allocators.count(name) == 1; }
-    // NOTE:
-    // If a buffer is being overwritten,
-    // it must be deleted afterwards,
-    // or else there will be a memory leak
-    void set_gpu_allocator(std::string const& name, GPUAllocator* buffer);
-    VmaAllocator allocator() { return _allocator; }
-
     struct Image {
         VkImage vk_image;
         VmaAllocation allocation;
@@ -36,7 +24,6 @@ class MemoryManager {
 
   private:
     VmaAllocator _allocator;
-    std::unordered_map<std::string, GPUAllocator*> _gpu_allocators;
     std::unordered_map<std::string, Image> _images;
 };
 

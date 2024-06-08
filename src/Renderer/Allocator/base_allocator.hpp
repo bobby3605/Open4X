@@ -1,110 +1,63 @@
 #ifndef BASE_ALLOCATOR_H_
 #define BASE_ALLOCATOR_H_
-#include "../Vulkan/device.hpp"
+#include "allocation.hpp"
 #include "vk_mem_alloc.h"
-#include <cstddef>
-#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
-struct BaseAllocation {
-    virtual ~BaseAllocation() = default;
-    size_t offset;
-    size_t size;
-};
-
-struct SubAllocation : BaseAllocation {
-    bool operator==(const SubAllocation& other) const { return offset == other.offset && size == other.size; }
-};
-
-namespace std {
-template <> struct hash<SubAllocation> {
-    size_t operator()(SubAllocation const& allocation) const {
-        return (hash<size_t>()(allocation.offset) ^ (hash<size_t>()(allocation.size)));
-    }
-};
-} // namespace std
-
-struct CPUAllocation : BaseAllocation {
-    char* data;
-};
-
-struct GPUAllocation : BaseAllocation {
-    VkBuffer buffer;
-    VmaAllocation vma_allocation;
-};
-
-template <typename AllocationT, typename BaseAllocationT> class Allocator {
-    static_assert(std::is_base_of<BaseAllocation, BaseAllocationT>::value, "BaseAllocationT must be a BaseAllocation");
+template <typename AllocationT, typename... Args> class BaseAllocator {
+    std::unordered_map<std::string, AllocationT*> _allocations;
 
   public:
-    typedef AllocationT AllocT;
-    typedef BaseAllocationT BaseT;
-    virtual AllocationT alloc(size_t const& byte_size, size_t const& alignment = 1) = 0;
-    virtual void free(AllocationT const& base_alloc) = 0;
-    virtual void copy(AllocationT const& dst_allocation, AllocationT const& src_allocation, size_t const& byte_size) = 0;
-    void realloc(AllocationT& allocation, size_t const& byte_size) {
-        std::lock_guard<std::mutex> lock(_realloc_lock);
-        AllocationT new_alloc = alloc(byte_size);
-        // NOTE:
-        // std::min to support grow and shrink
-        copy(new_alloc, allocation, std::min(byte_size, allocation.size));
-        free(allocation);
-        allocation = new_alloc;
+    ~BaseAllocator() {
+        for (auto& allocation : _allocations) {
+            delete allocation.second;
+        }
     }
-    BaseT const& base_alloc() const { return _base_alloc; }
-
-  protected:
-    BaseT _base_alloc;
-    std::mutex _realloc_lock;
-};
-
-template <typename BaseAllocationT> class BaseAllocator : public Allocator<BaseAllocationT, BaseAllocationT> {
-  public:
-    virtual ~BaseAllocator() = default;
-    virtual void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size) = 0;
-    virtual void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size) = 0;
-    void set_base_alloc(BaseAllocationT const& base_alloc) { this->_base_alloc = base_alloc; }
+    AllocationT* create_buffer(Args... args, std::string const& name) {
+        AllocationT* allocation;
+        if constexpr (std::is_same_v<AllocationT, GPUAllocation>) {
+            allocation = new AllocationT(args..., name);
+        } else {
+            allocation = new AllocationT(args...);
+        }
+        if (_allocations.count(name) != 0) {
+            throw std::runtime_error(name + " already exists!");
+        } else {
+            _allocations.insert({name, allocation});
+        }
+        return allocation;
+    }
+    void free_buffer(std::string name) {
+        if (_allocations.count(name) == 1) {
+            delete _allocations.at(name);
+            _allocations.erase(name);
+        } else {
+            throw std::runtime_error("error: buffer double free: " + name);
+        }
+    }
+    AllocationT* get_buffer(std::string const& name) {
+        if (_allocations.count(name) == 1) {
+            return _allocations.at(name);
+        } else {
+            throw std::runtime_error("error: buffer not found: " + name);
+        }
+    }
+    bool buffer_exists(std::string const& name) { return _allocations.contains(name); }
 };
 
 class CPUAllocator : public BaseAllocator<CPUAllocation> {
   public:
-    CPUAllocator(size_t const& byte_size);
-    ~CPUAllocator();
-    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size);
-    void write(SubAllocation const& dst_allocation, const void* data, size_t const& byte_size);
-    void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
-
-    CPUAllocation alloc(size_t const& byte_size, size_t const& alignment = 1);
-    void free(CPUAllocation const& allocation);
-
-  private:
-    void copy(CPUAllocation const& dst_allocation, CPUAllocation const& src_allocation, size_t const& byte_size);
+    CPUAllocator();
 };
+inline CPUAllocator* cpu_allocator;
 
-class GPUAllocator : public BaseAllocator<GPUAllocation> {
+class GPUAllocator : public BaseAllocator<GPUAllocation, VkBufferUsageFlags, VkMemoryPropertyFlags> {
   public:
-    GPUAllocator(VkDeviceSize byte_size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::string name);
-    ~GPUAllocator();
-    void copy(SubAllocation const& dst_allocation, SubAllocation const& src_allocation, size_t const& byte_size);
-    void write(SubAllocation const& allocation, const void* data, size_t const& byte_size);
-    void get(void* dst, SubAllocation const& src_allocation, size_t const& byte_size);
-
-    GPUAllocation alloc(size_t const& byte_size, size_t const& alignment = 1);
-    void free(GPUAllocation const& allocation);
-
-    VkDescriptorDataEXT const& descriptor_data() const;
-    VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
-    std::string const& name() const { return _name; }
-
-  private:
-    void copy(GPUAllocation const& dst_allocation, GPUAllocation const& src_allocation, size_t const& byte_size);
-
-  private:
-    VkBufferCreateInfo _buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    VmaAllocationCreateInfo _alloc_info{};
-    std::string _name;
-    std::optional<VkDescriptorDataEXT> _descriptor_data;
-    VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
+    GPUAllocator();
 };
+inline GPUAllocator* gpu_allocator;
 
 #endif // BASE_ALLOCATOR_H_

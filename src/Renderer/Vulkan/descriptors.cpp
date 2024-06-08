@@ -6,6 +6,16 @@
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
+size_t inline descriptor_size_switch(VkDescriptorType type) {
+    switch (type) {
+    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        return Device::device->descriptor_buffer_properties().uniformBufferDescriptorSize;
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        return Device::device->descriptor_buffer_properties().storageBufferDescriptorSize;
+    default:
+        throw std::runtime_error("unsupported descriptor type: " + std::to_string(type));
+    }
+}
 DescriptorLayout::DescriptorLayout() {
     // TODO
     // Dynamic sized pools
@@ -28,7 +38,7 @@ DescriptorLayout::DescriptorLayout() {
     check_result(vkCreateDescriptorPool(Device::device->vk_device(), &pool_info, nullptr, &_pool), "failed to create descriptor pool");
 }
 
-DescriptorLayout::DescriptorLayout(LinearAllocator<GPUAllocator>* descriptor_buffer) : _descriptor_buffer(descriptor_buffer) {}
+DescriptorLayout::DescriptorLayout(LinearAllocator<GPUAllocation>* descriptor_buffer) : _descriptor_buffer(descriptor_buffer) {}
 
 DescriptorLayout::~DescriptorLayout() {
     for (auto& set_layout_pair : _set_layouts) {
@@ -36,6 +46,9 @@ DescriptorLayout::~DescriptorLayout() {
             vkDestroyDescriptorSetLayout(Device::device->vk_device(), set_layout_pair.second.layout, nullptr);
             if (_descriptor_buffer != nullptr) {
                 _descriptor_buffer->free(set_layout_pair.second.allocation);
+                for (auto& binding_layout_pair : set_layout_pair.second.bindings) {
+                    delete binding_layout_pair.second.allocation;
+                }
             }
         }
     }
@@ -90,17 +103,19 @@ void DescriptorLayout::create_layouts() {
         // Set Descriptor Buffers
         if (_descriptor_buffer != nullptr) {
             // Get size of layout and align it
-            vkGetDescriptorSetLayoutSizeEXT_(Device::device->vk_device(), set_layout.layout, &set_layout.allocation.size);
+            size_t size;
+            vkGetDescriptorSetLayoutSizeEXT_(Device::device->vk_device(), set_layout.layout, &size);
             // Align it
-            set_layout.allocation.size =
-                align(set_layout.allocation.size, Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
+            size = align(size, Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
             // Allocate size and get the offset for the set
-            set_layout.allocation = _descriptor_buffer->alloc(
-                set_layout.allocation.size, Device::device->descriptor_buffer_properties().descriptorBufferOffsetAlignment);
+            set_layout.allocation = _descriptor_buffer->alloc(size);
             // Get size of each binding in the layout
             for (auto& binding_layout : set_layout.bindings) {
+                size_t offset;
                 vkGetDescriptorSetLayoutBindingOffsetEXT_(Device::device->vk_device(), set_layout.layout,
-                                                          binding_layout.second.binding.binding, &binding_layout.second.allocation.offset);
+                                                          binding_layout.second.binding.binding, &offset);
+                binding_layout.second.allocation = new SubAllocation<VoidAllocator, SubAllocation<LinearAllocator, GPUAllocation>>(
+                    offset, descriptor_size_switch(binding_layout.second.binding.descriptorType), set_layout.allocation);
             }
         } else {
             // Allocate descriptor sets
@@ -135,19 +150,8 @@ std::vector<VkDescriptorSet> DescriptorLayout::vk_sets() const {
     return output;
 }
 
-size_t inline descriptor_size_switch(VkDescriptorType type) {
-    switch (type) {
-    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-        return Device::device->descriptor_buffer_properties().uniformBufferDescriptorSize;
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-        return Device::device->descriptor_buffer_properties().storageBufferDescriptorSize;
-    default:
-        throw std::runtime_error("unsupported descriptor type: " + std::to_string(type));
-    }
-}
-
 uint32_t DescriptorLayout::set_offset(uint32_t set) const {
-    return _set_layouts.at(set).allocation.offset;
+    return _set_layouts.at(set).allocation->offset();
     throw std::runtime_error("unknown set num in set_offset: " + std::to_string(set));
 }
 
@@ -155,13 +159,13 @@ std::vector<VkDeviceSize> DescriptorLayout::set_offsets() const {
     std::vector<VkDeviceSize> set_offsets;
     set_offsets.reserve(_set_layouts.size());
     for (auto const& set_layout : _set_layouts) {
-        set_offsets.push_back(set_layout.second.allocation.offset);
+        set_offsets.push_back(set_layout.second.allocation->offset());
     }
     return set_offsets;
 }
 
 // FIXME:
-// Move this into Buffer::
+// Move this into GPUAllocator::
 void DescriptorLayout::set_descriptor_buffer(uint32_t set, uint32_t binding, VkDescriptorDataEXT const& descriptor_data) const {
     SetLayout const& set_layout = _set_layouts.at(set);
     BindingLayout const& binding_layout = set_layout.bindings.at(binding);
@@ -171,10 +175,8 @@ void DescriptorLayout::set_descriptor_buffer(uint32_t set, uint32_t binding, VkD
     size_t size = descriptor_size_switch(info.type);
     char descriptor[size];
     vkGetDescriptorEXT_(Device::device->vk_device(), &info, size, descriptor);
-    SubAllocation descriptor_binding_allocation{};
-    descriptor_binding_allocation.size = size;
     // TODO
     // Support arrays of descriptors by adding array_element * descriptor_size
-    descriptor_binding_allocation.offset = set_layout.allocation.offset + binding_layout.allocation.offset;
-    _descriptor_buffer->write(descriptor_binding_allocation, descriptor, size);
+    binding_layout.allocation->write(descriptor);
+    set_layout.allocation->write(descriptor);
 }

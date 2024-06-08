@@ -6,7 +6,7 @@ Object::Object() { register_invalid_matrices(); }
 
 Object::Object(Model* model, safe_queue<Object*>* invalid_callback) : _model(model), _invalid_callback(invalid_callback) {
     register_invalid_matrices();
-    _instance_ids = model->add_instance();
+    _instances = model->add_instance();
 }
 
 void Object::position(glm::vec3 const& new_position) {
@@ -28,7 +28,7 @@ void Object::refresh_instance_data() {
         _object_matrix = _object_matrix * glm::toMat4(rotation());
         _object_matrix = _object_matrix * glm::scale(scale());
         if (_invalid_callback != nullptr)
-            _model->write_instance_data(_object_matrix, _instance_ids);
+            _model->write_instance_data(_object_matrix, _instances);
         _instance_data_invalid = false;
     }
 }

@@ -2,13 +2,11 @@
 #define RENDEROPS_H_
 
 #include "../../utils.hpp"
-#include "pipeline.hpp"
+#include "../Allocator/allocation.hpp"
 #include "swapchain.hpp"
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 typedef std::function<void(VkCommandBuffer)> RenderOp;
@@ -74,8 +72,8 @@ class RenderGraph {
     void end_rendering();
     // TODO
     // Remove the SwapChain dependency
-    void graphics_pass(std::string const& vert_path, std::string const& frag_path, LinearAllocator<GPUAllocator>* vertex_buffer_allocator,
-                       LinearAllocator<GPUAllocator>* index_buffer_allocator);
+    void graphics_pass(std::string const& vert_path, std::string const& frag_path, LinearAllocator<GPUAllocation>* vertex_buffer_allocator,
+                       LinearAllocator<GPUAllocation>* index_buffer_allocator);
     void buffer(std::string name, VkDeviceSize size);
 
   private:
@@ -84,7 +82,7 @@ class RenderGraph {
     std::vector<RenderNode> _graph;
     void record_buffer(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags, std::vector<RenderNode> const& render_nodes);
     void image_barrier(VkImageMemoryBarrier2& barrier);
-    LinearAllocator<GPUAllocator>* _descriptor_buffer_allocator;
+    LinearAllocator<GPUAllocation>* _descriptor_buffer_allocator;
     SwapChain* _swap_chain;
     VkResult submit();
     void recreate_swap_chain();
