@@ -61,8 +61,14 @@ void CPUAllocation::realloc(size_t const& byte_size) {
 GPUAllocation::GPUAllocation(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::string const& name) : _name(name) {
     // TODO
     // Find out if there are any performance implications for doing this
-    _buffer_info.usage =
-        usage | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    _buffer_info.usage = usage | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    // FIXME:
+    // Better solution for this
+    if (_buffer_info.usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+        _buffer_info.usage = _buffer_info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    } else if (_buffer_info.usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) {
+        _buffer_info.usage = _buffer_info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    }
 
     // Set alloc info
     _alloc_info.requiredFlags = properties;

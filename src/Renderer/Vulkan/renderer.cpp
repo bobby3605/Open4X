@@ -12,7 +12,7 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     globals.device = Device::device;
     new MemoryManager();
     globals.memory_manager = MemoryManager::memory_manager;
-    new GPUAllocator();
+    gpu_allocator = new GPUAllocator();
     create_data_buffers();
     _command_pool = Device::device->command_pools()->get_pool();
     create_rendergraph();
