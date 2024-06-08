@@ -6,6 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -54,7 +55,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
         _transform = glm::translate(glm::mat4(1.0f), glm::make_vec3(trs.translation.value_ptr()));
         glm::quat r = glm::make_quat(trs.rotation.value_ptr());
         _transform = _transform * glm::toMat4(r);
-        _transform = glm::scale(_transform, glm::make_vec3(trs.scale.value_ptr()));
+        _transform = _transform * glm::scale(glm::make_vec3(trs.scale.value_ptr()));
     } else {
         auto& mat = std::get<fastgltf::math::fmat4x4>(node->transform);
         _transform[0] = glm::make_vec4(mat[0].value_ptr());
