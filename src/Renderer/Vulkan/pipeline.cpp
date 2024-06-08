@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "device.hpp"
 #include "draw.hpp"
+#include <iostream>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -35,37 +36,41 @@ void Pipeline::update_descriptors() {
                 tmp = gpu_allocator->create_buffer(type_to_usage(binding_layout.second.binding.descriptorType),
                                                    binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, buffer_name);
             }
-            if (Device::device->use_descriptor_buffers()) {
-                _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
-            } else {
-                VkWriteDescriptorSet descriptor_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                descriptor_write.dstSet = set_layout.second.set;
-                descriptor_write.dstBinding = binding_layout.second.binding.binding;
-                descriptor_write.dstArrayElement = 0;
-                descriptor_write.descriptorType = binding_layout.second.binding.descriptorType;
-                descriptor_write.descriptorCount = 1;
-                VkDescriptorBufferInfo buffer_info{};
-                buffer_info.buffer = tmp->buffer();
-                buffer_info.offset = 0;
-                buffer_info.range = VK_WHOLE_SIZE;
-                switch (descriptor_write.descriptorType) {
-                case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                    descriptor_write.pBufferInfo = &buffer_info;
-                    break;
-                case VK_DESCRIPTOR_TYPE_SAMPLER:
-                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            // NOTE:
+            // Ensure buffer has been alloced
+            if (tmp->buffer() != VK_NULL_HANDLE) {
+                if (Device::device->use_descriptor_buffers()) {
+                    _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
+                } else {
+                    VkWriteDescriptorSet descriptor_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                    descriptor_write.dstSet = set_layout.second.set;
+                    descriptor_write.dstBinding = binding_layout.second.binding.binding;
+                    descriptor_write.dstArrayElement = 0;
+                    descriptor_write.descriptorType = binding_layout.second.binding.descriptorType;
+                    descriptor_write.descriptorCount = 1;
+                    VkDescriptorBufferInfo buffer_info{};
+                    buffer_info.buffer = tmp->buffer();
+                    buffer_info.offset = 0;
+                    buffer_info.range = VK_WHOLE_SIZE;
+                    switch (descriptor_write.descriptorType) {
+                    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                        descriptor_write.pBufferInfo = &buffer_info;
+                        break;
+                    case VK_DESCRIPTOR_TYPE_SAMPLER:
+                    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                        // FIXME:
+                        descriptor_write.pImageInfo;
+                        break;
+                    default:
+                        throw std::runtime_error("unknown descriptor type");
+                    }
                     // FIXME:
-                    descriptor_write.pImageInfo;
-                    break;
-                default:
-                    throw std::runtime_error("unknown descriptor type");
+                    // Allocate all sets in one call,
+                    // the problem is that descriptor_write.pBufferInfo is a pointer,
+                    // so a new VkDescriptorBufferInfo needs to be created for each descriptor_write, then destroyed
+                    vkUpdateDescriptorSets(Device::device->vk_device(), 1, &descriptor_write, 0, nullptr);
                 }
-                // FIXME:
-                // Allocate all sets in one call,
-                // the problem is that descriptor_write.pBufferInfo is a pointer,
-                // so a new VkDescriptorBufferInfo needs to be created for each descriptor_write, then destroyed
-                vkUpdateDescriptorSets(Device::device->vk_device(), 1, &descriptor_write, 0, nullptr);
             }
         }
     }
@@ -222,6 +227,7 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
     }
 
     _descriptor_layout.create_layouts();
+    update_descriptors();
     std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts = _descriptor_layout.vk_set_layouts();
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

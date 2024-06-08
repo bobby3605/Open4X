@@ -20,6 +20,7 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "Renderer/Allocator/base_allocator.hpp"
 #include "Renderer/Vulkan/camera.hpp"
 #include "Vulkan/common.hpp"
 #include "Vulkan/vulkan_buffer.hpp"
@@ -145,12 +146,10 @@ void Open4X::run() {
         Camera cam;
         // TODO
         // Get ShaderGlobals from the shader itself
-        FixedAllocator<GPUAllocation>* shader_globals_buffer = new FixedAllocator(
-            sizeof(ShaderGlobals),
-            gpu_allocator->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Globals"));
+        FixedAllocator<GPUAllocation>* shader_globals_allocator =
+            new FixedAllocator(sizeof(ShaderGlobals), gpu_allocator->get_buffer("Globals"));
 
-        SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_buffer->alloc();
+        SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_allocator->alloc();
         ShaderGlobals shader_globals;
         auto start_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {

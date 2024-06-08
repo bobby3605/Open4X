@@ -94,6 +94,9 @@ GPUAllocation::GPUAllocation(VkBufferUsageFlags usage, VkMemoryPropertyFlags pro
 }
 
 void GPUAllocation::alloc(size_t const& byte_size) {
+    if (byte_size == 0) {
+        throw std::runtime_error("tried to allocate 0 sized buffer: " + _name);
+    }
     _buffer_info.size = byte_size;
     check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &_buffer, &_vma_allocation, nullptr),
                  "failed to create buffer " + _name);

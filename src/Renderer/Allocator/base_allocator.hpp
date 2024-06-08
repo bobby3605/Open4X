@@ -52,12 +52,12 @@ class CPUAllocator : public BaseAllocator<CPUAllocation> {
   public:
     CPUAllocator();
 };
-static CPUAllocator* cpu_allocator;
+inline CPUAllocator* cpu_allocator;
 
 class GPUAllocator : public BaseAllocator<GPUAllocation, VkBufferUsageFlags, VkMemoryPropertyFlags> {
   public:
     GPUAllocator();
 };
-static GPUAllocator* gpu_allocator;
+inline GPUAllocator* gpu_allocator;
 
 #endif // BASE_ALLOCATOR_H_

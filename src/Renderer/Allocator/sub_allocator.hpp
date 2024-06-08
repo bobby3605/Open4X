@@ -48,7 +48,11 @@ template <typename ParentAllocationT> class LinearAllocator {
         // allocate a new block and return it
         SubAllocation<LinearAllocator, ParentAllocationT>* block =
             new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
-        _parent->realloc(block->_offset + byte_size);
+        // NOTE:
+        // special case when a SubAllocator will call realloc
+        if (byte_size != 0) {
+            _parent->realloc(block->_offset + byte_size);
+        }
         return block;
     }
 

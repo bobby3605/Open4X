@@ -15,7 +15,7 @@
 #define check_result(f, str)                                                                                                               \
     {                                                                                                                                      \
         if ((f) != VK_SUCCESS) {                                                                                                           \
-            throw std::runtime_error((str) + std::to_string((f)));                                                                         \
+            throw std::runtime_error((str) + std::string(" VkResult: ") + std::to_string((f)));                                            \
         }                                                                                                                                  \
     }
 #endif
