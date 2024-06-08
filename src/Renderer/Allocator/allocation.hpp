@@ -122,8 +122,8 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VkBuffer _buffer = VK_NULL_HANDLE;
     VkBufferCreateInfo _buffer_info{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = 0};
     VmaAllocation _vma_allocation;
-    VmaAllocationCreateInfo _alloc_info;
     std::string _name;
+    VmaAllocationCreateInfo _alloc_info{};
     VkDescriptorDataEXT _descriptor_data;
     VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
 
