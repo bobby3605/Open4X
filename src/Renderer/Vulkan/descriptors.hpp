@@ -13,13 +13,13 @@ class DescriptorLayout {
         VkDescriptorSetLayoutBinding binding;
         std::string buffer_name;
         VkMemoryPropertyFlags mem_props;
-        SubAllocation<SubAllocation<GPUAllocation>>* allocation;
+        SubAllocation<VoidAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* allocation;
     };
 
     struct SetLayout {
         std::map<uint32_t, BindingLayout> bindings;
         VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-        SubAllocation<GPUAllocation>* allocation;
+        SubAllocation<LinearAllocator, GPUAllocation>* allocation;
         VkDescriptorSet set;
     };
 

@@ -114,7 +114,7 @@ void DescriptorLayout::create_layouts() {
                 size_t offset;
                 vkGetDescriptorSetLayoutBindingOffsetEXT_(Device::device->vk_device(), set_layout.layout,
                                                           binding_layout.second.binding.binding, &offset);
-                binding_layout.second.allocation = new SubAllocation<SubAllocation<GPUAllocation>>(
+                binding_layout.second.allocation = new SubAllocation<VoidAllocator, SubAllocation<LinearAllocator, GPUAllocation>>(
                     offset, descriptor_size_switch(binding_layout.second.binding.descriptorType), set_layout.allocation);
             }
         } else {

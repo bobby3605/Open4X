@@ -7,6 +7,7 @@
 
 template <typename AllocationT> class Allocation {
   public:
+    virtual ~Allocation(){};
     virtual size_t const& size() const;
     virtual void realloc(size_t const& byte_size);
 
@@ -17,13 +18,17 @@ template <typename AllocationT> class Allocation {
     virtual void copy(AllocationT* dst_allocation) = 0;
 };
 
+template <typename> class LinearAllocator;
+template <typename> class FixedAllocator;
 template <typename> class ContiguousFixedAllocator;
+template <typename> class VoidAllocator;
 
 template <template <class> class AllocatorT, typename ParentAllocationT>
 class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
   public:
-    SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent, AllocatorT<ParentAllocationT>* allocator)
+    SubAllocation(size_t const& offset, size_t const& size, AllocatorT<ParentAllocationT>* allocator, ParentAllocationT* parent)
         : _offset(offset), _size(size), _parent(parent), _allocator(allocator) {}
+    SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent) : _offset(offset), _size(size), _parent(parent) {}
     void get(void* dst) { get(dst, 0, _size); }
     void write(const void* data) { write(0, data, _size); }
     void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
@@ -60,7 +65,10 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
               size_t const& byte_size) {
         _parent->copy(dst_allocation->_parent, dst_offset + dst_allocation->_offset, src_offset + _offset, byte_size);
     }
+    friend class SubAllocation<LinearAllocator, SubAllocation<AllocatorT, ParentAllocationT>>;
+    friend class SubAllocation<FixedAllocator, SubAllocation<AllocatorT, ParentAllocationT>>;
     friend class SubAllocation<ContiguousFixedAllocator, SubAllocation<AllocatorT, ParentAllocationT>>;
+    friend class SubAllocation<VoidAllocator, SubAllocation<AllocatorT, ParentAllocationT>>;
 
     /* FIXME:
      * Free block from parent

@@ -4,6 +4,14 @@
 #include <cstdint>
 #include <deque>
 #include <queue>
+#include <stdexcept>
+
+template <typename ParentAllocationT> class VoidAllocator {
+  public:
+    SubAllocation<VoidAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
+        throw std::runtime_error("unimplemented alloc(byte_size)");
+    }
+};
 
 template <typename ParentAllocationT> class LinearAllocator {
     ParentAllocationT* _parent;
@@ -24,7 +32,7 @@ template <typename ParentAllocationT> class LinearAllocator {
             if (free_block->_size > byte_size) {
                 free_block->_offset += byte_size;
                 free_block->_size -= byte_size;
-                return new SubAllocation<LinearAllocator, ParentAllocationT>(free_block->_offset, byte_size, _parent, this);
+                return new SubAllocation<LinearAllocator, ParentAllocationT>(free_block->_offset, byte_size, this, _parent);
             }
             // If blocks are equal,
             // remove the block from the free blocks
@@ -39,7 +47,7 @@ template <typename ParentAllocationT> class LinearAllocator {
         // out of memory error
         // allocate a new block and return it
         SubAllocation<LinearAllocator, ParentAllocationT>* block =
-            new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, _parent, this);
+            new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
         _parent->realloc(block->_offset + byte_size);
         return block;
     }
@@ -65,6 +73,10 @@ template <typename ParentAllocationT> class FixedAllocator {
     size_t const& block_size() const { return _block_size; }
     size_t const& block_count() const { return _block_count; }
 
+    SubAllocation<FixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
+        throw std::runtime_error("unimplemented alloc(byte_size)");
+    }
+
     // TODO:
     // destructor
     SubAllocation<FixedAllocator, ParentAllocationT>* alloc() {
@@ -84,7 +96,7 @@ template <typename ParentAllocationT> class FixedAllocator {
         _parent->realloc(base_size + _block_size * count);
         for (uint32_t i = 0; i < count; ++i) {
             _free_blocks.push(
-                new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, _parent, this));
+                new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
             ++_block_count;
         }
     }
@@ -104,6 +116,9 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     const ParentAllocationT* parent() const { return _parent; }
     size_t const& block_size() const { return _block_size; }
     size_t const& block_count() const { return _block_count; }
+    SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
+        throw std::runtime_error("unimplemented alloc(byte_size)");
+    }
 
     // TODO:
     // destructor
@@ -155,7 +170,7 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
         _parent->realloc(base_size + _block_size * count);
         for (uint32_t i = 0; i < count; ++i) {
             _free_blocks.push_back(
-                new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, _parent, this));
+                new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
             // _free_blocks = [0,1,2]
             ++_block_count;
         }
