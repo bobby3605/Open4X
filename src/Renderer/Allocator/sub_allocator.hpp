@@ -22,6 +22,10 @@ template <typename ParentAllocationT> class LinearAllocator {
     // explore putting alignment into constructor
     LinearAllocator(ParentAllocationT* parent) : _parent(parent) {}
     const ParentAllocationT* parent() { return _parent; }
+    // Delay allocation, but still get a SubAlloction for this Allocator
+    SubAllocation<LinearAllocator, ParentAllocationT>* alloc_0() {
+        return new SubAllocation<LinearAllocator, ParentAllocationT>(0, 0, this, _parent);
+    }
 
     SubAllocation<LinearAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
         for (size_t i = 0; i < _free_blocks.size(); ++i) {
@@ -48,16 +52,10 @@ template <typename ParentAllocationT> class LinearAllocator {
         // allocate a new block and return it
         SubAllocation<LinearAllocator, ParentAllocationT>* block =
             new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
-        // NOTE:
-        // special case when a SubAllocator will call realloc
-        if (byte_size != 0) {
-            _parent->realloc(block->_offset + byte_size);
-        }
+        _parent->realloc(block->_offset + byte_size);
         return block;
     }
 
-    // NOTE:
-    // This can be a reference because push_back will copy it
     void free(SubAllocation<LinearAllocator, ParentAllocationT>* alloc) {
         // TODO
         // Auto sort and combine free blocks
@@ -92,7 +90,11 @@ template <typename ParentAllocationT> class FixedAllocator {
         _free_blocks.pop();
         return output;
     }
-    void free(SubAllocation<FixedAllocator, ParentAllocationT>* allocation) { _free_blocks.push(allocation); }
+    void free(SubAllocation<FixedAllocator, ParentAllocationT>* allocation) {
+        if (allocation->size() != 0) {
+            _free_blocks.push(allocation);
+        }
+    }
 
   private:
     void grow(uint32_t count) {

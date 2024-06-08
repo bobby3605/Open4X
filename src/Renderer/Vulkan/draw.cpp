@@ -27,9 +27,7 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
     _indirect_command.instanceCount = 0;
     _indirect_commands_alloc->write(&_indirect_command);
 
-    // TODO:
-    // Figure out if _allocators.instance_indices->alloc(0) causes any issues
-    instance_indices_allocator = new ContiguousFixedAllocator(sizeof(uint32_t), _allocators.instance_indices->alloc(0));
+    instance_indices_allocator = new ContiguousFixedAllocator(sizeof(uint32_t), _allocators.instance_indices->alloc_0());
 }
 
 Draw::~Draw() {
@@ -46,12 +44,13 @@ InstanceAllocPair Draw::add_instance() {
         instance_indices_allocator->alloc();
     ++_indirect_command.instanceCount;
     // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
-    _indirect_command.firstInstance = instance_indices_allocator->parent()->offset();
+    _indirect_command.firstInstance = instance_indices_allocator->parent()->offset() / sizeof(uint32_t);
     _indirect_commands_alloc->write(&_indirect_command);
     // NOTE:
     // Since instance_data_alloc is directly on a GPUAllocation, offset() is the correct index
     // If it was stacked on top of another allocator, then a global_offset() function would be needed
-    instance_index_alloc->write(&instance_data_alloc->offset());
+    uint32_t instance_data_index = ((uint32_t)instance_data_alloc->offset()) / sizeof(InstanceData);
+    instance_index_alloc->write(&instance_data_index);
     return {instance_data_alloc, instance_index_alloc};
     // FIXME:
     // get material index alloc and ensure its offset is _indirect_command.firstInstance

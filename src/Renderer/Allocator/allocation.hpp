@@ -35,8 +35,12 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
     void realloc(size_t const& byte_size) {
         // NOTE:
         // _allocator must support sized reallocs
+        // TODO:
+        // When reallocing, the existing buffer may be able to be expanded instead of creating a new allocation if it's at the end
         SubAllocation<AllocatorT, ParentAllocationT>* tmp_alloc = _allocator->alloc(byte_size);
-        copy(tmp_alloc);
+        if (_size != 0) {
+            copy(tmp_alloc);
+        }
         _offset = tmp_alloc->_offset;
         _size = tmp_alloc->_size;
         delete tmp_alloc;

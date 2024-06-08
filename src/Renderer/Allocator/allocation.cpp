@@ -101,7 +101,6 @@ void GPUAllocation::alloc(size_t const& byte_size) {
     check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &_buffer, &_vma_allocation, nullptr),
                  "failed to create buffer " + _name);
     Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)_buffer, _name);
-    std::cout << "gpu alloc: " << _name << std::endl;
 
     // NOTE:
     // vk_device() should be the same as what was used to create the allocator

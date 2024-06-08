@@ -167,7 +167,7 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
     if (_mesh_index.has_value()) {
         for (uint32_t i = 0; i < model->_meshes.at(_mesh_index.value()).primitives().size(); ++i) {
             instance_data.model_matrix = object_matrix * _transform;
-            std::get<1>(instances[id_index++])->write(&instance_data);
+            std::get<0>(instances[id_index++])->write(&instance_data);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
