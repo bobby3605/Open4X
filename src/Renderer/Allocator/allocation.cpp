@@ -146,7 +146,7 @@ void GPUAllocation::copy(GPUAllocation* dst_allocation, size_t const& dst_offset
 }
 
 void GPUAllocation::copy(GPUAllocation* dst_allocation) {
-    VkBufferCopy buffer_copy{0, 0, VK_WHOLE_SIZE};
+    VkBufferCopy buffer_copy{0, 0, _buffer_info.size};
     std::vector<VkBufferCopy> buffer_copies;
     buffer_copies.push_back(buffer_copy);
     CommandRunner command_runner;
