@@ -6,7 +6,6 @@
 #include "../Allocator/sub_allocator.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
-#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 struct DrawAllocators {
@@ -14,7 +13,7 @@ struct DrawAllocators {
     LinearAllocator<GPUAllocation>* index;
     FixedAllocator<GPUAllocation>* indirect_commands;
     FixedAllocator<GPUAllocation>* indirect_count;
-    SubAllocation<GPUAllocation>* indirect_count_alloc;
+    SubAllocation<LinearAllocator, GPUAllocation>* indirect_count_alloc;
     FixedAllocator<GPUAllocation>* instance_data;
     LinearAllocator<GPUAllocation>* instance_indices;
     FixedAllocator<GPUAllocation>* material_data;
@@ -85,12 +84,15 @@ template <> struct hash<NewVertex> {
 };
 } // namespace std
 
-typedef std::tuple<SubAllocation<SubAllocation<GPUAllocation>>*, SubAllocation<GPUAllocation>*> InstanceAllocPair;
+typedef SubAllocation<FixedAllocator, GPUAllocation>* InstanceDataAlloc;
+typedef SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* InstanceIndexAlloc;
+
+typedef std::tuple<InstanceDataAlloc, InstanceIndexAlloc> InstanceAllocPair;
 
 class Draw {
   public:
     Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
-         SubAllocation<GPUAllocation>* material_alloc);
+         SubAllocation<FixedAllocator, GPUAllocation>* material_alloc);
     ~Draw();
     InstanceAllocPair add_instance();
     void remove_instance(InstanceAllocPair instance);
@@ -99,11 +101,11 @@ class Draw {
   private:
     DrawAllocators _allocators;
     VkDrawIndexedIndirectCommand _indirect_command;
-    SubAllocation<GPUAllocation>* _vertex_alloc;
-    SubAllocation<GPUAllocation>* _index_alloc;
-    SubAllocation<GPUAllocation>* _material_index_alloc;
-    SubAllocation<GPUAllocation>* _indirect_commands_alloc;
-    ContiguousFixedAllocator<SubAllocation<GPUAllocation>>* instance_indices_allocator;
+    SubAllocation<LinearAllocator, GPUAllocation>* _vertex_alloc;
+    SubAllocation<LinearAllocator, GPUAllocation>* _index_alloc;
+    SubAllocation<LinearAllocator, GPUAllocation>* _material_index_alloc;
+    SubAllocation<FixedAllocator, GPUAllocation>* _indirect_commands_alloc;
+    ContiguousFixedAllocator<SubAllocation<LinearAllocator, GPUAllocation>>* instance_indices_allocator;
 };
 
 #endif // DRAW_H_

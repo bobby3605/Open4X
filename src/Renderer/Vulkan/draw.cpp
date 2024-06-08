@@ -4,7 +4,7 @@
 #include <vulkan/vulkan_core.h>
 
 Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
-           SubAllocation<GPUAllocation>* material_alloc)
+           SubAllocation<FixedAllocator, GPUAllocation>* material_alloc)
     : _allocators(draw_allocators) {
 
     _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
@@ -29,8 +29,7 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
 
     // TODO:
     // Figure out if _allocators.instance_indices->alloc(0) causes any issues
-    instance_indices_allocator =
-        new ContiguousFixedAllocator<SubAllocation<GPUAllocation>>(sizeof(uint32_t), _allocators.instance_indices->alloc(0));
+    instance_indices_allocator = new ContiguousFixedAllocator(sizeof(uint32_t), _allocators.instance_indices->alloc(0));
 }
 
 Draw::~Draw() {
@@ -42,8 +41,9 @@ Draw::~Draw() {
 InstanceAllocPair Draw::add_instance() {
     // TODO
     // preallocate when creating a large amount of instances
-    SubAllocation<GPUAllocation>* instance_data_alloc = _allocators.instance_data->alloc();
-    SubAllocation<SubAllocation<GPUAllocation>>* instance_index_alloc = instance_indices_allocator->alloc();
+    SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc = _allocators.instance_data->alloc();
+    SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* instance_index_alloc =
+        instance_indices_allocator->alloc();
     ++_indirect_command.instanceCount;
     // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
     _indirect_command.firstInstance = instance_indices_allocator->parent()->offset();
@@ -52,7 +52,7 @@ InstanceAllocPair Draw::add_instance() {
     // Since instance_data_alloc is directly on a GPUAllocation, offset() is the correct index
     // If it was stacked on top of another allocator, then a global_offset() function would be needed
     instance_index_alloc->write(&instance_data_alloc->offset());
-    return {instance_index_alloc, instance_data_alloc};
+    return {instance_data_alloc, instance_index_alloc};
     // FIXME:
     // get material index alloc and ensure its offset is _indirect_command.firstInstance
     // _allocators.material_data->write(_material_index_alloc, _material_alloc.offset, sizeof(uint32_t));
@@ -64,9 +64,9 @@ InstanceAllocPair Draw::add_instance() {
 }
 
 void Draw::remove_instance(InstanceAllocPair instance) {
-    SubAllocation<GPUAllocation>* instance_data_alloc;
-    SubAllocation<SubAllocation<GPUAllocation>>* instance_index_alloc;
-    std::tie(instance_index_alloc, instance_data_alloc) = instance;
+    SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc;
+    SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* instance_index_alloc;
+    std::tie(instance_data_alloc, instance_index_alloc) = instance;
 
     _allocators.instance_data->free(instance_data_alloc);
     instance_indices_allocator->pop_and_swap(instance_index_alloc);

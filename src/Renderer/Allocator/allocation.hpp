@@ -17,13 +17,25 @@ template <typename AllocationT> class Allocation {
     virtual void copy(AllocationT* dst_allocation) = 0;
 };
 
-template <typename ParentAllocationT> class SubAllocation : Allocation<SubAllocation<ParentAllocationT>> {
+template <typename> class ContiguousFixedAllocator;
+
+template <template <class> class AllocatorT, typename ParentAllocationT>
+class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
   public:
-    SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent) : _offset(offset), _size(size), _parent(parent) {}
+    SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent, AllocatorT<ParentAllocationT>* allocator)
+        : _offset(offset), _size(size), _parent(parent), _allocator(allocator) {}
     void get(void* dst) { get(dst, 0, _size); }
     void write(const void* data) { write(0, data, _size); }
-    void copy(SubAllocation<ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
-    void realloc(size_t const& byte_size) { static_assert(false, "unimplemented realloc"); }
+    void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
+    void realloc(size_t const& byte_size) {
+        // NOTE:
+        // _allocator must support sized reallocs
+        SubAllocation<AllocatorT, ParentAllocationT>* tmp_alloc = _allocator->alloc(byte_size);
+        copy(tmp_alloc);
+        _offset = tmp_alloc->_offset;
+        _size = tmp_alloc->_size;
+        delete tmp_alloc;
+    }
 
     bool operator==(const SubAllocation& other) const {
         return _offset == other._offset && _size == other._size && _parent == other._parent;
@@ -39,15 +51,16 @@ template <typename ParentAllocationT> class SubAllocation : Allocation<SubAlloca
 
   protected:
     ParentAllocationT* _parent = nullptr;
+    AllocatorT<ParentAllocationT>* _allocator = nullptr;
     void get(void* dst, size_t const& src_offset, size_t const& byte_size) { _parent->get(dst, src_offset + _offset, byte_size); }
     void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
         _parent->write(dst_offset + _offset, src_data, byte_size);
     }
-    void copy(SubAllocation<ParentAllocationT>* dst_allocation, size_t const& dst_offset, size_t const& src_offset,
+    void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation, size_t const& dst_offset, size_t const& src_offset,
               size_t const& byte_size) {
         _parent->copy(dst_allocation->_parent, dst_offset + dst_allocation->_offset, src_offset + _offset, byte_size);
     }
-    friend class SubAllocation<SubAllocation<ParentAllocationT>>;
+    friend class SubAllocation<ContiguousFixedAllocator, SubAllocation<AllocatorT, ParentAllocationT>>;
 
     /* FIXME:
      * Free block from parent
@@ -56,8 +69,8 @@ template <typename ParentAllocationT> class SubAllocation : Allocation<SubAlloca
 };
 
 namespace std {
-template <typename T> struct hash<SubAllocation<T>> {
-    size_t operator()(SubAllocation<T> const& allocation) const {
+template <template <class> class AT, typename PT> struct hash<SubAllocation<AT, PT>> {
+    size_t operator()(SubAllocation<AT, PT> const& allocation) const {
         return hash<size_t>()(allocation._offset) ^ hash<size_t>()(allocation._size);
     }
 };
@@ -82,7 +95,7 @@ class CPUAllocation : Allocation<CPUAllocation> {
     void copy(CPUAllocation* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size);
     void copy(CPUAllocation* dst_allocation);
 
-    friend class SubAllocation<CPUAllocation>;
+    template <template <class> class, typename> friend class SubAllocation;
 };
 
 class GPUAllocation : Allocation<GPUAllocation> {
@@ -114,7 +127,7 @@ class GPUAllocation : Allocation<GPUAllocation> {
     void copy(GPUAllocation* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size);
     void copy(GPUAllocation* dst_allocation);
 
-    friend class SubAllocation<GPUAllocation>;
+    template <template <class> class, typename> friend class SubAllocation;
 };
 
 #endif // ALLOCATION_H_
