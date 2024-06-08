@@ -8,8 +8,8 @@
 template <typename AllocationT> class Allocation {
   public:
     virtual ~Allocation(){};
-    virtual size_t const& size() const;
-    virtual void realloc(size_t const& byte_size);
+    virtual size_t const& size() const = 0;
+    virtual void realloc(size_t const& byte_size) = 0;
 
   protected:
     virtual void get(void* dst, size_t const& src_offset, size_t const& byte_size) = 0;
@@ -87,8 +87,8 @@ template <template <class> class AT, typename PT> struct hash<SubAllocation<AT, 
 class CPUAllocation : Allocation<CPUAllocation> {
   public:
     ~CPUAllocation();
-    void realloc(const size_t& byte_size);
-    size_t const& size() const { return _size; }
+    void realloc(size_t const& byte_size);
+    size_t const& size() const;
 
   protected:
     friend class CPUAllocator;
@@ -110,11 +110,11 @@ class GPUAllocation : Allocation<GPUAllocation> {
   public:
     GPUAllocation(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::string const& name);
     ~GPUAllocation();
-    void realloc(const size_t& byte_size);
-    size_t const& size() const { return _buffer_info.size; }
-    VmaAllocationCreateInfo const& alloc_info() { return _alloc_info; }
-    VkDescriptorDataEXT const& descriptor_data() { return _descriptor_data; }
-    VkDescriptorAddressInfoEXT const& addr_info() { return _addr_info; }
+    void realloc(size_t const& byte_size);
+    size_t const& size() const;
+    VmaAllocationCreateInfo const& alloc_info() const { return _alloc_info; }
+    VkDescriptorDataEXT const& descriptor_data() const { return _descriptor_data; }
+    VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
     VkBuffer const& buffer() const { return _buffer; }
 
   protected:

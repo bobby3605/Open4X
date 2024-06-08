@@ -13,7 +13,7 @@ struct DrawAllocators {
     LinearAllocator<GPUAllocation>* index;
     FixedAllocator<GPUAllocation>* indirect_commands;
     FixedAllocator<GPUAllocation>* indirect_count;
-    SubAllocation<LinearAllocator, GPUAllocation>* indirect_count_alloc;
+    SubAllocation<FixedAllocator, GPUAllocation>* indirect_count_alloc;
     FixedAllocator<GPUAllocation>* instance_data;
     LinearAllocator<GPUAllocation>* instance_indices;
     FixedAllocator<GPUAllocation>* material_data;

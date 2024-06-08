@@ -13,6 +13,7 @@ class ModelManager {
   private:
     std::unordered_map<std::filesystem::path, Model*> _models;
     DrawAllocators _draw_allocators;
+    SubAllocation<FixedAllocator, GPUAllocation>* _default_material_alloc;
 };
 
 #endif // MODEL_MANAGER_H_

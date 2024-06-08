@@ -1,8 +1,8 @@
 #include "rendergraph.hpp"
+#include "../Allocator/base_allocator.hpp"
 #include "command_runner.hpp"
 #include "common.hpp"
 #include "device.hpp"
-#include "memory_manager.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
 #include "window.hpp"
@@ -14,11 +14,9 @@ RenderGraph::RenderGraph(VkCommandPool pool) : _pool{pool} {
 
     _swap_chain = new SwapChain(Window::window->extent());
     if (Device::device->use_descriptor_buffers()) {
-        _descriptor_buffer_allocator = new LinearAllocator<GPUAllocator>(MemoryManager::memory_manager->create_gpu_allocator(
-            "_descriptor_buffer_allocator", 1,
-            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+        _descriptor_buffer_allocator = new LinearAllocator<GPUAllocation>(gpu_allocator->create_buffer(
+            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            "_descriptor_buffer_allocator"));
     }
     for (uint32_t i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; ++i) {
         _command_buffers.emplace_back(Device::device->command_pools()->get_primary(_pool));
@@ -33,7 +31,9 @@ RenderGraph::~RenderGraph() {
         Device::device->command_pools()->release_buffer(_pool, command_buffer);
     }
     if (Device::device->use_descriptor_buffers()) {
-        MemoryManager::memory_manager->delete_gpu_allocator("_descriptor_buffer_allocator");
+        // TODO:
+        // delete _descriptor_buffer_allocator
+        gpu_allocator->free_buffer("_descriptor_buffer_allocator");
     }
 }
 
@@ -225,8 +225,8 @@ void RenderGraph::end_rendering() {
 }
 
 void RenderGraph::graphics_pass(std::string const& vert_path, std::string const& frag_path,
-                                LinearAllocator<GPUAllocator>* vertex_buffer_allocator,
-                                LinearAllocator<GPUAllocator>* index_buffer_allocator) {
+                                LinearAllocator<GPUAllocation>* vertex_buffer_allocator,
+                                LinearAllocator<GPUAllocation>* index_buffer_allocator) {
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     pipeline_rendering_info.colorAttachmentCount = 1;
@@ -283,12 +283,12 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
     add_dynamic_node({offsets}, [&, offsets, vertex_buffer_allocator](RenderNode& node) {
         node.op = [&, offsets, vertex_buffer_allocator](VkCommandBuffer cmd_buffer) {
-            vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &vertex_buffer_allocator->base_alloc().buffer, offsets->data());
+            vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &vertex_buffer_allocator->parent()->buffer(), offsets->data());
         };
     });
     add_dynamic_node({}, [&, index_buffer_allocator](RenderNode& node) {
         node.op = [&, index_buffer_allocator](VkCommandBuffer cmd_buffer) {
-            vkCmdBindIndexBuffer(cmd_buffer, index_buffer_allocator->base_alloc().buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(cmd_buffer, index_buffer_allocator->parent()->buffer(), 0, VK_INDEX_TYPE_UINT32);
         };
     });
 }

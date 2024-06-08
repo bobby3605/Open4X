@@ -13,7 +13,8 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators) {
+Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material)
+    : _default_material(default_material) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -97,10 +98,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         tmp_vertices[i].pos = positions[i];
     }
 
-    // Default material
-    SubAllocation material_alloc;
-    material_alloc.offset = 0;
-    material_alloc.size = sizeof(NewMaterialData);
+    SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
     if (primitive->materialIndex.has_value()) {
         if (!model->_material_allocs.contains(primitive->materialIndex.value())) {
             NewMaterialData material_data{};
@@ -116,7 +114,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
             model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
-            draw_allocators.material_data->write(material_alloc, &material_data, sizeof(material_data));
+            material_alloc->write(&material_data);
         } else {
             material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
         }

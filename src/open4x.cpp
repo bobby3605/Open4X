@@ -145,14 +145,12 @@ void Open4X::run() {
         Camera cam;
         // TODO
         // Get ShaderGlobals from the shader itself
-        StackAllocator<GPUAllocator>* shader_globals_buffer = new StackAllocator(
+        FixedAllocator<GPUAllocation>* shader_globals_buffer = new FixedAllocator(
             sizeof(ShaderGlobals),
-            MemoryManager::memory_manager->create_gpu_allocator("Globals", sizeof(ShaderGlobals),
-                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+            gpu_allocator->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Globals"));
 
-        SubAllocation globals_alloc = shader_globals_buffer->alloc();
+        SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_buffer->alloc();
         ShaderGlobals shader_globals;
         auto start_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
@@ -166,7 +164,7 @@ void Open4X::run() {
             // cache camera matrix
             shader_globals.proj_view = cam.proj_view();
             shader_globals.cam_pos = cam.position();
-            shader_globals_buffer->write(globals_alloc, &shader_globals, sizeof(shader_globals));
+            globals_alloc->write(&shader_globals);
 
             renderer->render();
         }

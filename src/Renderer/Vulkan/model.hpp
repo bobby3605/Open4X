@@ -27,7 +27,7 @@ template <typename T> inline std::vector<T> load_accessor(fastgltf::Asset* asset
 
 class Model {
   public:
-    Model(std::filesystem::path path, DrawAllocators& draw_allocators);
+    Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material);
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
     std::vector<InstanceAllocPair> add_instance();
 
@@ -111,7 +111,8 @@ class Model {
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
     std::unordered_map<uint32_t, Mesh> _meshes;
-    std::unordered_map<uint32_t, SubAllocation<GPUAllocation>> _material_allocs;
+    std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
+    SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
 
   public:
     std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }

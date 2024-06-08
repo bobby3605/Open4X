@@ -1,9 +1,9 @@
 #include "renderer.hpp"
+#include "../Allocator/base_allocator.hpp"
 #include "device.hpp"
 #include "draw.hpp"
 #include "globals.hpp"
 #include "memory_manager.hpp"
-#include "model.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 
@@ -12,6 +12,7 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     globals.device = Device::device;
     new MemoryManager();
     globals.memory_manager = MemoryManager::memory_manager;
+    new GPUAllocator();
     create_data_buffers();
     _command_pool = Device::device->command_pools()->get_pool();
     create_rendergraph();
@@ -21,13 +22,12 @@ Renderer::~Renderer() {
     Device::device->command_pools()->release_pool(_command_pool);
     vkDeviceWaitIdle(Device::device->vk_device());
     delete rg;
+    delete gpu_allocator;
     delete MemoryManager::memory_manager;
     delete Device::device;
 }
 
 void Renderer::create_data_buffers() {
-    GPUAllocator* gpu_allocator;
-
     draw_allocators.vertex = new LinearAllocator(gpu_allocator->create_buffer(
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "vertex_buffer"));
 
@@ -59,10 +59,6 @@ void Renderer::create_data_buffers() {
         sizeof(NewMaterialData),
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Materials"));
-    // Write default material
-    SubAllocation<GPUAllocation> default_material_alloc = draw_allocators.material_data->alloc();
-    NewMaterialData default_material{};
-    default_material_alloc.write(&default_material);
 
     draw_allocators.material_indices = new FixedAllocator(
         sizeof(uint32_t),

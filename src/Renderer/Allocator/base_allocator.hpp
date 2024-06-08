@@ -13,7 +13,7 @@ template <typename AllocationT, typename... Args> class BaseAllocator {
   public:
     ~BaseAllocator() {
         for (auto& allocation : _allocations) {
-            free(allocation.second);
+            delete allocation.second;
         }
     }
     AllocationT* create_buffer(Args... args, std::string const& name) {
@@ -32,16 +32,32 @@ template <typename AllocationT, typename... Args> class BaseAllocator {
     }
     void free_buffer(std::string name) {
         if (_allocations.count(name) == 1) {
-            free(_allocations.at(name));
+            delete _allocations.at(name);
             _allocations.erase(name);
         } else {
             throw std::runtime_error("error: buffer double free: " + name);
         }
     }
+    AllocationT* get_buffer(std::string const& name) {
+        if (_allocations.count(name) == 1) {
+            return _allocations.at(name);
+        } else {
+            throw std::runtime_error("error: buffer not found: " + name);
+        }
+    }
+    bool buffer_exists(std::string const& name) { return _allocations.contains(name); }
 };
 
-class CPUAllocator : public BaseAllocator<CPUAllocation> {};
+class CPUAllocator : public BaseAllocator<CPUAllocation> {
+  public:
+    CPUAllocator();
+};
+static CPUAllocator* cpu_allocator;
 
-class GPUAllocator : public BaseAllocator<GPUAllocation, VkBufferUsageFlags, VkMemoryPropertyFlags> {};
+class GPUAllocator : public BaseAllocator<GPUAllocation, VkBufferUsageFlags, VkMemoryPropertyFlags> {
+  public:
+    GPUAllocator();
+};
+static GPUAllocator* gpu_allocator;
 
 #endif // BASE_ALLOCATOR_H_

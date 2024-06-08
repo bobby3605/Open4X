@@ -10,6 +10,8 @@ void CPUAllocation::alloc(size_t const& byte_size) {
     _data = new char[byte_size];
 }
 
+size_t const& CPUAllocation::size() const { return _size; };
+
 void CPUAllocation::free() {
     if (_data != nullptr) {
         delete _data;
@@ -101,6 +103,8 @@ void GPUAllocation::alloc(size_t const& byte_size) {
         _addr_info.address = vkGetBufferDeviceAddress(Device::device->vk_device(), &info);
     }
 }
+
+size_t const& GPUAllocation::size() const { return _buffer_info.size; }
 
 void GPUAllocation::free() {
     if (_buffer != VK_NULL_HANDLE) {

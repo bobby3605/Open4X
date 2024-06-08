@@ -1,9 +1,8 @@
 #include "pipeline.hpp"
+#include "../Allocator/base_allocator.hpp"
 #include "common.hpp"
 #include "device.hpp"
-#include "memory_manager.hpp"
-#include "model.hpp"
-#include <iostream>
+#include "draw.hpp"
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -11,7 +10,7 @@
 
 Pipeline::Pipeline() {}
 
-Pipeline::Pipeline(LinearAllocator<GPUAllocator>* descriptor_buffer_allocator) : _descriptor_layout(descriptor_buffer_allocator) {}
+Pipeline::Pipeline(LinearAllocator<GPUAllocation>* descriptor_buffer_allocator) : _descriptor_layout(descriptor_buffer_allocator) {}
 
 Pipeline::~Pipeline() {
     vkDestroyPipelineLayout(Device::device->vk_device(), _pipeline_layout, nullptr);
@@ -24,18 +23,17 @@ void Pipeline::update_descriptors() {
     // For example, a global set at 0 only needs to be set once per GPUAllocator->realloc
     for (auto const& set_layout : _descriptor_layout.set_layouts()) {
         for (auto const& binding_layout : set_layout.second.bindings) {
-            GPUAllocator* tmp;
+            GPUAllocation* tmp;
             std::string buffer_name = binding_layout.second.buffer_name;
-            if (MemoryManager::memory_manager->gpu_allocator_exists(buffer_name)) {
+            if (gpu_allocator->buffer_exists(buffer_name)) {
                 // TODO:
                 // Maybe
                 // support recreating buffer with new mem props if needed from the graph
                 // Other option is just to error out if you manually created a buffer with the wrong mem_props
-                tmp = MemoryManager::memory_manager->get_gpu_allocator(buffer_name);
+                tmp = gpu_allocator->get_buffer(buffer_name);
             } else {
-                tmp = MemoryManager::memory_manager->create_gpu_allocator(
-                    buffer_name, 1, type_to_usage(binding_layout.second.binding.descriptorType) | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                    binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                tmp = gpu_allocator->create_buffer(type_to_usage(binding_layout.second.binding.descriptorType),
+                                                   binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, buffer_name);
             }
             if (Device::device->use_descriptor_buffers()) {
                 _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, tmp->descriptor_data());
@@ -47,7 +45,7 @@ void Pipeline::update_descriptors() {
                 descriptor_write.descriptorType = binding_layout.second.binding.descriptorType;
                 descriptor_write.descriptorCount = 1;
                 VkDescriptorBufferInfo buffer_info{};
-                buffer_info.buffer = tmp->base_alloc().buffer;
+                buffer_info.buffer = tmp->buffer();
                 buffer_info.offset = 0;
                 buffer_info.range = VK_WHOLE_SIZE;
                 switch (descriptor_write.descriptorType) {
@@ -83,7 +81,7 @@ GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rende
 }
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::string const& vert_path,
-                                   std::string const& frag_path, LinearAllocator<GPUAllocator>* descriptor_buffer_allocator)
+                                   std::string const& frag_path, LinearAllocator<GPUAllocation>* descriptor_buffer_allocator)
     : Pipeline(descriptor_buffer_allocator) {
     create(pipeline_rendering_info, extent, vert_path, frag_path);
 }
