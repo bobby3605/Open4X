@@ -63,14 +63,6 @@ InstanceAllocPair Draw::add_instance() {
     uint32_t instance_data_index = ((uint32_t)instance_data_alloc->offset()) / sizeof(InstanceData);
     instance_index_alloc->write(&instance_data_index);
     return {instance_data_alloc, instance_index_alloc};
-    // FIXME:
-    // get material index alloc and ensure its offset is _indirect_command.firstInstance
-    // _allocators.material_data->write(_material_index_alloc, _material_alloc.offset, sizeof(uint32_t));
-    // possible solution is to reserve firstInstance + 0 for material_index
-    // then all of the instance data goes after that
-    // putting material index at instance_indices[firstInstance]
-    //_material_index_alloc = _instance_indices.alloc();
-    // Problem is with culling and generally issues from mixing buffers together
 }
 
 void Draw::remove_instance(InstanceAllocPair instance) {
