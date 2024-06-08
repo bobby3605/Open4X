@@ -156,43 +156,45 @@ std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coo
     return load_accessor<glm::vec2>(_model->_asset, _primitive->findAttribute("TEXCOORD_" + std::to_string(tex_coord_selector))->second);
 }
 
-void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids) {
+void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances) {
     size_t id_index = 0;
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->write_instance_data(this, object_matrix, instance_ids, id_index);
+        _nodes[root_node_index.value()]->write_instance_data(this, object_matrix, instances, id_index);
     }
 }
 
-void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids,
+void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances,
                                       size_t& id_index) {
+    InstanceData instance_data{};
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes.at(_mesh_index.value()).primitives()) {
-            primitive._draw->write_instance_data(instance_ids[id_index++], {object_matrix * _transform});
+        for (uint32_t i = 0; i < model->_meshes.at(_mesh_index.value()).primitives().size(); ++i) {
+            instance_data.model_matrix = object_matrix * _transform;
+            std::get<1>(instances[id_index++])->write(&instance_data);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->write_instance_data(model, object_matrix, instance_ids, id_index);
+        _model->_nodes[child_node_index.value()]->write_instance_data(model, object_matrix, instances, id_index);
     }
 }
 
-std::vector<uint32_t> Model::add_instance() {
-    std::vector<uint32_t> instance_ids;
-    instance_ids.reserve(_total_instance_data_count);
+std::vector<InstanceAllocPair> Model::add_instance() {
+    std::vector<InstanceAllocPair> instances;
+    instances.reserve(_total_instance_data_count);
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->add_instance(this, instance_ids);
+        _nodes[root_node_index.value()]->add_instance(this, instances);
     }
-    return instance_ids;
+    return instances;
 }
 
-void Model::Node::add_instance(Model* model, std::vector<uint32_t>& instance_ids) {
+void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
     if (_mesh_index.has_value()) {
         for (const auto& primitive : model->_meshes.at(_mesh_index.value()).primitives()) {
-            instance_ids.emplace_back(primitive._draw->add_instance());
+            instances.emplace_back(primitive._draw->add_instance());
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->add_instance(model, instance_ids);
+        _model->_nodes[child_node_index.value()]->add_instance(model, instances);
     }
 }

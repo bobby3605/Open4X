@@ -1,24 +1,24 @@
 #ifndef DRAW_H_
 #define DRAW_H_
 
-#include <unordered_map>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "../Allocator/sub_allocator.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
 struct DrawAllocators {
-    LinearAllocator<GPUAllocator>* vertex;
-    LinearAllocator<GPUAllocator>* index;
-    StackAllocator<GPUAllocator>* indirect_commands;
-    StackAllocator<GPUAllocator>* indirect_count;
-    SubAllocation indirect_count_alloc;
-    StackAllocator<GPUAllocator>* instance_data;
-    LinearAllocator<GPUAllocator>* instance_indices;
-    StackAllocator<GPUAllocator>* material_data;
-    StackAllocator<GPUAllocator>* material_indices;
+    LinearAllocator<GPUAllocation>* vertex;
+    LinearAllocator<GPUAllocation>* index;
+    FixedAllocator<GPUAllocation>* indirect_commands;
+    FixedAllocator<GPUAllocation>* indirect_count;
+    SubAllocation<GPUAllocation>* indirect_count_alloc;
+    FixedAllocator<GPUAllocation>* instance_data;
+    LinearAllocator<GPUAllocation>* instance_indices;
+    FixedAllocator<GPUAllocation>* material_data;
+    FixedAllocator<GPUAllocation>* material_indices;
 };
 
 struct InstanceData {
@@ -85,28 +85,25 @@ template <> struct hash<NewVertex> {
 };
 } // namespace std
 
+typedef std::tuple<SubAllocation<SubAllocation<GPUAllocation>>*, SubAllocation<GPUAllocation>*> InstanceAllocPair;
+
 class Draw {
   public:
     Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
-         SubAllocation material_alloc);
+         SubAllocation<GPUAllocation>* material_alloc);
     ~Draw();
-    uint32_t add_instance();
-    void remove_instance(uint32_t instance_index_alloc);
+    InstanceAllocPair add_instance();
+    void remove_instance(InstanceAllocPair instance);
     void write_instance_data(uint32_t instance_id, InstanceData const& instance_data);
 
   private:
     DrawAllocators _allocators;
-    StackAllocator<LinearAllocator<GPUAllocator>> _instance_indices;
-    StackAllocator<CPUAllocator> _instance_indices_allocs;
-    SubAllocation _last_instance_index_alloc;
-    uint32_t _last_instance_index_instance_id;
-    std::unordered_map<SubAllocation, SubAllocation> _instance_data_allocs;
     VkDrawIndexedIndirectCommand _indirect_command;
-    SubAllocation _vertex_alloc;
-    SubAllocation _index_alloc;
-    SubAllocation _material_index_alloc;
-    SubAllocation _indirect_commands_alloc;
-    void write_indirect_command();
+    SubAllocation<GPUAllocation>* _vertex_alloc;
+    SubAllocation<GPUAllocation>* _index_alloc;
+    SubAllocation<GPUAllocation>* _material_index_alloc;
+    SubAllocation<GPUAllocation>* _indirect_commands_alloc;
+    ContiguousFixedAllocator<SubAllocation<GPUAllocation>>* instance_indices_allocator;
 };
 
 #endif // DRAW_H_

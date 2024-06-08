@@ -28,7 +28,7 @@ class Object {
     // NOTE:
     // Set to false so that register_invalid_matrices() works in the constructor
     bool _instance_data_invalid = false;
-    std::vector<uint32_t> _instance_ids;
+    std::vector<InstanceAllocPair> _instances;
 
     safe_queue<Object*>* _invalid_callback = nullptr;
 };

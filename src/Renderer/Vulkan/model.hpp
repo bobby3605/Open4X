@@ -28,8 +28,8 @@ template <typename T> inline std::vector<T> load_accessor(fastgltf::Asset* asset
 class Model {
   public:
     Model(std::filesystem::path path, DrawAllocators& draw_allocators);
-    void write_instance_data(glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids);
-    std::vector<uint32_t> add_instance();
+    void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
+    std::vector<InstanceAllocPair> add_instance();
 
     class Scene {
       public:
@@ -48,11 +48,11 @@ class Model {
     class Node {
       public:
         Node(Model* _model, fastgltf::Node* node, glm::mat4 const& parent_transform, DrawAllocators& draw_allocators);
-        void write_instance_data(Model* _model, glm::mat4 const& object_matrix, std::vector<uint32_t> const& instance_ids,
+        void write_instance_data(Model* _model, glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances,
                                  size_t& id_index);
 
       protected:
-        void add_instance(Model* model, std::vector<uint32_t>& instance_ids);
+        void add_instance(Model* model, std::vector<InstanceAllocPair>& instances);
         std::optional<std::size_t> _mesh_index;
         std::vector<std::optional<std::size_t>> _child_node_indices;
         glm::mat4 _transform;
@@ -111,7 +111,7 @@ class Model {
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
     std::unordered_map<uint32_t, Mesh> _meshes;
-    std::unordered_map<uint32_t, SubAllocation> _material_allocs;
+    std::unordered_map<uint32_t, SubAllocation<GPUAllocation>> _material_allocs;
 
   public:
     std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }
