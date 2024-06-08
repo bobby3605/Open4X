@@ -48,10 +48,7 @@ layout(location = 12) out float roughness_factor;
 layout(location = 13) out float occulsion_strength;
 
 void main() {
-    /*
-    MaterialData material = materials[culled_material_indices[gl_BaseInstance]];
-    */
-    MaterialData material = materials[0];
+    MaterialData material = materials[culled_material_indices[gl_DrawID]];
     InstanceData instance = instances[culled_instance_indices[gl_InstanceIndex]];
 
     vec4 vert_pos = instance.model_matrix * vec4(in_position, 1.0);

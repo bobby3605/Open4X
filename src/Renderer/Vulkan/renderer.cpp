@@ -39,7 +39,7 @@ void Renderer::create_data_buffers() {
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Instances"));
 
-    draw_allocators.indirect_commands = new FixedAllocator(
+    draw_allocators.indirect_commands = new ContiguousFixedAllocator(
         sizeof(VkDrawIndexedIndirectCommand),
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "indirect_commands"));
@@ -60,7 +60,7 @@ void Renderer::create_data_buffers() {
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Materials"));
 
-    draw_allocators.material_indices = new FixedAllocator(
+    draw_allocators.material_indices = new ContiguousFixedAllocator(
         sizeof(uint32_t),
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledMaterialIndices"));

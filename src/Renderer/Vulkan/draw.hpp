@@ -11,13 +11,13 @@
 struct DrawAllocators {
     LinearAllocator<GPUAllocation>* vertex;
     LinearAllocator<GPUAllocation>* index;
-    FixedAllocator<GPUAllocation>* indirect_commands;
+    ContiguousFixedAllocator<GPUAllocation>* indirect_commands;
+    ContiguousFixedAllocator<GPUAllocation>* material_indices;
+    FixedAllocator<GPUAllocation>* material_data;
     FixedAllocator<GPUAllocation>* indirect_count;
     SubAllocation<FixedAllocator, GPUAllocation>* indirect_count_alloc;
     FixedAllocator<GPUAllocation>* instance_data;
     LinearAllocator<GPUAllocation>* instance_indices;
-    FixedAllocator<GPUAllocation>* material_data;
-    FixedAllocator<GPUAllocation>* material_indices;
 };
 
 struct InstanceData {
@@ -103,8 +103,8 @@ class Draw {
     VkDrawIndexedIndirectCommand _indirect_command;
     SubAllocation<LinearAllocator, GPUAllocation>* _vertex_alloc;
     SubAllocation<LinearAllocator, GPUAllocation>* _index_alloc;
-    SubAllocation<LinearAllocator, GPUAllocation>* _material_index_alloc;
-    SubAllocation<FixedAllocator, GPUAllocation>* _indirect_commands_alloc;
+    SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _indirect_commands_alloc;
+    SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _material_index_alloc;
     ContiguousFixedAllocator<SubAllocation<LinearAllocator, GPUAllocation>>* instance_indices_allocator;
 };
 

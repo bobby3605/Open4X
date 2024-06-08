@@ -17,6 +17,15 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
     _index_alloc->write(indices.data());
 
     _indirect_commands_alloc = _allocators.indirect_commands->alloc();
+    // put material index at gl_DrawID
+    // material_index is always the same as gl_DrawID,
+    // because indirect_commands_alloc and material_index_alloc always get
+    // alloced and pop and swapped together,
+    // so their offsets should be identical
+    uint32_t material_index = ((uint32_t)material_alloc->offset()) / sizeof(NewMaterialData);
+    _material_index_alloc = _allocators.material_indices->alloc();
+    _material_index_alloc->write(&material_index);
+
     // Increase indirect draw count
     // TODO:
     // thread safety
@@ -31,6 +40,8 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
 }
 
 Draw::~Draw() {
+    _allocators.indirect_commands->pop_and_swap(_indirect_commands_alloc);
+    _allocators.material_indices->pop_and_swap(_material_index_alloc);
     delete instance_indices_allocator;
     // TODO
     // Free instance data
