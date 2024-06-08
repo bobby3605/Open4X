@@ -25,21 +25,27 @@ glm::mat4 const& Camera::proj_view() {
     return _proj_view;
 }
 
+// Define roll/pitch/yaw ordering
+// vulkan uses inverted-y right handed coordinates
+#define pitch x
+#define yaw y
+#define roll z
+
 void Camera::update_transform(float frame_time) {
     glm::vec3 rotate{0};
     float speed_up = 1;
-    if (glfwGetKey(Window::window->glfw_window(), keys.yaw_right) == GLFW_PRESS)
-        rotate.x += 1.f;
-    if (glfwGetKey(Window::window->glfw_window(), keys.yaw_left) == GLFW_PRESS)
-        rotate.x -= 1.f;
     if (glfwGetKey(Window::window->glfw_window(), keys.pitch_up) == GLFW_PRESS)
-        rotate.y += 1.f;
+        rotate.pitch += 1.f;
     if (glfwGetKey(Window::window->glfw_window(), keys.pitch_down) == GLFW_PRESS)
-        rotate.y -= 1.f;
+        rotate.pitch -= 1.f;
+    if (glfwGetKey(Window::window->glfw_window(), keys.yaw_right) == GLFW_PRESS)
+        rotate.yaw += 1.f;
+    if (glfwGetKey(Window::window->glfw_window(), keys.yaw_left) == GLFW_PRESS)
+        rotate.yaw -= 1.f;
     if (glfwGetKey(Window::window->glfw_window(), keys.roll_right) == GLFW_PRESS)
-        rotate.z += 1.f;
+        rotate.roll += 1.f;
     if (glfwGetKey(Window::window->glfw_window(), keys.roll_left) == GLFW_PRESS)
-        rotate.z -= 1.f;
+        rotate.roll -= 1.f;
     if (glfwGetKey(Window::window->glfw_window(), keys.speed_up) == GLFW_PRESS)
         speed_up = 2;
     if (glfwGetKey(Window::window->glfw_window(), keys.slow_down) == GLFW_PRESS)
