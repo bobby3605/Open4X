@@ -8,6 +8,7 @@
 template <typename AllocationT> class Allocation {
   public:
     virtual size_t const& size() const;
+    virtual void realloc(size_t const& byte_size);
 
   protected:
     virtual void get(void* dst, size_t const& src_offset, size_t const& byte_size) = 0;
@@ -22,6 +23,7 @@ template <typename ParentAllocationT> class SubAllocation : Allocation<SubAlloca
     void get(void* dst) { get(dst, 0, _size); }
     void write(const void* data) { write(0, data, _size); }
     void copy(SubAllocation<ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
+    void realloc(size_t const& byte_size) { static_assert(false, "unimplemented realloc"); }
 
     bool operator==(const SubAllocation& other) const {
         return _offset == other._offset && _size == other._size && _parent == other._parent;
@@ -45,6 +47,7 @@ template <typename ParentAllocationT> class SubAllocation : Allocation<SubAlloca
               size_t const& byte_size) {
         _parent->copy(dst_allocation->_parent, dst_offset + dst_allocation->_offset, src_offset + _offset, byte_size);
     }
+    friend class SubAllocation<SubAllocation<ParentAllocationT>>;
 
     /* FIXME:
      * Free block from parent

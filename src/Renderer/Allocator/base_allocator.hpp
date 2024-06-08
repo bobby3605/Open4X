@@ -17,7 +17,12 @@ template <typename AllocationT, typename... Args> class BaseAllocator {
         }
     }
     AllocationT* create_buffer(Args... args, std::string const& name) {
-        AllocationT* allocation = new AllocationT(args...);
+        AllocationT* allocation;
+        if constexpr (std::is_same_v<AllocationT, GPUAllocation>) {
+            allocation = new AllocationT(args..., name);
+        } else {
+            allocation = new AllocationT(args...);
+        }
         if (_allocations.count(name) != 0) {
             throw std::runtime_error(name + " already exists!");
         } else {
