@@ -1,4 +1,10 @@
 #include "common.hpp"
+#include <fcntl.h>
+#include <stdexcept>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <vulkan/vulkan_core.h>
 
 def_vk_ext_cpp(vkGetDescriptorSetLayoutSizeEXT);
@@ -34,21 +40,6 @@ std::string get_filename_no_ext(std::string file_path) {
     }
 }
 
-std::vector<char> read_file(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file: " + filename);
-    }
-
-    size_t file_size = (size_t)file.tellg();
-    std::vector<char> buffer(file_size);
-    file.seekg(0);
-    file.read(buffer.data(), file_size);
-    file.close();
-    return buffer;
-}
-
 // TODO
 // Find a faster way to extract the valid buffer usage flags
 // Flags like indirect need to be removed before the map can work properly
@@ -72,4 +63,41 @@ VkBufferUsageFlags type_to_usage(VkDescriptorType type) {
     // TODO
     // Print hex string or constant name
     throw std::runtime_error("Failed to find buffer usage for descriptor type: " + std::to_string(type));
+}
+
+MMIO::MMIO(std::filesystem::path const& file_path, int oflag, size_t size) {
+    _fd = open(file_path.c_str(), oflag, (mode_t)0600);
+    if (_fd == -1) {
+        throw std::runtime_error("failed to open file: " + file_path.string() + " errno: " + std::to_string(errno));
+    }
+    struct stat sb;
+    fstat(_fd, &sb);
+    _size = sb.st_size;
+    // default 0 size when reading,
+    // non-zero when writing
+    if (size != 0) {
+        _size = size;
+    }
+    int prot;
+    if (oflag == O_RDONLY) {
+        prot = PROT_READ;
+    } else if (oflag & O_WRONLY || oflag & O_RDWR) {
+        prot = PROT_WRITE | (oflag & O_RDWR ? PROT_WRITE : 0);
+        if (ftruncate(_fd, _size) == -1) {
+            close(_fd);
+            throw std::runtime_error("failed to truncate file: " + file_path.string() + " errno: " + std::to_string(errno));
+        }
+    } else {
+        throw std::runtime_error("MMIO unknown oflag: " + std::to_string(oflag));
+    }
+    _mapping = mmap(NULL, _size, prot, MAP_SHARED, _fd, 0);
+    if (_mapping == MAP_FAILED) {
+        close(_fd);
+        throw std::runtime_error("failed to mmap file: " + file_path.string() + " errno: " + std::to_string(errno));
+    }
+}
+
+MMIO::~MMIO() {
+    munmap(_mapping, _size);
+    close(_fd);
 }

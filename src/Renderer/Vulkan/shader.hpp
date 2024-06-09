@@ -15,6 +15,7 @@ class Shader {
 
   private:
     std::filesystem::path _path;
+    std::filesystem::path _cache_path;
     std::vector<uint32_t> _spirv;
     std::string _preamble = "";
     std::string _entry_point = "main";

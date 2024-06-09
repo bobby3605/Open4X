@@ -2,7 +2,10 @@
 #define NEWCOMMON_H_
 
 #include <cstdint>
+#include <fcntl.h>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
@@ -47,8 +50,6 @@ std::string get_filename(std::string file_path);
 
 std::string get_filename_no_ext(std::string file_path);
 
-std::vector<char> read_file(const std::string& filename);
-
 // NOTE:
 // align to a power of 2
 inline std::size_t align(std::size_t offset, std::size_t alignment) { return (offset + (alignment - 1)) & -alignment; }
@@ -64,5 +65,28 @@ const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = 
 
 VkDescriptorType usage_to_type(VkBufferUsageFlags usage_flags);
 VkBufferUsageFlags type_to_usage(VkDescriptorType type);
+
+class MMIO {
+    int _fd;
+    void* _mapping;
+    size_t _size;
+
+  public:
+    MMIO(std::filesystem::path const& file_path, int oflag, size_t size = 0);
+    void* mapping() { return _mapping; }
+    const size_t& size() const { return _size; }
+    ~MMIO();
+};
+
+template <typename T> void read_file(std::filesystem::path const& file_path, std::vector<T>& buffer) {
+    MMIO mmio = MMIO(file_path, O_RDONLY);
+    buffer.resize(mmio.size() / sizeof(T));
+    memcpy(buffer.data(), mmio.mapping(), mmio.size());
+}
+
+template <typename T> void write_file(std::filesystem::path const& file_path, std::vector<T>& buffer) {
+    MMIO mmio = MMIO(file_path, O_RDWR | O_CREAT | O_TRUNC, buffer.size() * sizeof(T));
+    memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
+}
 
 #endif // NEWCOMMON_H_

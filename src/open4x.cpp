@@ -63,6 +63,11 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 
 Open4X::Open4X() {
     creationTime = std::chrono::high_resolution_clock::now();
+    // ensure cache directories exist
+    std::string directory = "assets/cache/shaders/";
+    std::filesystem::create_directories(directory);
+    directory = "assets/cache/images/";
+    std::filesystem::create_directories(directory);
     loadSettings();
     if (NEW_RENDERER) {
         new Window(640, 480, "Open 4X");
@@ -136,7 +141,6 @@ void Open4X::loadSettings() {
 }
 
 void Open4X::run() {
-
     if (NEW_RENDERER) {
         std::string base_path = std::filesystem::current_path().string();
         Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");

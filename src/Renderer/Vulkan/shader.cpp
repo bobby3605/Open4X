@@ -46,7 +46,16 @@ static inline VkPipelineBindPoint flag_to_bind_point(VkShaderStageFlagBits stage
 
 Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout)
     : _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
-    compile();
+    std::string base_cache_path = "assets/cache/shaders/";
+    _cache_path = std::filesystem::path(base_cache_path + get_filename(file_path) + ".spv");
+    // TODO
+    // Compare against file hash
+    if (std::filesystem::exists(_cache_path)) {
+        read_file(_cache_path, _spirv);
+        _stage_info.stage = std::get<VkShaderStageFlagBits>(get_stage(_path));
+    } else {
+        compile();
+    }
     create_module();
     // TODO:
     // Should this be before or after compile?
@@ -84,7 +93,8 @@ void Shader::compile() {
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
-    std::vector<char> shader_code = read_file(_path);
+    std::vector<char> shader_code;
+    read_file(_path, shader_code);
     const char* shader_string = shader_code.data();
     const int shader_length = shader_code.size();
     const char* shader_names = _path.c_str();
@@ -106,7 +116,7 @@ void Shader::compile() {
 
     EShMessages rules;
     rules = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
-    bool debug = false;
+    bool debug = Device::device->enable_validation_layers;
     if (debug) {
         rules = static_cast<EShMessages>(rules | EShMsgDebugInfo);
     }
@@ -127,16 +137,16 @@ void Shader::compile() {
     shader_program.addShader(&shader);
     result = shader_program.link(EShMsgDefault);
     if (!result) {
-        std::string err = "Shader linking failed for: " + _path.string() + "\n" + shader.getInfoLog();
+        std::string err = "Shader linking failed for: " + _path.string() + "\n" + shader_program.getInfoLog();
         if (debug)
-            err += shader.getInfoDebugLog();
+            err += shader_program.getInfoDebugLog();
         throw std::runtime_error(err);
     }
     result = shader_program.mapIO();
     if (!result) {
-        std::string err = "Shader IO mapping failed for: " + _path.string() + "\n" + shader.getInfoLog();
+        std::string err = "Shader IO mapping failed for: " + _path.string() + "\n" + shader_program.getInfoLog();
         if (debug)
-            err += shader.getInfoDebugLog();
+            err += shader_program.getInfoDebugLog();
         throw std::runtime_error(err);
     }
 
@@ -157,6 +167,7 @@ void Shader::compile() {
             throw std::runtime_error("Optimization failed for file: " + _path.string());
         }
     }
+    write_file(_cache_path, _spirv);
 }
 
 void Shader::reflect() {
