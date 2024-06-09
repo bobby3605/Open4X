@@ -39,6 +39,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
+#include <random>
 
 #define NEW_RENDERER 1
 
@@ -61,16 +62,15 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 }
 
 Open4X::Open4X() {
+    creationTime = std::chrono::high_resolution_clock::now();
     loadSettings();
     if (NEW_RENDERER) {
-        creationTime = std::chrono::high_resolution_clock::now();
         new Window(640, 480, "Open 4X");
         glfwSetKeyCallback(Window::window->glfw_window(), key_callback);
         renderer = new Renderer((NewSettings*)settings.get());
         _model_manager = new ModelManager(renderer->draw_allocators);
         _object_manager = new ObjectManager();
     } else {
-        creationTime = std::chrono::high_resolution_clock::now();
         vulkanWindow = new VulkanWindow(640, 480, "Open 4X");
         glfwSetKeyCallback(vulkanWindow->getGLFWwindow(), key_callback);
 
@@ -140,8 +140,25 @@ void Open4X::run() {
     if (NEW_RENDERER) {
         std::string base_path = std::filesystem::current_path().string();
         Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
-        for (uint32_t i = 0; i < 2; ++i) {
-            _object_manager->add_object("box_" + std::to_string(i), box_model)->position({i * 2, i, i});
+        std::mt19937 mt(time(NULL));
+        std::uniform_real_distribution<float> distribution(0, settings->randLimit);
+        srand(time(NULL));
+        auto prealloc_start_time = std::chrono::high_resolution_clock::now();
+        box_model->preallocate(settings->extraObjectCount);
+        std::cout << "prealloc time: "
+                  << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
+                                                                                     prealloc_start_time)
+                         .count()
+                  << "ms" << std::endl;
+        for (uint32_t i = 0; i < settings->extraObjectCount; ++i) {
+            _object_manager->add_object("box_" + std::to_string(i), box_model)
+                ->position({distribution(mt), distribution(mt), distribution(mt)});
+        }
+
+        if (settings->showFPS) {
+            std::stringstream title;
+            title << "objects: " << _object_manager->object_count();
+            glfwSetWindowTitle(Window::window->glfw_window(), title.str().c_str());
         }
         Camera cam;
         // TODO
@@ -152,6 +169,9 @@ void Open4X::run() {
         SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_allocator->alloc();
         ShaderGlobals shader_globals;
         auto start_time = std::chrono::high_resolution_clock::now();
+        std::cout << "Total load time: "
+                  << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
+                  << std::endl;
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             glfwPollEvents();
             _object_manager->refresh_instance_data();

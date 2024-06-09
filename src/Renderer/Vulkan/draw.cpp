@@ -47,6 +47,11 @@ Draw::~Draw() {
     // Free instance data
 }
 
+void Draw::preallocate(uint32_t count) {
+    _allocators.instance_data->preallocate(count);
+    instance_indices_allocator->preallocate(count);
+}
+
 InstanceAllocPair Draw::add_instance() {
     // TODO
     // preallocate when creating a large amount of instances

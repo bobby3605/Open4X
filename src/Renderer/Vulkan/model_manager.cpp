@@ -23,3 +23,5 @@ Model* ModelManager::get_model(std::filesystem::path model_path) {
         return model;
     }
 }
+
+void ModelManager::preallocate(std::filesystem::path model_path, uint32_t count) { get_model(model_path)->preallocate(count); }

@@ -94,6 +94,7 @@ class Draw {
     Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
          SubAllocation<FixedAllocator, GPUAllocation>* material_alloc);
     ~Draw();
+    void preallocate(uint32_t count);
     InstanceAllocPair add_instance();
     void remove_instance(InstanceAllocPair instance);
     void write_instance_data(uint32_t instance_id, InstanceData const& instance_data);

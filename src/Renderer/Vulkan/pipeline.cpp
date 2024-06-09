@@ -3,7 +3,6 @@
 #include "common.hpp"
 #include "device.hpp"
 #include "draw.hpp"
-#include <iostream>
 #include <tuple>
 #include <unordered_map>
 #include <utility>

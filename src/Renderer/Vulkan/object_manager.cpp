@@ -34,3 +34,5 @@ void ObjectManager::refresh_instance_data() {
         invalid_callback.pop()->refresh_instance_data();
     }
 }
+
+size_t ObjectManager::object_count() { return _objects.size(); }

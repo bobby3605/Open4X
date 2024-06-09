@@ -12,6 +12,7 @@ class ObjectManager {
     Object* add_object(std::string name, Model* model);
     void remove_object(std::string name);
     Object* get_object(std::string name);
+    size_t object_count();
     void refresh_instance_data();
 
   private:

@@ -9,6 +9,7 @@ class ModelManager {
     ModelManager(DrawAllocators& draw_allocators);
     ~ModelManager();
     Model* get_model(std::filesystem::path model_path);
+    void preallocate(std::filesystem::path model_path, uint32_t count);
 
   private:
     std::unordered_map<std::filesystem::path, Model*> _models;

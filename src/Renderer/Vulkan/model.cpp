@@ -197,3 +197,22 @@ void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& ins
         _model->_nodes[child_node_index.value()]->add_instance(model, instances);
     }
 }
+
+void Model::preallocate(uint32_t count) {
+    // NOTE:
+    // This needs to traverse the model in the same order that write_instance_data does
+    for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
+        _nodes[root_node_index.value()]->preallocate(this, count);
+    }
+}
+
+void Model::Node::preallocate(Model* model, uint32_t count) {
+    if (_mesh_index.has_value()) {
+        for (const auto& primitive : model->_meshes.at(_mesh_index.value()).primitives()) {
+            primitive._draw->preallocate(count);
+        }
+    }
+    for (auto& child_node_index : _child_node_indices) {
+        _model->_nodes[child_node_index.value()]->preallocate(model, count);
+    }
+}
