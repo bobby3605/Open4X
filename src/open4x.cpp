@@ -85,6 +85,7 @@ Open4X::Open4X() {
 
 Open4X::~Open4X() {
     if (NEW_RENDERER) {
+        delete _object_manager;
         delete _model_manager;
         delete renderer;
         delete Window::window;
@@ -177,11 +178,11 @@ void Open4X::run() {
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
                   << std::endl;
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
-            glfwPollEvents();
-            _object_manager->refresh_instance_data();
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;
+            glfwPollEvents();
+            _object_manager->refresh_invalid_objects();
             cam.update_transform(frame_time);
             // TODO
             // cache camera matrix

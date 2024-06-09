@@ -101,6 +101,8 @@ void GPUAllocation::alloc(size_t const& byte_size) {
     check_result(vmaCreateBuffer(Device::device->vma_allocator(), &_buffer_info, &_alloc_info, &_buffer, &_vma_allocation, nullptr),
                  "failed to create buffer " + _name);
     Device::device->set_debug_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)_buffer, _name);
+    vmaMapMemory(Device::device->vma_allocator(), _vma_allocation, &_mapped);
+    _is_mapped = true;
 
     // NOTE:
     // vk_device() should be the same as what was used to create the allocator
@@ -116,6 +118,9 @@ size_t const& GPUAllocation::size() const { return _buffer_info.size; }
 
 void GPUAllocation::free() {
     if (_buffer != VK_NULL_HANDLE) {
+        if (_is_mapped) {
+            vmaUnmapMemory(Device::device->vma_allocator(), _vma_allocation);
+        }
         vmaDestroyBuffer(Device::device->vma_allocator(), _buffer, _vma_allocation);
     }
 }
@@ -123,16 +128,22 @@ void GPUAllocation::free() {
 GPUAllocation::~GPUAllocation() { free(); }
 
 void GPUAllocation::get(void* dst, size_t const& offset, size_t const& byte_size) {
-    //   std::lock_guard<std::mutex> lock(_realloc_lock);
-    vmaCopyAllocationToMemory(Device::device->vma_allocator(), _vma_allocation, offset, dst, byte_size);
+    if (!_is_mapped) {
+        throw std::runtime_error("tried to read from unmapped gpu buffer: " + _name);
+    } else {
+        memcpy(dst, reinterpret_cast<unsigned char*>(_mapped) + offset, byte_size);
+    }
 }
 
 void GPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
     if (_buffer_info.size < (dst_offset + byte_size)) {
         std::cout << "write realloc, should never be here, buffer: " << _name << std::endl;
     }
-    //    std::lock_guard<std::mutex> lock(_realloc_lock);
-    vmaCopyMemoryToAllocation(Device::device->vma_allocator(), src_data, _vma_allocation, dst_offset, byte_size);
+    if (!_is_mapped) {
+        throw std::runtime_error("tried to write to unmapped gpu buffer: " + _name);
+    } else {
+        memcpy(reinterpret_cast<unsigned char*>(_mapped) + dst_offset, src_data, byte_size);
+    }
 }
 
 void GPUAllocation::copy(GPUAllocation* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size) {
@@ -176,6 +187,6 @@ void GPUAllocation::realloc(size_t const& byte_size) {
     new_alloc._buffer = VK_NULL_HANDLE;
     _vma_allocation = new_alloc._vma_allocation;
     _addr_info = new_alloc._addr_info;
-    // NOTE:
-    // only _buffer, _vma_allocation, and _addr_info need to be copied/moved
+    _is_mapped = new_alloc._is_mapped;
+    _mapped = new_alloc._mapped;
 }

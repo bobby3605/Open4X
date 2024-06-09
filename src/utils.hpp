@@ -8,27 +8,62 @@
 // thread safe queue
 template <typename T> class safe_queue {
   public:
+    ~safe_queue() { exit(); }
     void push(T item) {
-        std::unique_lock<std::mutex> lock(mutex);
-        queue.push(item);
-        cond.notify_one();
+        std::unique_lock<std::mutex> lock(_mutex);
+        _queue.push(item);
+        _cond.notify_one();
     }
     T pop() {
-        std::unique_lock<std::mutex> lock(mutex);
-        cond.wait(lock, [this]() { return !queue.empty(); });
-        T item = queue.front();
-        queue.pop();
+        std::unique_lock<std::mutex> lock(_mutex);
+        _cond.wait(lock, [&]() { return _should_exit || !_queue.empty(); });
+        if (_should_exit) {
+            return nullptr;
+        }
+        T item = _queue.front();
+        _queue.pop();
         return item;
     }
     bool empty() {
-        std::unique_lock<std::mutex> lock(mutex);
-        return queue.empty();
+        std::unique_lock<std::mutex> lock(_mutex);
+        return _queue.empty();
+    }
+
+    void exit() {
+        _should_exit = true;
+        _cond.notify_all();
     }
 
   private:
-    std::queue<T> queue;
-    std::mutex mutex;
-    std::condition_variable cond;
+    std::queue<T> _queue;
+    std::mutex _mutex;
+    std::condition_variable _cond;
+    std::atomic<bool> _should_exit = false;
+};
+
+template <typename T> class safe_queue_external_sync {
+  public:
+    void push(T item) {
+        std::unique_lock<std::mutex> lock(_mutex);
+        _queue.push(item);
+    }
+    T pop() {
+        std::unique_lock<std::mutex> lock(_mutex);
+        if (_queue.empty()) {
+            return nullptr;
+        }
+        T item = _queue.front();
+        _queue.pop();
+        return item;
+    }
+    bool empty() {
+        std::unique_lock<std::mutex> lock(_mutex);
+        return _queue.empty();
+    }
+
+  private:
+    std::queue<T> _queue;
+    std::mutex _mutex;
 };
 
 // partially apply tail arguments

@@ -130,6 +130,8 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VmaAllocationCreateInfo _alloc_info{};
     VkDescriptorDataEXT _descriptor_data;
     VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
+    bool _is_mapped = false;
+    void* _mapped;
 
     void alloc(size_t const& byte_size);
     void free();
