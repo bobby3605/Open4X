@@ -29,7 +29,7 @@ class Model {
   public:
     Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material);
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
-    std::vector<InstanceAllocPair> add_instance();
+    void add_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(uint32_t count);
 
     class Scene {

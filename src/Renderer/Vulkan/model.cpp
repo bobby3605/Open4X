@@ -180,15 +180,13 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
     }
 }
 
-std::vector<InstanceAllocPair> Model::add_instance() {
-    std::vector<InstanceAllocPair> instances;
+void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
     instances.reserve(_total_instance_data_count);
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
         _nodes[root_node_index.value()]->add_instance(this, instances);
     }
-    return instances;
 }
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {

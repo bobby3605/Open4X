@@ -6,7 +6,7 @@
 Object::Object() { register_invalid_matrices(); }
 
 Object::Object(Model* model, std::vector<Object*>* invalid_callback) : _model(model), _invalid_objects(invalid_callback) {
-    _instances = model->add_instance();
+    model->add_instance(_instances);
     register_invalid_matrices();
 }
 
