@@ -193,7 +193,6 @@ void Open4X::run() {
         std::cout << "Total load time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
                   << std::endl;
-
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();

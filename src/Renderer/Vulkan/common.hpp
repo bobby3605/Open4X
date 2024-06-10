@@ -1,10 +1,14 @@
 #ifndef NEWCOMMON_H_
 #define NEWCOMMON_H_
 
+#define GLM_FORCE_RADIANS
+#define GLM_ENABLE_EXPERIMENTAL
 #include <cstdint>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <unordered_map>
@@ -91,5 +95,7 @@ template <typename T> void write_file(std::filesystem::path const& file_path, st
     MMIO mmio = MMIO(file_path, O_RDWR | O_CREAT | O_TRUNC, buffer.size() * sizeof(T));
     memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
 }
+
+void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotation, glm::vec3 const& scale, glm::mat4& trs);
 
 #endif // NEWCOMMON_H_

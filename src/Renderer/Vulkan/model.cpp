@@ -1,4 +1,5 @@
 #include "model.hpp"
+#include "common.hpp"
 #include "draw.hpp"
 #include "fastgltf/core.hpp"
 #include "fastgltf/math.hpp"
@@ -52,10 +53,8 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     : _model(model), _node(node) {
     if (std::holds_alternative<fastgltf::TRS>(node->transform)) {
         fastgltf::TRS trs = std::get<fastgltf::TRS>(node->transform);
-        _transform = glm::translate(glm::mat4(1.0f), glm::make_vec3(trs.translation.value_ptr()));
-        glm::quat r = glm::make_quat(trs.rotation.value_ptr());
-        _transform = _transform * glm::toMat4(r);
-        _transform = _transform * glm::scale(glm::make_vec3(trs.scale.value_ptr()));
+        fast_trs_matrix(glm::make_vec3(trs.translation.value_ptr()), glm::make_quat(trs.rotation.value_ptr()),
+                        glm::make_vec3(trs.scale.value_ptr()), _transform);
     } else {
         auto& mat = std::get<fastgltf::math::fmat4x4>(node->transform);
         _transform[0] = glm::make_vec4(mat[0].value_ptr());
