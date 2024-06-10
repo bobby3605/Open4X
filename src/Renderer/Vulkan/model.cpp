@@ -31,7 +31,7 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
         throw std::runtime_error("error " + std::string(fastgltf::getErrorMessage(error)) + " when loading gltf: " + path.string());
     }
     _asset = asset.get_if();
-    _default_scene = _asset->defaultScene.has_value() ? _asset->defaultScene.value() : 0;
+    _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
         _scenes.emplace_back(Scene(this, &scene, draw_allocators));
@@ -66,13 +66,13 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     // Check if node has mesh
     if (node->meshIndex.has_value()) {
         ++_model->_total_instance_data_count;
-        _mesh_index = node->meshIndex.value();
+        _mesh_index = *node->meshIndex;
         // NOTE:
         // resize is fine here because it's a vector<optional>
-        _model->_meshes.resize(_mesh_index.value() + 1);
+        _model->_meshes.resize(*_mesh_index + 1);
         // Create mesh if it doesn't already exist
-        if (!_model->_meshes[_mesh_index.value()].has_value()) {
-            _model->_meshes[_mesh_index.value()] = Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
+        if (!_model->_meshes[*_mesh_index].has_value()) {
+            _model->_meshes[*_mesh_index] = Mesh(model, &_model->_asset->meshes[*_mesh_index], draw_allocators);
         }
     }
 
@@ -105,23 +105,23 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
 
     SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
     if (primitive->materialIndex.has_value()) {
-        if (!model->_material_allocs.contains(primitive->materialIndex.value())) {
+        if (!model->_material_allocs.contains(*primitive->materialIndex)) {
             NewMaterialData material_data{};
-            fastgltf::Material& material = model->_asset->materials[primitive->materialIndex.value()];
+            fastgltf::Material& material = model->_asset->materials[*primitive->materialIndex];
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
             std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
             if (base_color_texture.has_value()) {
-                std::vector<glm::vec2> texcoords = get_texcoords(base_color_texture.value().texCoordIndex);
+                std::vector<glm::vec2> texcoords = get_texcoords((*base_color_texture).texCoordIndex);
                 for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
                     tmp_vertices[i].tex_coord = texcoords[i];
                 }
             }
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
-            model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
+            model->_material_allocs.insert({*primitive->materialIndex, material_alloc});
             material_alloc->write(&material_data);
         } else {
-            material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
+            material_alloc = model->_material_allocs.at(*primitive->materialIndex);
         }
     }
     // FIXME:
@@ -129,7 +129,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
 
     if (primitive->indicesAccessor.has_value()) {
         _vertices = std::move(tmp_vertices);
-        _indices = load_accessor<uint32_t>(_model->_asset, primitive->indicesAccessor.value());
+        _indices = load_accessor<uint32_t>(_model->_asset, *primitive->indicesAccessor);
     } else {
         // Generate indices if none exist
         std::unordered_map<NewVertex, uint32_t> unique_vertices;
@@ -162,7 +162,7 @@ std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coo
 void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances) {
     size_t id_index = 0;
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->write_instance_data(this, object_matrix, instances, id_index);
+        _nodes[*root_node_index]->write_instance_data(this, object_matrix, instances, id_index);
     }
 }
 
@@ -170,13 +170,13 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
                                       size_t& id_index) {
     InstanceData instance_data{};
     if (_mesh_index.has_value()) {
-        for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()]->primitives().size(); ++i) {
+        for (uint32_t i = 0; i < model->_meshes[*_mesh_index]->_primitives.size(); ++i) {
             instance_data.model_matrix = object_matrix * _transform;
             std::get<0>(instances[id_index++])->write(&instance_data);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->write_instance_data(model, object_matrix, instances, id_index);
+        _model->_nodes[*child_node_index]->write_instance_data(model, object_matrix, instances, id_index);
     }
 }
 
@@ -185,18 +185,18 @@ void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->add_instance(this, instances);
+        _nodes[*root_node_index]->add_instance(this, instances);
     }
 }
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[_mesh_index.value()]->primitives()) {
+        for (const auto& primitive : model->_meshes[*_mesh_index]->_primitives) {
             instances.emplace_back(primitive._draw->add_instance());
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->add_instance(model, instances);
+        _model->_nodes[*child_node_index]->add_instance(model, instances);
     }
 }
 
@@ -204,17 +204,17 @@ void Model::preallocate(uint32_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->preallocate(this, count);
+        _nodes[*root_node_index]->preallocate(this, count);
     }
 }
 
 void Model::Node::preallocate(Model* model, uint32_t count) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[_mesh_index.value()]->primitives()) {
+        for (const auto& primitive : model->_meshes[*_mesh_index]->_primitives) {
             primitive._draw->preallocate(count);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->preallocate(model, count);
+        _model->_nodes[*child_node_index]->preallocate(model, count);
     }
 }
