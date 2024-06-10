@@ -3,17 +3,14 @@
 #include "model.hpp"
 #include "object.hpp"
 #include <algorithm>
-#include <iostream>
 #include <thread>
 
 ObjectManager::ObjectManager()
     // Using more threads than supported by the hardware would only slow things down
     : _num_threads(std::min((unsigned int)new_settings->object_refresh_threads, std::thread::hardware_concurrency())), _thread_semaphore(0),
       _thread_barrier(_num_threads + 1) {
-    std::cout << "object_refresh_threads: " << _num_threads << std::endl;
     _vector_slices.reserve(_num_threads);
     for (uint32_t thread_id = 0; thread_id < _num_threads; ++thread_id) {
-        std::cout << "creating thread: " << thread_id << std::endl;
         _threads.emplace_back([&, thread_id] {
             while (true) {
                 _thread_semaphore.acquire();

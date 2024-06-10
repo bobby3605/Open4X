@@ -6,6 +6,6 @@
     "misc": {
         "showFPS": true
         ,"pauseOnMinimization": false
-        ,"object_refresh_threads": 2
+        ,"object_refresh_threads": 15
     }
 }
