@@ -86,4 +86,7 @@ void ObjectManager::refresh_invalid_objects() {
     }
 }
 
-void ObjectManager::preallocate(size_t count) { _invalid_objects.reserve(count); }
+void ObjectManager::preallocate(size_t count) {
+    _invalid_objects.reserve(count);
+    _objects.reserve(count);
+}
