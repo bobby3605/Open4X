@@ -67,8 +67,13 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     if (node->meshIndex.has_value()) {
         ++_model->_total_instance_data_count;
         _mesh_index = node->meshIndex.value();
+        // NOTE:
+        // resize is fine here because it's a vector<optional>
+        _model->_meshes.resize(_mesh_index.value() + 1);
         // Create mesh if it doesn't already exist
-        _model->_meshes.try_emplace(_mesh_index.value(), model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
+        if (!_model->_meshes[_mesh_index.value()].has_value()) {
+            _model->_meshes[_mesh_index.value()] = Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
+        }
     }
 
     _child_node_indices.reserve(_node->children.size());
@@ -165,7 +170,7 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
                                       size_t& id_index) {
     InstanceData instance_data{};
     if (_mesh_index.has_value()) {
-        for (uint32_t i = 0; i < model->_meshes.at(_mesh_index.value()).primitives().size(); ++i) {
+        for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()]->primitives().size(); ++i) {
             instance_data.model_matrix = object_matrix * _transform;
             std::get<0>(instances[id_index++])->write(&instance_data);
         }
@@ -188,7 +193,7 @@ std::vector<InstanceAllocPair> Model::add_instance() {
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes.at(_mesh_index.value()).primitives()) {
+        for (const auto& primitive : model->_meshes[_mesh_index.value()]->primitives()) {
             instances.emplace_back(primitive._draw->add_instance());
         }
     }
@@ -207,7 +212,7 @@ void Model::preallocate(uint32_t count) {
 
 void Model::Node::preallocate(Model* model, uint32_t count) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes.at(_mesh_index.value()).primitives()) {
+        for (const auto& primitive : model->_meshes[_mesh_index.value()]->primitives()) {
             primitive._draw->preallocate(count);
         }
     }

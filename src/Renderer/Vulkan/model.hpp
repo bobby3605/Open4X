@@ -112,12 +112,9 @@ class Model {
     fastgltf::Asset* _asset;
     std::vector<std::optional<Scene>> _scenes;
     std::vector<std::optional<Node>> _nodes;
-    std::unordered_map<uint32_t, Mesh> _meshes;
+    std::vector<std::optional<Mesh>> _meshes;
     std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
-
-  public:
-    std::unordered_map<uint32_t, Mesh> const& meshes() const { return _meshes; }
 
   private:
     // TODO
@@ -125,7 +122,7 @@ class Model {
     fastgltf::Parser _parser;
     fastgltf::MappedGltfFile* _data;
     std::size_t _default_scene;
-    std::size_t _total_instance_data_count;
+    std::size_t _total_instance_data_count = 0;
 };
 
 #endif // MODEL_H_
