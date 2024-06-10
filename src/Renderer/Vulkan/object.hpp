@@ -1,13 +1,12 @@
 #ifndef OBJECT_H_
 #define OBJECT_H_
-#include "../../utils.hpp"
 #include "model.hpp"
 #include <glm/gtx/quaternion.hpp>
 
 class Object {
   public:
     Object();
-    Object(Model* model, safe_queue_external_sync<Object*>* invalid_callback);
+    Object(Model* model, std::vector<Object*>* invalid_objects);
 
     glm::vec3 const& position() { return _position; }
     glm::quat const& rotation() { return _rotation; }
@@ -30,7 +29,7 @@ class Object {
     bool _instance_data_invalid = false;
     std::vector<InstanceAllocPair> _instances;
 
-    safe_queue_external_sync<Object*>* _invalid_callback = nullptr;
+    std::vector<Object*>* _invalid_objects = nullptr;
 };
 
 #endif // OBJECT_H_

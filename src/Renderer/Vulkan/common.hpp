@@ -38,11 +38,14 @@ def_vk_ext_hpp(vkCmdSetDescriptorBufferOffsets2EXT);
 #define load_device_addr(f_name, device) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetDeviceProcAddr(device, #f_name))
 
 struct NewSettings {
-    uint32_t extraObjectCount = 10000;
-    uint32_t randLimit = 100;
-    bool showFPS = true;
-    bool pauseOnMinimization = false;
+    uint32_t extra_object_count = 10000;
+    uint32_t rand_limit = 100;
+    bool show_fps = true;
+    bool pause_on_minimization = false;
+    uint32_t object_refresh_threads = 2;
 };
+
+inline NewSettings* new_settings;
 
 std::string get_file_extension(std::string file_path);
 

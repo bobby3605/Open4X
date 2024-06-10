@@ -4,7 +4,7 @@
 
 Object::Object() { register_invalid_matrices(); }
 
-Object::Object(Model* model, safe_queue_external_sync<Object*>* invalid_callback) : _model(model), _invalid_callback(invalid_callback) {
+Object::Object(Model* model, std::vector<Object*>* invalid_callback) : _model(model), _invalid_objects(invalid_callback) {
     _instances = model->add_instance();
     register_invalid_matrices();
 }
@@ -41,9 +41,9 @@ void Object::register_invalid_matrices() {
     if (_instance_data_invalid == false) {
         _instance_data_invalid = true;
         // NOTE:
-        // Camera sets _invalid_callback to nullptr
-        if (_invalid_callback != nullptr) {
-            _invalid_callback->push(this);
+        // Camera sets _invalid_objects to nullptr
+        if (_invalid_objects != nullptr) {
+            _invalid_objects->push_back(this);
         }
     }
 }

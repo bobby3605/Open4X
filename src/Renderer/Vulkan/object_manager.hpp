@@ -1,8 +1,11 @@
 #ifndef OBJECT_MANAGER_H_
 #define OBJECT_MANAGER_H_
 
+#include "../../utils.hpp"
 #include "object.hpp"
+#include <barrier>
 #include <glm/fwd.hpp>
+#include <semaphore>
 #include <string>
 #include <unordered_map>
 
@@ -18,11 +21,13 @@ class ObjectManager {
 
   private:
     std::unordered_map<std::string, Object*> _objects;
-    safe_queue_external_sync<Object*> invalid_callback;
+    std::vector<Object*> _invalid_objects;
     std::vector<std::thread> _threads;
+    unsigned int _num_threads;
+    std::counting_semaphore<> _thread_semaphore;
+    std::barrier<> _thread_barrier;
     std::atomic<bool> _stop_threads = false;
-    std::mutex _invalid_callback_mutex;
-    std::condition_variable _invalid_callback_cond;
+    std::vector<VectorSlice> _vector_slices;
 };
 
 #endif // OBJECT_MANAGER_H_

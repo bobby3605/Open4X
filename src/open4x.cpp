@@ -1,5 +1,6 @@
 #include "Renderer/Allocator/base_allocator.hpp"
 #include "Renderer/Allocator/sub_allocator.hpp"
+#include "Renderer/Vulkan/common.hpp"
 #include "Renderer/Vulkan/memory_manager.hpp"
 #include "Renderer/Vulkan/object_manager.hpp"
 #include "Renderer/Vulkan/rendergraph.hpp"
@@ -136,6 +137,13 @@ void Open4X::loadSettings() {
         settings->showFPS = miscJSON["showFPS"].GetBool();
         settings->pauseOnMinimization = miscJSON["pauseOnMinimization"].GetBool();
 
+        new_settings = new NewSettings;
+        new_settings->extra_object_count = settings->extraObjectCount;
+        new_settings->rand_limit = settings->randLimit;
+        new_settings->show_fps = settings->showFPS;
+        new_settings->pause_on_minimization = settings->pauseOnMinimization;
+        new_settings->object_refresh_threads = miscJSON["object_refresh_threads"].GetInt();
+
     } else {
         std::cout << "Failed to open settings file, using defaults" << std::endl;
     }
@@ -173,10 +181,19 @@ void Open4X::run() {
 
         SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_allocator->alloc();
         ShaderGlobals shader_globals;
+        auto refresh_start = std::chrono::high_resolution_clock::now();
+        _object_manager->refresh_invalid_objects();
+        std::cout << "initial refresh time: "
+                  << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
+                                                                                     refresh_start)
+                         .count()
+                  << "ms" << std::endl;
+
         auto start_time = std::chrono::high_resolution_clock::now();
         std::cout << "Total load time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
                   << std::endl;
+
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();

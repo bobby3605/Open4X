@@ -1,30 +1,31 @@
 #include "object_manager.hpp"
+#include "common.hpp"
 #include "model.hpp"
 #include "object.hpp"
 #include <algorithm>
-#include <chrono>
-#include <condition_variable>
-#include <mutex>
+#include <iostream>
 #include <thread>
 
-ObjectManager::ObjectManager() {
+ObjectManager::ObjectManager()
     // Using more threads than supported by the hardware would only slow things down
-    uint32_t num_threads = std::min((unsigned int)2, std::thread::hardware_concurrency());
-    for (uint32_t i = 0; i < num_threads; ++i) {
-        _threads.emplace_back([&] {
-            while (!_stop_threads) {
-                Object* obj = invalid_callback.pop();
-                // wait until signaled to start,
-                // and can acquire an object from the queue
-                while (obj == nullptr) {
-                    if (_stop_threads) {
-                        return;
-                    }
-                    std::unique_lock<std::mutex> lock(_invalid_callback_mutex);
-                    _invalid_callback_cond.wait(lock);
-                    obj = invalid_callback.pop();
+    : _num_threads(std::min((unsigned int)new_settings->object_refresh_threads, std::thread::hardware_concurrency())), _thread_semaphore(0),
+      _thread_barrier(_num_threads + 1) {
+    std::cout << "object_refresh_threads: " << _num_threads << std::endl;
+    _vector_slices.reserve(_num_threads);
+    for (uint32_t thread_id = 0; thread_id < _num_threads; ++thread_id) {
+        std::cout << "creating thread: " << thread_id << std::endl;
+        _threads.emplace_back([&, thread_id] {
+            while (true) {
+                _thread_semaphore.acquire();
+                if (_stop_threads) {
+                    return;
                 }
-                obj->refresh_instance_data();
+                VectorSlice& slice = _vector_slices[thread_id];
+                size_t end_offset = slice.offset + slice.size;
+                for (size_t i = slice.offset; i < end_offset; ++i) {
+                    _invalid_objects[i]->refresh_instance_data();
+                }
+                _thread_barrier.arrive_and_wait();
             }
         });
     }
@@ -33,7 +34,7 @@ ObjectManager::ObjectManager() {
 ObjectManager::~ObjectManager() {
     // wake up all threads and cause them to exit
     _stop_threads = true;
-    _invalid_callback_cond.notify_all();
+    _thread_semaphore.release(_num_threads);
     for (auto& thread : _threads) {
         thread.join();
     }
@@ -44,8 +45,8 @@ ObjectManager::~ObjectManager() {
 
 Object* ObjectManager::add_object(std::string name, Model* model) {
     // TODO
-    // Don't pass _model_matrices_buffer into object
-    Object* object = new Object(model, &invalid_callback);
+    // preallocate _invalid_objects
+    Object* object = new Object(model, &_invalid_objects);
     _objects.insert(std::pair<std::string, Object*>{name, object});
     return object;
 }
@@ -66,8 +67,26 @@ Object* ObjectManager::get_object(std::string name) {
 size_t ObjectManager::object_count() { return _objects.size(); }
 
 void ObjectManager::refresh_invalid_objects() {
-    _invalid_callback_cond.notify_all();
-    while (!invalid_callback.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    size_t obj_count = _invalid_objects.size();
+    // Only use extra threads if there's enough objects waiting to be processed
+    if (obj_count < _num_threads) {
+        for (auto& obj : _invalid_objects) {
+            obj->refresh_instance_data();
+        }
+    } else {
+        size_t slice_size = obj_count / _num_threads;
+        size_t remainder = obj_count % _num_threads;
+        size_t curr_offset = 0;
+        for (size_t i = 0; i < _num_threads; ++i) {
+            _vector_slices[i].size = slice_size;
+            _vector_slices[i].offset = curr_offset;
+            curr_offset += slice_size;
+            if (i == _num_threads - 1) {
+                _vector_slices[i].size += remainder;
+            }
+        }
+        _thread_semaphore.release(_num_threads);
+        _thread_barrier.arrive_and_wait();
+        _invalid_objects.clear();
     }
 }

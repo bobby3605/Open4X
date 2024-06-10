@@ -66,6 +66,11 @@ template <typename T> class safe_queue_external_sync {
     std::mutex _mutex;
 };
 
+struct VectorSlice {
+    size_t offset;
+    size_t size;
+};
+
 // partially apply tail arguments
 // returns a std::function<ReturnType(FirstArgumentType)>
 // could probably be made more generic
