@@ -20,7 +20,7 @@ class Object {
 
   protected:
     Model* _model = nullptr;
-    glm::vec3 _position{1.0f, 1.0f, 1.0f};
+    glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
     glm::mat4 _object_matrix{1.0f};
