@@ -25,6 +25,8 @@ file(GLOB SOURCES
   src/Renderer/Vulkan/*.cpp
   src/Renderer/Allocator/*.hpp
   src/Renderer/Allocator/*.cpp
+  src/utils/*.hpp
+  src/utils/*.cpp
   )
 
 add_executable("${PROJECT_NAME}" ${SOURCES})

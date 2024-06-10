@@ -1,12 +1,10 @@
 #ifndef OBJECT_MANAGER_H_
 #define OBJECT_MANAGER_H_
 
-#include "../../utils.hpp"
+#include "../../utils/utils.hpp"
 #include "object.hpp"
-#include <barrier>
 #include <cstddef>
 #include <glm/fwd.hpp>
-#include <semaphore>
 #include <string>
 #include <unordered_map>
 
@@ -28,12 +26,8 @@ class ObjectManager {
     std::vector<Object> _objects;
     std::unordered_map<std::string, size_t> _object_names;
     std::vector<Object*> _invalid_objects;
-    std::vector<std::thread> _threads;
-    unsigned int _num_threads;
-    std::counting_semaphore<> _thread_semaphore;
-    std::barrier<> _thread_barrier;
-    std::atomic<bool> _stop_threads = false;
-    std::vector<VectorSlice> _vector_slices;
+    VectorSlicer<Object*>* _invalid_objects_slicer;
+    std::mutex _invalid_objects_mutex;
 };
 
 #endif // OBJECT_MANAGER_H_

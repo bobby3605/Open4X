@@ -181,6 +181,9 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
 }
 
 void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
+    // TODO
+    // pre allocate instances,
+    // lots of small allocations are slow
     instances.reserve(_total_instance_data_count);
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
@@ -200,7 +203,7 @@ void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& ins
     }
 }
 
-void Model::preallocate(uint32_t count) {
+void Model::preallocate(size_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
@@ -208,7 +211,7 @@ void Model::preallocate(uint32_t count) {
     }
 }
 
-void Model::Node::preallocate(Model* model, uint32_t count) {
+void Model::Node::preallocate(Model* model, size_t count) {
     if (_mesh_index.has_value()) {
         for (const auto& primitive : model->_meshes[*_mesh_index]->_primitives) {
             primitive._draw->preallocate(count);

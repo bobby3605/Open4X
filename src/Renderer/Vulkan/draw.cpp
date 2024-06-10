@@ -1,11 +1,13 @@
 #include "draw.hpp"
 #include <cstdint>
 #include <glm/gtx/string_cast.hpp>
+#include <mutex>
 #include <vulkan/vulkan_core.h>
 
 Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
            SubAllocation<FixedAllocator, GPUAllocation>* material_alloc)
     : _allocators(draw_allocators) {
+    std::unique_lock<std::mutex> lock(_alloc_lock);
 
     _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
     _indirect_command.vertexOffset = _vertex_alloc->offset() / sizeof(vertices[0]);
@@ -48,11 +50,13 @@ Draw::~Draw() {
 }
 
 void Draw::preallocate(uint32_t count) {
+    std::unique_lock<std::mutex> lock(_alloc_lock);
     _allocators.instance_data->preallocate(count);
     instance_indices_allocator->preallocate(count);
 }
 
 InstanceAllocPair Draw::add_instance() {
+    std::unique_lock<std::mutex> lock(_alloc_lock);
     // TODO
     // preallocate when creating a large amount of instances
     SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc = _allocators.instance_data->alloc();
@@ -71,6 +75,7 @@ InstanceAllocPair Draw::add_instance() {
 }
 
 void Draw::remove_instance(InstanceAllocPair instance) {
+    std::unique_lock<std::mutex> lock(_alloc_lock);
     SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc;
     SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* instance_index_alloc;
     std::tie(instance_data_alloc, instance_index_alloc) = instance;

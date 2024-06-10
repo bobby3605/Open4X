@@ -3,6 +3,7 @@
 #include "allocation.hpp"
 #include <cstdint>
 #include <deque>
+#include <iostream>
 #include <queue>
 #include <stdexcept>
 
@@ -74,7 +75,12 @@ template <typename ParentAllocationT> class FixedAllocator {
     const ParentAllocationT* parent() const { return _parent; }
     size_t const& block_size() const { return _block_size; }
     size_t const& block_count() const { return _block_count; }
-    void preallocate(uint32_t count) { grow(count); }
+    void preallocate(size_t count) {
+        int grow_size = (int)count - (int)_free_blocks.size();
+        if (grow_size > 0) {
+            grow(grow_size);
+        }
+    }
 
     SubAllocation<FixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
         throw std::runtime_error("unimplemented alloc(byte_size)");
@@ -101,7 +107,7 @@ template <typename ParentAllocationT> class FixedAllocator {
     void grow(uint32_t count) {
         size_t base_size = _parent->size();
         _parent->realloc(base_size + _block_size * count);
-        for (uint32_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             _free_blocks.push(
                 new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
             ++_block_count;
@@ -126,7 +132,12 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
         throw std::runtime_error("unimplemented alloc(byte_size)");
     }
-    void preallocate(uint32_t count) { grow(count); }
+    void preallocate(size_t count) {
+        int grow_size = (int)count - (int)_free_blocks.size();
+        if (grow_size > 0) {
+            grow(grow_size);
+        }
+    }
 
     // TODO:
     // destructor
@@ -173,10 +184,10 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     }
 
   private:
-    void grow(uint32_t count) {
+    void grow(size_t count) {
         size_t base_size = _parent->size();
         _parent->realloc(base_size + _block_size * count);
-        for (uint32_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             _free_blocks.push_back(
                 new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
             // _free_blocks = [0,1,2]

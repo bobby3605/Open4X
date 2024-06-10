@@ -5,7 +5,8 @@
 
 Object::Object() { register_invalid_matrices(); }
 
-Object::Object(Model* model, std::vector<Object*>* invalid_callback) : _model(model), _invalid_objects(invalid_callback) {
+Object::Object(Model* model, std::vector<Object*>* invalid_objects, std::mutex* invalid_objects_lock)
+    : _model(model), _invalid_objects(invalid_objects), _invalid_objects_lock(invalid_objects_lock) {
     model->add_instance(_instances);
     register_invalid_matrices();
 }
@@ -55,6 +56,7 @@ void Object::register_invalid_matrices() {
         // NOTE:
         // Camera sets _invalid_objects to nullptr
         if (_invalid_objects != nullptr) {
+            std::unique_lock<std::mutex> lock(*_invalid_objects_lock);
             _invalid_objects->push_back(this);
         }
     }

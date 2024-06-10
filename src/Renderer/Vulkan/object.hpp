@@ -6,7 +6,7 @@
 class Object {
   public:
     Object();
-    Object(Model* model, std::vector<Object*>* invalid_objects);
+    Object(Model* model, std::vector<Object*>* invalid_objects, std::mutex* invalid_objects_lock);
 
     glm::vec3 const& position() { return _position; }
     glm::quat const& rotation() { return _rotation; }
@@ -30,6 +30,7 @@ class Object {
     std::vector<InstanceAllocPair> _instances;
 
     std::vector<Object*>* _invalid_objects = nullptr;
+    std::mutex* _invalid_objects_lock;
 
     bool _t_invalid = false;
     bool _rs_invalid = false;

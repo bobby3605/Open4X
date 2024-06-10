@@ -1,6 +1,7 @@
 #ifndef DRAW_H_
 #define DRAW_H_
 
+#include <mutex>
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
 #include "../Allocator/sub_allocator.hpp"
@@ -107,6 +108,7 @@ class Draw {
     SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _indirect_commands_alloc;
     SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _material_index_alloc;
     ContiguousFixedAllocator<SubAllocation<LinearAllocator, GPUAllocation>>* instance_indices_allocator;
+    std::mutex _alloc_lock;
 };
 
 #endif // DRAW_H_
