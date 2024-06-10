@@ -5,6 +5,7 @@
 #include "object.hpp"
 #include <cstddef>
 #include <glm/fwd.hpp>
+#include <random>
 #include <string>
 #include <unordered_map>
 
@@ -21,13 +22,19 @@ class ObjectManager {
     void set_name(size_t const& object_id, std::string const& name);
     void refresh_invalid_objects();
     void preallocate(size_t const& count);
+    void create_n_objects(Model* model, size_t const& count);
 
   private:
-    std::vector<Object> _objects;
+    std::vector<Object*> _objects;
     std::unordered_map<std::string, size_t> _object_names;
     std::vector<Object*> _invalid_objects;
     VectorSlicer<Object*>* _invalid_objects_slicer;
+    VectorSlicer<Object*>* _bulk_objects_slicer;
+    Model* _bulk_add_model;
     std::mutex _invalid_objects_mutex;
+
+    std::mt19937 _mt;
+    std::uniform_real_distribution<float> _distribution;
 };
 
 #endif // OBJECT_MANAGER_H_

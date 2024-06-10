@@ -48,6 +48,7 @@ struct NewSettings {
     bool show_fps = true;
     bool pause_on_minimization = false;
     uint32_t object_refresh_threads = 2;
+    uint32_t object_bulk_create_threads = 2;
 };
 
 inline NewSettings* new_settings;

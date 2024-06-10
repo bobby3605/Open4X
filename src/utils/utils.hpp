@@ -4,6 +4,7 @@
 #include <barrier>
 #include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <mutex>
 #include <queue>
 
@@ -89,40 +90,38 @@ class ThreadPool {
 };
 
 template <typename T> class VectorSlicer {
+    size_t _num_threads;
     std::vector<T>& _vector;
     std::vector<VectorSlice> _vector_slices;
-    std::function<void(T& t)> _work_task;
+    std::function<void(size_t i)> _work_task;
     ThreadPool _thread_pool;
 
   public:
-    VectorSlicer(std::vector<T>& vector, size_t const& num_threads, std::function<void(T& t)> const& work_task)
-        : _vector(vector), _work_task(work_task), _thread_pool(num_threads, [&](size_t thread_id) {
+    VectorSlicer(std::vector<T>& vector, size_t const& num_threads, std::function<void(size_t i)> const& work_task)
+        : _num_threads(num_threads), _vector(vector), _work_task(work_task), _thread_pool(num_threads, [&](size_t thread_id) {
               VectorSlice& slice = _vector_slices[thread_id];
               size_t end_offset = slice.offset + slice.size;
               for (size_t i = slice.offset; i < end_offset; ++i) {
-                  _work_task(_vector[i]);
+                  _work_task(i);
               }
           }) {
         _vector_slices.reserve(num_threads);
     }
-    void run() {
-        size_t vector_size = _vector.size();
-        size_t num_threads = _thread_pool.num_threads();
-
+    void run(VectorSlice const& section_to_slice) {
         // run on this thread if the thread pool would be too much overhead
-        if (vector_size < num_threads || num_threads == 0) {
-            for (auto& t : _vector) {
-                _work_task(t);
+        if (section_to_slice.size < _num_threads || _num_threads == 0) {
+            for (size_t i = section_to_slice.offset; i < (section_to_slice.offset + section_to_slice.size); ++i) {
+                _work_task(i);
             }
         } else {
-            size_t slice_size = vector_size / num_threads;
-            size_t remainder = vector_size % num_threads;
-            size_t curr_offset = 0;
-            for (size_t i = 0; i < num_threads; ++i) {
+            size_t slice_size = section_to_slice.size / _num_threads;
+            size_t remainder = section_to_slice.size % _num_threads;
+            size_t curr_offset = section_to_slice.offset;
+            for (size_t i = 0; i < _num_threads; ++i) {
                 _vector_slices[i].size = slice_size;
                 _vector_slices[i].offset = curr_offset;
                 curr_offset += slice_size;
-                if (i == num_threads - 1) {
+                if (i == _num_threads - 1) {
                     _vector_slices[i].size += remainder;
                 }
             }

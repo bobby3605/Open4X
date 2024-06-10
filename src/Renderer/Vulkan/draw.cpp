@@ -7,7 +7,6 @@
 Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
            SubAllocation<FixedAllocator, GPUAllocation>* material_alloc)
     : _allocators(draw_allocators) {
-    std::unique_lock<std::mutex> lock(_alloc_lock);
 
     _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
     _indirect_command.vertexOffset = _vertex_alloc->offset() / sizeof(vertices[0]);

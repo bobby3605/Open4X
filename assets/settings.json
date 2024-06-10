@@ -7,5 +7,6 @@
         "showFPS": true
         ,"pauseOnMinimization": false
         ,"object_refresh_threads": 15
+        ,"object_bulk_create_threads": 1
     }
 }

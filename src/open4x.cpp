@@ -42,7 +42,6 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 #include <iostream>
-#include <random>
 
 #define NEW_RENDERER 1
 
@@ -65,6 +64,7 @@ glm::mat4 perspectiveProjection(float vertical_fov, float aspect_ratio, float ne
 }
 
 Open4X::Open4X() {
+    srand(time(NULL));
     creationTime = std::chrono::high_resolution_clock::now();
     // ensure cache directories exist
     std::string directory = "assets/cache/shaders/";
@@ -145,6 +145,7 @@ void Open4X::loadSettings() {
         new_settings->show_fps = settings->showFPS;
         new_settings->pause_on_minimization = settings->pauseOnMinimization;
         new_settings->object_refresh_threads = miscJSON["object_refresh_threads"].GetInt();
+        new_settings->object_bulk_create_threads = miscJSON["object_bulk_create_threads"].GetInt();
 
     } else {
         std::cout << "Failed to open settings file, using defaults" << std::endl;
@@ -155,27 +156,7 @@ void Open4X::run() {
     if (NEW_RENDERER) {
         std::string base_path = std::filesystem::current_path().string();
         Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
-        std::mt19937 mt(time(NULL));
-        std::uniform_real_distribution<float> distribution(0, settings->randLimit);
-        srand(time(NULL));
-        auto prealloc_start_time = std::chrono::high_resolution_clock::now();
-        box_model->preallocate(settings->extraObjectCount);
-        _object_manager->preallocate(settings->extraObjectCount);
-        std::cout << "prealloc time: "
-                  << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
-                                                                                     prealloc_start_time)
-                         .count()
-                  << "ms" << std::endl;
-        auto object_creation_start_time = std::chrono::high_resolution_clock::now();
-        for (uint32_t i = 0; i < settings->extraObjectCount; ++i) {
-            size_t object_id = _object_manager->add_object(box_model);
-            _object_manager->get_object(object_id)->position({distribution(mt), distribution(mt), distribution(mt)});
-        }
-        std::cout << "object creation time: "
-                  << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
-                                                                                     object_creation_start_time)
-                         .count()
-                  << "ms" << std::endl;
+        _object_manager->create_n_objects(box_model, new_settings->extra_object_count);
 
         if (settings->showFPS) {
             std::stringstream title;
