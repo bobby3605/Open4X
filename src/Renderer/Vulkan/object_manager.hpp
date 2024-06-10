@@ -4,6 +4,7 @@
 #include "../../utils.hpp"
 #include "object.hpp"
 #include <barrier>
+#include <cstddef>
 #include <glm/fwd.hpp>
 #include <semaphore>
 #include <string>
@@ -13,15 +14,19 @@ class ObjectManager {
   public:
     ObjectManager();
     ~ObjectManager();
-    Object* add_object(std::string name, Model* model);
-    void remove_object(std::string name);
-    Object* get_object(std::string name);
+    // returns an object id
+    size_t add_object(Model* model);
+    void remove_object(size_t const& object_id);
+    Object* get_object(size_t const& object_id);
+    Object* get_object(std::string const& name);
     size_t object_count();
+    void set_name(size_t const& object_id, std::string const& name);
     void refresh_invalid_objects();
-    void preallocate(size_t count);
+    void preallocate(size_t const& count);
 
   private:
-    std::unordered_map<std::string, Object*> _objects;
+    std::vector<Object> _objects;
+    std::unordered_map<std::string, size_t> _object_names;
     std::vector<Object*> _invalid_objects;
     std::vector<std::thread> _threads;
     unsigned int _num_threads;

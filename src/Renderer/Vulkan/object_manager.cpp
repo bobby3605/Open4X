@@ -35,31 +35,28 @@ ObjectManager::~ObjectManager() {
     for (auto& thread : _threads) {
         thread.join();
     }
-    for (auto object : _objects) {
-        delete object.second;
-    }
 }
 
-Object* ObjectManager::add_object(std::string name, Model* model) {
-    Object* object = new Object(model, &_invalid_objects);
-    _objects.insert(std::pair<std::string, Object*>{name, object});
-    return object;
+size_t ObjectManager::add_object(Model* model) {
+    _objects.emplace_back(model, &_invalid_objects);
+    return _objects.size() - 1;
 }
 
-void ObjectManager::remove_object(std::string name) {
-    delete _objects.at(name);
-    _objects.erase(name);
-}
+void ObjectManager::remove_object(size_t const& object_id) { _objects.erase(_objects.begin() + object_id); }
 
-Object* ObjectManager::get_object(std::string name) {
-    if (_objects.count(name) == 1) {
-        return _objects.at(name);
+Object* ObjectManager::get_object(size_t const& object_id) {
+    if (object_id < _objects.size()) {
+        return &_objects[object_id];
     } else {
-        throw std::runtime_error("error object: " + name + " doesn't exist!");
+        throw std::runtime_error("error object: " + std::to_string(object_id) + " doesn't exist!");
     }
 }
 
 size_t ObjectManager::object_count() { return _objects.size(); }
+
+void ObjectManager::set_name(size_t const& object_id, std::string const& name) { _object_names[name] = object_id; }
+
+Object* ObjectManager::get_object(std::string const& name) { return get_object(_object_names[name]); }
 
 void ObjectManager::refresh_invalid_objects() {
     size_t obj_count = _invalid_objects.size();
@@ -86,7 +83,7 @@ void ObjectManager::refresh_invalid_objects() {
     }
 }
 
-void ObjectManager::preallocate(size_t count) {
+void ObjectManager::preallocate(size_t const& count) {
     _invalid_objects.reserve(count);
     _objects.reserve(count);
 }

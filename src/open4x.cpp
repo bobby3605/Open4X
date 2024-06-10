@@ -166,8 +166,8 @@ void Open4X::run() {
                   << "ms" << std::endl;
         auto object_creation_start_time = std::chrono::high_resolution_clock::now();
         for (uint32_t i = 0; i < settings->extraObjectCount; ++i) {
-            _object_manager->add_object("box_" + std::to_string(i), box_model)
-                ->position({distribution(mt), distribution(mt), distribution(mt)});
+            size_t object_id = _object_manager->add_object(box_model);
+            _object_manager->get_object(object_id)->position({distribution(mt), distribution(mt), distribution(mt)});
         }
         std::cout << "object creation time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
