@@ -12,23 +12,36 @@ Object::Object(Model* model, std::vector<Object*>* invalid_callback) : _model(mo
 
 void Object::position(glm::vec3 const& new_position) {
     _position = new_position;
+    _t_invalid = true;
     register_invalid_matrices();
 }
+
 void Object::rotation(glm::quat const& new_rotation) {
     _rotation = new_rotation;
+    _rs_invalid = true;
     register_invalid_matrices();
 }
+
 void Object::scale(glm::vec3 const& new_scale) {
     _scale = new_scale;
+    _rs_invalid = true;
     register_invalid_matrices();
 }
 
 void Object::refresh_instance_data() {
     if (_instance_data_invalid) {
-        fast_trs_matrix(_position, _rotation, _scale, _object_matrix);
+        if (_t_invalid) {
+            fast_t_matrix(_position, _object_matrix);
+        }
+        if (_rs_invalid) {
+            fast_r_matrix(_rotation, _object_matrix);
+            fast_s_matrix(_scale, _object_matrix);
+        }
         if (_model != nullptr)
             _model->write_instance_data(_object_matrix, _instances);
         _instance_data_invalid = false;
+        _t_invalid = false;
+        _rs_invalid = false;
     }
 }
 

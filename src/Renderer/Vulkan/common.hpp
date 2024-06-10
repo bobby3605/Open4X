@@ -9,6 +9,7 @@
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <unordered_map>
@@ -96,6 +97,41 @@ template <typename T> void write_file(std::filesystem::path const& file_path, st
     memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
 }
 
-void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotation, glm::vec3 const& scale, glm::mat4& trs);
+inline void fast_t_matrix(glm::vec3 const& translation, glm::mat4& trs) {
+    trs[3][0] = translation.x;
+    trs[3][1] = translation.y;
+    trs[3][2] = translation.z;
+}
+
+inline void fast_r_matrix(glm::quat const& rotation, glm::mat4& trs) {
+    glm::mat3 rotation_3x3 = glm::toMat3(rotation);
+    trs[0][0] = rotation_3x3[0][0];
+    trs[0][1] = rotation_3x3[0][1];
+    trs[0][2] = rotation_3x3[0][2];
+    trs[1][0] = rotation_3x3[1][0];
+    trs[1][1] = rotation_3x3[1][1];
+    trs[1][2] = rotation_3x3[1][2];
+    trs[2][0] = rotation_3x3[2][0];
+    trs[2][1] = rotation_3x3[2][1];
+    trs[2][2] = rotation_3x3[2][2];
+}
+
+inline void fast_s_matrix(glm::vec3 const& scale, glm::mat4& trs) {
+    trs[0][0] *= scale.x;
+    trs[1][1] *= scale.y;
+    trs[2][2] *= scale.z;
+}
+
+inline void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotation, glm::vec3 const& scale, glm::mat4& trs) {
+    // Manually copying and setting object matrix because multiplying mat4 is slow
+    fast_t_matrix(translation, trs);
+    fast_r_matrix(rotation, trs);
+    fast_s_matrix(scale, trs);
+
+    trs[0][3] = 0;
+    trs[1][3] = 0;
+    trs[2][3] = 0;
+    trs[3][3] = 1;
+}
 
 #endif // NEWCOMMON_H_

@@ -1,6 +1,5 @@
 #include "common.hpp"
 #include <fcntl.h>
-#include <glm/gtx/quaternion.hpp>
 #include <stdexcept>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -101,32 +100,4 @@ MMIO::MMIO(std::filesystem::path const& file_path, int oflag, size_t size) {
 MMIO::~MMIO() {
     munmap(_mapping, _size);
     close(_fd);
-}
-
-void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotation, glm::vec3 const& scale, glm::mat4& trs) {
-    // Manually copying and setting object matrix because multiplying mat4 is slow
-    // translation
-    trs[3][0] = translation.x;
-    trs[3][1] = translation.y;
-    trs[3][2] = translation.z;
-    // rotation
-    glm::mat3 rotation_3x3 = glm::toMat3(rotation);
-    trs[0][0] = rotation_3x3[0][0];
-    trs[0][1] = rotation_3x3[0][1];
-    trs[0][2] = rotation_3x3[0][2];
-    trs[1][0] = rotation_3x3[1][0];
-    trs[1][1] = rotation_3x3[1][1];
-    trs[1][2] = rotation_3x3[1][2];
-    trs[2][0] = rotation_3x3[2][0];
-    trs[2][1] = rotation_3x3[2][1];
-    trs[2][2] = rotation_3x3[2][2];
-    // scale
-    trs[0][0] *= scale.x;
-    trs[1][1] *= scale.y;
-    trs[2][2] *= scale.z;
-
-    trs[0][3] = 0;
-    trs[1][3] = 0;
-    trs[2][3] = 0;
-    trs[3][3] = 1;
 }

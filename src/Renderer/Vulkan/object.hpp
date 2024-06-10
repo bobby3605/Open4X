@@ -23,13 +23,16 @@ class Object {
     glm::vec3 _position{1.0f, 1.0f, 1.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
-    glm::mat4 _object_matrix;
+    glm::mat4 _object_matrix{1.0f};
     // NOTE:
     // Set to false so that register_invalid_matrices() works in the constructor
     bool _instance_data_invalid = false;
     std::vector<InstanceAllocPair> _instances;
 
     std::vector<Object*>* _invalid_objects = nullptr;
+
+    bool _t_invalid = false;
+    bool _rs_invalid = false;
 };
 
 #endif // OBJECT_H_
