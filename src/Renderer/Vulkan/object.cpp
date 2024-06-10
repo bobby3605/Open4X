@@ -24,9 +24,33 @@ void Object::scale(glm::vec3 const& new_scale) {
 
 void Object::refresh_instance_data() {
     if (_instance_data_invalid) {
-        _object_matrix = glm::translate(position());
-        _object_matrix = _object_matrix * glm::toMat4(rotation());
-        _object_matrix = _object_matrix * glm::scale(scale());
+        // Manually copying and setting object matrix because multiplying mat4 is slow
+        // translation
+        _object_matrix[3][0] = _position.x;
+        _object_matrix[3][1] = _position.y;
+        _object_matrix[3][2] = _position.z;
+        // rotation
+        glm::mat3 rotation_3x3 = glm::toMat3(rotation());
+        _object_matrix[0][0] = rotation_3x3[0][0];
+        _object_matrix[0][1] = rotation_3x3[0][1];
+        _object_matrix[0][2] = rotation_3x3[0][2];
+        _object_matrix[1][0] = rotation_3x3[1][0];
+        _object_matrix[1][1] = rotation_3x3[1][1];
+        _object_matrix[1][2] = rotation_3x3[1][2];
+        _object_matrix[2][0] = rotation_3x3[2][0];
+        _object_matrix[2][1] = rotation_3x3[2][1];
+        _object_matrix[2][2] = rotation_3x3[2][2];
+        // scale
+        _object_matrix[0][0] *= _scale.x;
+        _object_matrix[1][1] *= _scale.y;
+        _object_matrix[2][2] *= _scale.z;
+        // TODO
+        // Use a 4x3 matrix
+        _object_matrix[0][3] = 0;
+        _object_matrix[1][3] = 0;
+        _object_matrix[2][3] = 0;
+        _object_matrix[3][3] = 1;
+
         if (_model != nullptr)
             _model->write_instance_data(_object_matrix, _instances);
         _instance_data_invalid = false;
