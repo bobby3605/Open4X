@@ -18,6 +18,7 @@ class ObjectManager {
     Object* get_object(std::string name);
     size_t object_count();
     void refresh_invalid_objects();
+    void preallocate(size_t count);
 
   private:
     std::unordered_map<std::string, Object*> _objects;

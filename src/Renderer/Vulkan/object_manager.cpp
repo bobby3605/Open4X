@@ -41,8 +41,6 @@ ObjectManager::~ObjectManager() {
 }
 
 Object* ObjectManager::add_object(std::string name, Model* model) {
-    // TODO
-    // preallocate _invalid_objects
     Object* object = new Object(model, &_invalid_objects);
     _objects.insert(std::pair<std::string, Object*>{name, object});
     return object;
@@ -87,3 +85,5 @@ void ObjectManager::refresh_invalid_objects() {
         _invalid_objects.clear();
     }
 }
+
+void ObjectManager::preallocate(size_t count) { _invalid_objects.reserve(count); }

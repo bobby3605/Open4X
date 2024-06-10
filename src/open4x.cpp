@@ -158,6 +158,7 @@ void Open4X::run() {
         srand(time(NULL));
         auto prealloc_start_time = std::chrono::high_resolution_clock::now();
         box_model->preallocate(settings->extraObjectCount);
+        _object_manager->preallocate(settings->extraObjectCount);
         std::cout << "prealloc time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
                                                                                      prealloc_start_time)
