@@ -135,7 +135,7 @@ void GPUAllocation::get(void* dst, size_t const& offset, size_t const& byte_size
     }
 }
 
-void GPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
+inline void GPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
     if (_buffer_info.size < (dst_offset + byte_size)) {
         std::cout << "write realloc, should never be here, buffer: " << _name << std::endl;
     }

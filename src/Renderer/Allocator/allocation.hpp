@@ -30,7 +30,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
         : _offset(offset), _size(size), _parent(parent), _allocator(allocator) {}
     SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent) : _offset(offset), _size(size), _parent(parent) {}
     void get(void* dst) { get(dst, 0, _size); }
-    void write(const void* data) { write(0, data, _size); }
+    inline void write(const void* data) { write(0, data, _size); }
     void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
     void realloc(size_t const& byte_size) {
         // NOTE:
@@ -62,7 +62,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
     ParentAllocationT* _parent = nullptr;
     AllocatorT<ParentAllocationT>* _allocator = nullptr;
     void get(void* dst, size_t const& src_offset, size_t const& byte_size) { _parent->get(dst, src_offset + _offset, byte_size); }
-    void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
+    inline void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
         _parent->write(dst_offset + _offset, src_data, byte_size);
     }
     void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation, size_t const& dst_offset, size_t const& src_offset,
