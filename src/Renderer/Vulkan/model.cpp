@@ -195,30 +195,33 @@ void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[_mesh_index.value()]->_primitives) {
-            instances.emplace_back(primitive._draw->add_instance());
+        std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()]->_primitives;
+        for (uint32_t i = 0; i < primitives.size(); ++i) {
+            instances.emplace_back(primitives[i]._draw->add_instance());
         }
     }
-    for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->add_instance(model, instances);
+    for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
+        _model->_nodes[_child_node_indices[i].value()]->add_instance(model, instances);
     }
 }
 
 void Model::preallocate(size_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
-    for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->preallocate(this, count);
+    std::vector<fast_optional<size_t>>& root_node_indices = _scenes[_default_scene]->_root_node_indices;
+    for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
+        _nodes[root_node_indices[i].value()]->preallocate(this, count);
     }
 }
 
 void Model::Node::preallocate(Model* model, size_t count) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[_mesh_index.value()]->_primitives) {
-            primitive._draw->preallocate(count);
+        std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()]->_primitives;
+        for (uint32_t i = 0; i < primitives.size(); ++i) {
+            primitives[i]._draw->preallocate(count);
         }
     }
-    for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->preallocate(model, count);
+    for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
+        _model->_nodes[_child_node_indices[i].value()]->preallocate(model, count);
     }
 }
