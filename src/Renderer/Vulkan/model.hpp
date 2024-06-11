@@ -55,7 +55,7 @@ class Model {
                                  size_t& id_index);
 
       protected:
-        void add_instance(Model* model, std::vector<InstanceAllocPair>& instances);
+        void add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
         void preallocate(Model* model, size_t count);
         fast_optional<size_t> _mesh_index;
         std::vector<fast_optional<size_t>> _child_node_indices;

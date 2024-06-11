@@ -54,7 +54,7 @@ void Draw::preallocate(uint32_t count) {
     instance_indices_allocator->preallocate(count);
 }
 
-InstanceAllocPair Draw::add_instance() {
+void Draw::add_instance(InstanceAllocPair& output) {
     // TODO
     // remove this lock
     // instance count needs to be atomic
@@ -63,9 +63,8 @@ InstanceAllocPair Draw::add_instance() {
     std::unique_lock<std::mutex> lock(_alloc_lock);
     // TODO
     // preallocate when creating a large amount of instances
-    SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc = _allocators.instance_data->alloc();
-    SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* instance_index_alloc =
-        instance_indices_allocator->alloc();
+    InstanceDataAlloc& instance_data_alloc = output.data = _allocators.instance_data->alloc();
+    InstanceIndexAlloc& instance_index_alloc = output.index = instance_indices_allocator->alloc();
     ++_indirect_command.instanceCount;
     // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
     _indirect_command.firstInstance = instance_indices_allocator->parent()->offset() / sizeof(uint32_t);
@@ -75,14 +74,12 @@ InstanceAllocPair Draw::add_instance() {
     // If it was stacked on top of another allocator, then a global_offset() function would be needed
     uint32_t instance_data_index = ((uint32_t)instance_data_alloc->offset()) / sizeof(InstanceData);
     instance_index_alloc->write(&instance_data_index);
-    return {instance_data_alloc, instance_index_alloc};
 }
 
 void Draw::remove_instance(InstanceAllocPair instance) {
     std::unique_lock<std::mutex> lock(_alloc_lock);
-    SubAllocation<FixedAllocator, GPUAllocation>* instance_data_alloc;
-    SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* instance_index_alloc;
-    std::tie(instance_data_alloc, instance_index_alloc) = instance;
+    InstanceDataAlloc& instance_data_alloc = instance.data;
+    InstanceIndexAlloc& instance_index_alloc = instance.index;
 
     _allocators.instance_data->free(instance_data_alloc);
     instance_indices_allocator->pop_and_swap(instance_index_alloc);

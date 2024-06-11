@@ -86,7 +86,10 @@ template <> struct hash<NewVertex> {
 typedef SubAllocation<FixedAllocator, GPUAllocation>* InstanceDataAlloc;
 typedef SubAllocation<ContiguousFixedAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* InstanceIndexAlloc;
 
-typedef std::tuple<InstanceDataAlloc, InstanceIndexAlloc> InstanceAllocPair;
+struct InstanceAllocPair {
+    InstanceDataAlloc data;
+    InstanceIndexAlloc index;
+};
 
 class Draw {
   public:
@@ -94,7 +97,7 @@ class Draw {
          SubAllocation<FixedAllocator, GPUAllocation>* material_alloc);
     ~Draw();
     void preallocate(uint32_t count);
-    InstanceAllocPair add_instance();
+    void add_instance(InstanceAllocPair& output);
     void remove_instance(InstanceAllocPair instance);
     void write_instance_data(uint32_t instance_id, InstanceData const& instance_data);
 

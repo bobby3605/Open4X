@@ -173,7 +173,7 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
     if (_mesh_index.has_value()) {
         for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()]->_primitives.size(); ++i) {
             fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
-            std::get<0>(instances[id_index++])->write(&instance_data);
+            instances[id_index++].data->write(&instance_data);
         }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
@@ -186,22 +186,23 @@ void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
     // pre allocate instances,
     // lots of small allocations are slow
     instances.reserve(_total_instance_data_count);
+    size_t instance_index = 0;
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->add_instance(this, instances);
+        _nodes[root_node_index.value()]->add_instance(this, instances, instance_index);
     }
 }
 
-void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
+void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index) {
     if (_mesh_index.has_value()) {
         std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()]->_primitives;
         for (uint32_t i = 0; i < primitives.size(); ++i) {
-            instances.emplace_back(primitives[i]._draw->add_instance());
+            primitives[i]._draw->add_instance(instances[instance_index++]);
         }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
-        _model->_nodes[_child_node_indices[i].value()]->add_instance(model, instances);
+        _model->_nodes[_child_node_indices[i].value()]->add_instance(model, instances, instance_index);
     }
 }
 
