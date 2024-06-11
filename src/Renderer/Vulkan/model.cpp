@@ -1,4 +1,5 @@
 #include "model.hpp"
+#include "../../utils/math.hpp"
 #include "common.hpp"
 #include "draw.hpp"
 #include "fastgltf/core.hpp"
@@ -6,7 +7,6 @@
 #include "fastgltf/types.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 #include <stdexcept>
 #include <string>
@@ -171,7 +171,7 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
     InstanceData instance_data{};
     if (_mesh_index.has_value()) {
         for (uint32_t i = 0; i < model->_meshes[*_mesh_index]->_primitives.size(); ++i) {
-            instance_data.model_matrix = object_matrix * _transform;
+            fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
             std::get<0>(instances[id_index++])->write(&instance_data);
         }
     }

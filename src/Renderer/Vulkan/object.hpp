@@ -23,7 +23,7 @@ class Object {
     glm::vec3 _position{0.0f, 0.0f, 0.0f};
     glm::quat _rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 _scale{1.0f, 1.0f, 1.0f};
-    glm::mat4 _object_matrix{1.0f};
+    alignas(32) glm::mat4 _object_matrix{1.0f};
     // NOTE:
     // Set to false so that register_invalid_matrices() works in the constructor
     bool _instance_data_invalid = false;

@@ -1,12 +1,10 @@
 #ifndef DRAW_H_
 #define DRAW_H_
 
-#include <mutex>
-#define GLM_FORCE_RADIANS
-#define GLM_ENABLE_EXPERIMENTAL
+#include "../../utils/math.hpp"
 #include "../Allocator/sub_allocator.hpp"
-#include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
+#include <mutex>
 #include <vulkan/vulkan_core.h>
 
 struct DrawAllocators {
@@ -22,7 +20,7 @@ struct DrawAllocators {
 };
 
 struct InstanceData {
-    glm::mat4 model_matrix;
+    alignas(32) glm::mat4 model_matrix;
 };
 
 struct NewMaterialData {

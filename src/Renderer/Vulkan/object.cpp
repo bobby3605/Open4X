@@ -56,6 +56,8 @@ void Object::register_invalid_matrices() {
         // NOTE:
         // Camera sets _invalid_objects to nullptr
         if (_invalid_objects != nullptr) {
+            // TODO
+            // remove this lock
             std::unique_lock<std::mutex> lock(*_invalid_objects_lock);
             _invalid_objects->push_back(this);
         }

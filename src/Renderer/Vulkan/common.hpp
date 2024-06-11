@@ -1,13 +1,11 @@
 #ifndef NEWCOMMON_H_
 #define NEWCOMMON_H_
 
-#define GLM_FORCE_RADIANS
-#define GLM_ENABLE_EXPERIMENTAL
+#include "../../utils/math.hpp"
 #include <cstdint>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
-#include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <iostream>

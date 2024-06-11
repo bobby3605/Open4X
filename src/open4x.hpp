@@ -1,5 +1,6 @@
 #ifndef OPEN4X_H_
 #define OPEN4X_H_
+#include "utils/math.hpp"
 
 #include "Renderer/Vulkan/model_manager.hpp"
 #include "Renderer/Vulkan/object_manager.hpp"

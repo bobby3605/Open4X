@@ -1,10 +1,12 @@
 #ifndef MODEL_H_
 #define MODEL_H_
+#include "../../utils/math.hpp"
 #include "draw.hpp"
 #include "fastgltf/types.hpp"
 #include <cstdint>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <optional>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -57,7 +59,7 @@ class Model {
         void preallocate(Model* model, size_t count);
         std::optional<std::size_t> _mesh_index;
         std::vector<std::optional<std::size_t>> _child_node_indices;
-        glm::mat4 _transform;
+        alignas(32) glm::mat4 _transform;
 
       private:
         Model* _model;
