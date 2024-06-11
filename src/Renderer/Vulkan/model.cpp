@@ -161,8 +161,9 @@ std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coo
 
 void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances) {
     size_t id_index = 0;
-    for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->write_instance_data(this, object_matrix, instances, id_index);
+    std::vector<fast_optional<size_t>>& root_node_indices = _scenes[_default_scene]->_root_node_indices;
+    for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
+        _nodes[root_node_indices[i].value()]->write_instance_data(this, object_matrix, instances, id_index);
     }
 }
 
@@ -175,8 +176,8 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
             std::get<0>(instances[id_index++])->write(&instance_data);
         }
     }
-    for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[child_node_index.value()]->write_instance_data(model, object_matrix, instances, id_index);
+    for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
+        _model->_nodes[_child_node_indices[i].value()]->write_instance_data(model, object_matrix, instances, id_index);
     }
 }
 
