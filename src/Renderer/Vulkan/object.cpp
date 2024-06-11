@@ -31,12 +31,12 @@ void Object::scale(glm::vec3 const& new_scale) {
 
 void Object::refresh_instance_data() {
     if (_instance_data_invalid) {
-        if (_t_invalid) {
-            fast_t_matrix(_position, _object_matrix);
-        }
         if (_rs_invalid) {
             fast_r_matrix(_rotation, _object_matrix);
             fast_s_matrix(_scale, _object_matrix);
+        }
+        if (_t_invalid) {
+            fast_t_matrix(_position, _object_matrix);
         }
         if (_model != nullptr)
             _model->write_instance_data(_object_matrix, _instances);

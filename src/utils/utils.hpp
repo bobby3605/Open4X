@@ -7,6 +7,7 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
+#include <type_traits>
 
 // thread safe queue
 template <typename T> class safe_queue {
@@ -136,5 +137,86 @@ template <typename T> class VectorSlicer {
 template <typename F, typename... Args> auto partial(F f, Args... tail_args) {
     return [=](auto head_arg) { return f(head_arg, tail_args...); };
 }
+
+/*
+template <typename T, bool = std::is_pointer<T>::value> struct fast_optional {};
+
+template <typename T> struct fast_optional<T, true> {
+    fast_optional() {}
+    fast_optional(T& value) : _value(value) {}
+    T _value = nullptr;
+    inline bool has_value() { return _value == nullptr; };
+    inline T& value() { return _value; }
+};
+
+// value only needs to be a pointer if T isn't
+template <typename T> struct fast_optional<T, false> {
+    fast_optional() {}
+    fast_optional(T& value) : _value(value) {}
+    T* _value = nullptr;
+    inline bool has_value() { return _value == nullptr; };
+    inline T* value() { return _value; }
+};
+*/
+
+/*
+template <typename T, bool = std::is_pointer<T>::value> struct fast_optional {};
+
+template <typename T> struct fast_optional<T, true> {
+    fast_optional() {}
+    fast_optional(T& value) : _value(value) {}
+    T _value = nullptr;
+    inline bool has_value() { return _value == nullptr; };
+    inline T& value() { return _value; }
+    template <typename... Args> fast_optional(Args&&... args) : _value(args...) {}
+};
+
+template <typename T> struct fast_optional<T, false> {
+    fast_optional() {}
+    fast_optional(T& value) : _value(value) {}
+    T _value = NULL;
+    inline bool has_value() { return _value == NULL; };
+    inline T& value() { return _value; }
+    template <typename... Args> fast_optional(Args&&... args) : _value(args...) {}
+};
+*/
+
+/*
+template <typename T> struct fast_optional {
+    T* _value = nullptr;
+    fast_optional() {}
+    fast_optional(T& value) : _value(value) {}
+    fast_optional(T&& value) : _value(value) {}
+    template <typename... Args> fast_optional(Args&&... args) : _value(new T(args...)) {}
+    inline bool has_value() { return _value == nullptr; }
+    inline T& value() { return *_value; }
+};
+*/
+
+template <typename T> struct fast_optional {};
+
+template <> struct fast_optional<size_t> {
+    size_t _value = -1;
+    inline bool has_value() { return _value != (size_t)(-1); }
+    inline size_t& value() { return _value; }
+    fast_optional() {}
+    fast_optional(size_t& value) : _value(value) {}
+    fast_optional(size_t&& value) : _value(value) {}
+    template <typename OT> void inline operator=(OT&& other) { _value = other; }
+};
+
+template <typename T>
+    requires(std::is_pointer<T>::value)
+struct fast_optional<T> {
+    T _value = nullptr;
+    inline bool has_value() { return _value != nullptr; }
+    inline T& value() { return _value; }
+    fast_optional() {}
+    template <typename... Args> fast_optional(Args&&... args) {
+        _value = new std::remove_pointer<decltype(fast_optional<T>::_value)>::type(args...);
+    }
+    template <typename OT> void inline operator=(OT&& other) { _value = other; }
+    T inline operator->() { return _value; }
+};
 
 #endif // UTILS_H_

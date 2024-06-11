@@ -34,17 +34,17 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
-        _scenes.emplace_back(Scene(this, &scene, draw_allocators));
+        _scenes.emplace_back(this, &scene, draw_allocators);
     }
 }
 
 Model::Scene::Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_allocators) : _model(model), _scene(scene) {
     _root_node_indices.reserve(scene->nodeIndices.size());
     for (auto node_index : scene->nodeIndices) {
-        _root_node_indices.push_back(node_index);
+        _root_node_indices.emplace_back(node_index);
         _model->_nodes.resize(node_index + 1);
         if (!_model->_nodes[node_index].has_value()) {
-            _model->_nodes[node_index] = Node(_model, &_model->_asset->nodes[node_index], glm::mat4(1.0f), draw_allocators);
+            _model->_nodes[node_index].value() = new Node(_model, &_model->_asset->nodes[node_index], glm::mat4(1.0f), draw_allocators);
         }
     }
 }
@@ -69,19 +69,19 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
         _mesh_index = *node->meshIndex;
         // NOTE:
         // resize is fine here because it's a vector<optional>
-        _model->_meshes.resize(*_mesh_index + 1);
+        _model->_meshes.resize(_mesh_index.value() + 1);
         // Create mesh if it doesn't already exist
-        if (!_model->_meshes[*_mesh_index].has_value()) {
-            _model->_meshes[*_mesh_index] = Mesh(model, &_model->_asset->meshes[*_mesh_index], draw_allocators);
+        if (!_model->_meshes[_mesh_index.value()].has_value()) {
+            _model->_meshes[_mesh_index.value()].value() = new Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
         }
     }
 
     _child_node_indices.reserve(_node->children.size());
     for (auto child_index : _node->children) {
-        _child_node_indices.push_back(child_index);
+        _child_node_indices.emplace_back(child_index);
         _model->_nodes.resize(child_index + 1);
         if (!_model->_nodes[child_index].has_value()) {
-            _model->_nodes[child_index] = Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators);
+            _model->_nodes[child_index].value() = new Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators);
         }
     }
 }
@@ -118,10 +118,10 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             }
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
-            model->_material_allocs.insert({*primitive->materialIndex, material_alloc});
+            model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
             material_alloc->write(&material_data);
         } else {
-            material_alloc = model->_material_allocs.at(*primitive->materialIndex);
+            material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
         }
     }
     // FIXME:
@@ -162,7 +162,7 @@ std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coo
 void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances) {
     size_t id_index = 0;
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[*root_node_index]->write_instance_data(this, object_matrix, instances, id_index);
+        _nodes[root_node_index.value()]->write_instance_data(this, object_matrix, instances, id_index);
     }
 }
 
@@ -170,13 +170,13 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
                                       size_t& id_index) {
     InstanceData instance_data{};
     if (_mesh_index.has_value()) {
-        for (uint32_t i = 0; i < model->_meshes[*_mesh_index]->_primitives.size(); ++i) {
+        for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()]->_primitives.size(); ++i) {
             fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
             std::get<0>(instances[id_index++])->write(&instance_data);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[*child_node_index]->write_instance_data(model, object_matrix, instances, id_index);
+        _model->_nodes[child_node_index.value()]->write_instance_data(model, object_matrix, instances, id_index);
     }
 }
 
@@ -188,18 +188,18 @@ void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[*root_node_index]->add_instance(this, instances);
+        _nodes[root_node_index.value()]->add_instance(this, instances);
     }
 }
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[*_mesh_index]->_primitives) {
+        for (const auto& primitive : model->_meshes[_mesh_index.value()]->_primitives) {
             instances.emplace_back(primitive._draw->add_instance());
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[*child_node_index]->add_instance(model, instances);
+        _model->_nodes[child_node_index.value()]->add_instance(model, instances);
     }
 }
 
@@ -207,17 +207,17 @@ void Model::preallocate(size_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[*root_node_index]->preallocate(this, count);
+        _nodes[root_node_index.value()]->preallocate(this, count);
     }
 }
 
 void Model::Node::preallocate(Model* model, size_t count) {
     if (_mesh_index.has_value()) {
-        for (const auto& primitive : model->_meshes[*_mesh_index]->_primitives) {
+        for (const auto& primitive : model->_meshes[_mesh_index.value()]->_primitives) {
             primitive._draw->preallocate(count);
         }
     }
     for (auto& child_node_index : _child_node_indices) {
-        _model->_nodes[*child_node_index]->preallocate(model, count);
+        _model->_nodes[child_node_index.value()]->preallocate(model, count);
     }
 }

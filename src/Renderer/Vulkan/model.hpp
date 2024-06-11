@@ -1,13 +1,13 @@
 #ifndef MODEL_H_
 #define MODEL_H_
 #include "../../utils/math.hpp"
+#include "../../utils/utils.hpp"
 #include "draw.hpp"
 #include "fastgltf/types.hpp"
 #include <cstdint>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <optional>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
@@ -39,7 +39,7 @@ class Model {
         Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_allocators);
 
       protected:
-        std::vector<std::optional<std::size_t>> _root_node_indices;
+        std::vector<fast_optional<size_t>> _root_node_indices;
 
       private:
         Model* _model;
@@ -57,8 +57,8 @@ class Model {
       protected:
         void add_instance(Model* model, std::vector<InstanceAllocPair>& instances);
         void preallocate(Model* model, size_t count);
-        std::optional<std::size_t> _mesh_index;
-        std::vector<std::optional<std::size_t>> _child_node_indices;
+        fast_optional<size_t> _mesh_index;
+        std::vector<fast_optional<size_t>> _child_node_indices;
         alignas(32) glm::mat4 _transform;
 
       private:
@@ -112,9 +112,9 @@ class Model {
 
   protected:
     fastgltf::Asset* _asset;
-    std::vector<std::optional<Scene>> _scenes;
-    std::vector<std::optional<Node>> _nodes;
-    std::vector<std::optional<Mesh>> _meshes;
+    std::vector<fast_optional<Scene*>> _scenes;
+    std::vector<fast_optional<Node*>> _nodes;
+    std::vector<fast_optional<Mesh*>> _meshes;
     std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
 
