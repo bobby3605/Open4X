@@ -1,12 +1,12 @@
 {
     "objects": {
-        "extraObjectCount": 1000000
+        "extraObjectCount": 10000000
         ,"randLimit": 1000
     },
     "misc": {
         "showFPS": true
         ,"pauseOnMinimization": false
         ,"object_refresh_threads": 15
-        ,"object_bulk_create_threads": 0
+        ,"object_bulk_create_threads": 4
     }
 }

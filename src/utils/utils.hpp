@@ -3,6 +3,7 @@
 
 #include <barrier>
 #include <condition_variable>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <mutex>
@@ -68,6 +69,92 @@ template <typename T> class safe_queue_external_sync {
   private:
     std::queue<T> _queue;
     std::mutex _mutex;
+};
+
+template <typename T> class safe_deque {
+  public:
+    safe_deque() {
+        // NOTE:
+        // This must be here in order for the indices to work properly
+        grow(2);
+    }
+    ~safe_deque() {
+        if (_data != nullptr) {
+            free(_data);
+        }
+    }
+    void push_front(T const& item) {
+        // - 1 pre increment because _front_idx starts at 0
+        size_t idx = --_front_idx;
+        safe_write(idx, item);
+    }
+    void push_back(T const& item) {
+        size_t idx = _back_idx++;
+        safe_write(idx, item);
+    }
+    void pop_front() { ++_front_idx; }
+    void pop_back() { --_back_idx; }
+    T front() {
+        // TODO:
+        // get items without grow lock
+        std::unique_lock<std::mutex> lock(_grow_lock);
+        return _data[_base_index + _front_idx];
+    }
+    T back() {
+        std::unique_lock<std::mutex> lock(_grow_lock);
+        return _data[_base_index + _back_idx];
+    }
+    void reserve(size_t count) { grow(count); }
+    bool empty() { return size() == 0; }
+    int size() {
+        // NOTE:
+        // - _front_idx because _front_idx is negative,
+        // so this will return the total amount of alloced Ts
+        return _back_idx - _front_idx;
+    }
+
+  private:
+    void safe_write(int idx, T const& item) {
+        size_t tmp_base_index = _base_index;
+        ensure_space(tmp_base_index, idx);
+        _data[tmp_base_index + idx] = item;
+    }
+    void ensure_space(int tmp_base_index, int idx) {
+        // base_index points to the middle of the _data block, and is how many indices have been allocated on one side,
+        // if the abs(idx) to write to is greater than the number of indices allocated on one side
+        // grow the data to ensure space
+        if (abs(idx) > tmp_base_index || _data == nullptr) {
+            // NOTE:
+            // there's probably a race condition here where extra blocks could be allocated,
+            // but to fix it this function would need a mutex
+            // the extra performance is probably worth some extra memory usage
+            grow(1);
+        }
+    }
+    void grow(size_t count) {
+        std::unique_lock<std::mutex> lock(_grow_lock);
+        // put one extra block on each side
+        size_t grow_count = 2 * count;
+        size_t current_count = _base_index * 2;
+        size_t new_count = current_count + grow_count;
+        size_t new_byte_size = new_count * sizeof(T);
+        T* tmp = reinterpret_cast<T*>(new char[new_byte_size]);
+        _base_index = new_count / 2;
+        if (_data != nullptr) {
+            // copy data to tmp so that there's grow_size extra blocks on the left and right
+            // NOTE:
+            // grow_count / 2 = count, so just using count here
+            std::memcpy(tmp + count, _data, current_count * sizeof(T));
+            free(_data);
+        }
+        _data = tmp;
+    }
+    std::atomic<int> _front_idx = 0;
+    std::atomic<int> _back_idx = 0;
+    T* _data = nullptr;
+    std::atomic<int> _base_index = 0;
+    std::mutex _grow_lock;
+    std::atomic<int> _size = 0;
 };
 
 struct VectorSlice {

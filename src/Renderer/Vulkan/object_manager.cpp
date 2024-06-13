@@ -43,19 +43,18 @@ void ObjectManager::set_name(size_t const& object_id, std::string const& name) {
 Object* ObjectManager::get_object(std::string const& name) { return get_object(_object_names[name]); }
 
 void ObjectManager::refresh_invalid_objects() {
-    // TODO
-    // mutex to block object from modifying invalid_objects
     _invalid_objects_slicer->run({.offset = 0, .size = _invalid_objects_count});
-    _invalid_objects.clear();
     _invalid_objects_count = 0;
 }
 
 void ObjectManager::preallocate(size_t const& count) {
-    _invalid_objects.reserve(count);
-    _objects.resize(count);
+    size_t new_objects_count = _objects.size() + count;
+    _invalid_objects.reserve(new_objects_count);
+    _objects.resize(new_objects_count);
 }
 
 void ObjectManager::create_n_objects(Model* model, size_t const& count) {
+    size_t bulk_objects_offset = _objects.size();
     auto prealloc_start_time = std::chrono::high_resolution_clock::now();
     model->preallocate(count);
     // NOTE:
@@ -63,7 +62,6 @@ void ObjectManager::create_n_objects(Model* model, size_t const& count) {
     // resize must be used because insert/emplace are not thread safe,
     // even if reserve was called before (size and maybe something else because iterators are invalidated)
     // resize for Object* is fast, because it doesn't call the Object constructor
-    size_t bulk_objects_offset = _objects.size();
     preallocate(count);
     std::cout << "prealloc time: "
               << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -

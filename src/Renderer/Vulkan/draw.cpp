@@ -49,7 +49,8 @@ Draw::~Draw() {
 }
 
 void Draw::preallocate(uint32_t count) {
-    std::unique_lock<std::mutex> lock(_alloc_lock);
+    // FIXME:
+    // Allocator::preallocate is NOT thread safe with multiple Draw objects/models/primitives
     _allocators.instance_data->preallocate(count);
     instance_indices_allocator->preallocate(count);
 }

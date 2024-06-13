@@ -168,7 +168,7 @@ void GPUAllocation::copy(GPUAllocation* dst_allocation) {
 }
 
 void GPUAllocation::realloc(size_t const& byte_size) {
-    //        std::lock_guard<std::mutex> lock(_realloc_lock);
+    std::lock_guard<std::mutex> lock(_realloc_lock);
     GPUAllocation new_alloc = GPUAllocation(_buffer_info.usage, _alloc_info.requiredFlags, _name);
     new_alloc.alloc(byte_size);
     // Only copy if current has been alloced

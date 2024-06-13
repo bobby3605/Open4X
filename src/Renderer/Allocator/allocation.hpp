@@ -16,6 +16,7 @@ template <typename AllocationT> class Allocation {
     virtual void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) = 0;
     virtual void copy(AllocationT* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size) = 0;
     virtual void copy(AllocationT* dst_allocation) = 0;
+    std::mutex _realloc_lock;
 };
 
 template <typename> class LinearAllocator;
@@ -30,7 +31,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
         : _offset(offset), _size(size), _parent(parent), _allocator(allocator) {}
     SubAllocation(size_t const& offset, size_t const& size, ParentAllocationT* parent) : _offset(offset), _size(size), _parent(parent) {}
     void get(void* dst) { get(dst, 0, _size); }
-    inline void write(const void* data) { write(0, data, _size); }
+    void write(const void* data) { write(0, data, _size); }
     void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
     void realloc(size_t const& byte_size) {
         // NOTE:
