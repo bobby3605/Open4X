@@ -43,6 +43,11 @@ class Camera : public Object {
 
     float move_speed{6.0f};
     float look_speed{2.0f};
+
+    // FIXME:
+    // these have to be set because Object takes references to these
+    std::vector<Object*> _invalid_objects;
+    std::atomic<size_t> _invalid_objects_count;
 };
 
 #endif // CAMERA_H_

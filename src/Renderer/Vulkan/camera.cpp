@@ -3,7 +3,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
-Camera::Camera() {
+Camera::Camera() : Object(_invalid_objects, _invalid_objects_count) {
     // perspective projection
     assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
     const float tanHalfFovy = tan(glm::radians(vertical_fov) / 2.f);

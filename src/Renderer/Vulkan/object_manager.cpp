@@ -15,14 +15,14 @@ ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, new_settings-
         // NOTE:
         // _objects has to be a std::vector<Object*>, otherwise bulk add will fail,
         // because objects can have varying sizes (ex: _instances gets alloced after the constructor)
-        _objects[i] = new Object(_bulk_add_model, &_invalid_objects, &_invalid_objects_mutex);
+        _objects[i] = new Object(_bulk_add_model, _invalid_objects, _invalid_objects_count);
     });
 }
 
 ObjectManager::~ObjectManager() { delete _invalid_objects_slicer; }
 
 size_t ObjectManager::add_object(Model* model) {
-    _objects.emplace_back(new Object(model, &_invalid_objects, &_invalid_objects_mutex));
+    _objects.emplace_back(new Object(model, _invalid_objects, _invalid_objects_count));
     return _objects.size() - 1;
 }
 
@@ -45,8 +45,9 @@ Object* ObjectManager::get_object(std::string const& name) { return get_object(_
 void ObjectManager::refresh_invalid_objects() {
     // TODO
     // mutex to block object from modifying invalid_objects
-    _invalid_objects_slicer->run({.offset = 0, .size = _invalid_objects.size()});
+    _invalid_objects_slicer->run({.offset = 0, .size = _invalid_objects_count});
     _invalid_objects.clear();
+    _invalid_objects_count = 0;
 }
 
 void ObjectManager::preallocate(size_t const& count) {

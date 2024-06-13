@@ -28,10 +28,10 @@ class ObjectManager {
     std::vector<Object*> _objects;
     std::unordered_map<std::string, size_t> _object_names;
     std::vector<Object*> _invalid_objects;
+    std::atomic<size_t> _invalid_objects_count = 0;
     VectorSlicer<Object*>* _invalid_objects_slicer;
     VectorSlicer<Object*>* _bulk_objects_slicer;
     Model* _bulk_add_model;
-    std::mutex _invalid_objects_mutex;
 
     std::mt19937 _mt;
     std::uniform_real_distribution<float> _distribution;
