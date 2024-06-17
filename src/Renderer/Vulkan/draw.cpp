@@ -58,8 +58,6 @@ void Draw::preallocate(uint32_t count) {
 void Draw::add_instance(InstanceAllocPair& output) {
     // TODO
     // remove this lock
-    // instance count needs to be atomic
-    // defer writing instance data until all instances have been added
     // thread safe (ideally lock free) fixed allocator
     std::unique_lock<std::mutex> lock(_alloc_lock);
     // TODO
