@@ -1,6 +1,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include <atomic>
 #include <barrier>
 #include <condition_variable>
 #include <cstring>
@@ -320,18 +321,18 @@ template <typename T> class safe_deque_v3 {
     void push_front(T const& item) {
         std::unique_lock<std::mutex> lock(_idx_lock);
         // - 1 pre increment because _front_idx starts at 0
-        size_t idx = --_front_idx;
+        size_t idx = _front_idx.fetch_sub(1, std::memory_order_relaxed) - 1;
         safe_write(idx, item);
     }
     void push_back(T const& item) {
         std::unique_lock<std::mutex> lock(_idx_lock);
-        size_t idx = _back_idx++;
+        size_t idx = _back_idx.fetch_add(1, std::memory_order_relaxed);
         safe_write(idx, item);
     }
-    void pop_front() { ++_front_idx; }
-    void pop_back() { --_back_idx; }
-    T front() { return _data[_base_index + _front_idx]; }
-    T back() { return _data[_base_index + _back_idx]; }
+    void pop_front() { _front_idx.fetch_add(1, std::memory_order_relaxed); }
+    void pop_back() { _back_idx.fetch_sub(1, std::memory_order_relaxed); }
+    T front() { return _data[_base_index + _front_idx.load(std::memory_order_relaxed)]; }
+    T back() { return _data[_base_index + _back_idx.load(std::memory_order_relaxed)]; }
     void reserve(size_t count) {
         size_t tmp_size = size();
         if (count > tmp_size) {
@@ -345,12 +346,12 @@ template <typename T> class safe_deque_v3 {
         // NOTE:
         // - _front_idx because _front_idx is negative,
         // so this will return the total amount of alloced Ts
-        return _back_idx - _front_idx;
+        return _back_idx.load(std::memory_order_relaxed) - _front_idx.load(std::memory_order_relaxed);
     }
 
   protected:
     void safe_write(int idx, T const& item) {
-        size_t tmp_base_index = _base_index;
+        size_t tmp_base_index = _base_index.load(std::memory_order_relaxed);
         ensure_space(tmp_base_index, idx);
         _data[tmp_base_index + idx] = item;
     }
@@ -398,10 +399,10 @@ template <typename T> class safe_queue_v2 {
     ~safe_queue_v2() { free(_data); }
     void push(T const& item) {
         std::unique_lock<std::mutex> lock(_idx_lock);
-        safe_write(_idx++, item);
+        safe_write(_idx.fetch_add(1, std::memory_order_relaxed), item);
     }
-    void pop() { --_idx; }
-    T front() { return _data[_idx - 1]; }
+    void pop() { _idx.fetch_sub(1, std::memory_order_relaxed); }
+    T front() { return _data[_idx.load(std::memory_order_relaxed) - 1]; }
     void reserve(size_t count) {
         size_t tmp_size = size();
         if (count > tmp_size) {
@@ -412,7 +413,7 @@ template <typename T> class safe_queue_v2 {
     bool empty() { return size() == 0; }
     int size() {
         std::unique_lock<std::mutex> lock(_idx_lock);
-        return _idx;
+        return _idx.load(std::memory_order_relaxed);
     }
 
   protected:

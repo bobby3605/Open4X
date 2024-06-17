@@ -1,4 +1,5 @@
 #include "object.hpp"
+#include <atomic>
 #include <glm/gtx/transform.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -60,7 +61,7 @@ void Object::register_invalid_matrices() {
         // NOTE:
         // Camera sets _model to nullptr
         if (_model != nullptr) {
-            _invalid_objects[_invalid_objects_count.fetch_add(1)] = this;
+            _invalid_objects[_invalid_objects_count.fetch_add(1, std::memory_order_relaxed)] = this;
         }
     }
 }
