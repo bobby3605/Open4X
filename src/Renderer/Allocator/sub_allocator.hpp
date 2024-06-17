@@ -1,10 +1,9 @@
 #ifndef SUB_ALLOCATOR_H_
 #define SUB_ALLOCATOR_H_
+#include "../../utils/utils.hpp"
 #include "allocation.hpp"
 #include <cstdint>
 #include <deque>
-#include <iostream>
-#include <queue>
 #include <stdexcept>
 
 template <typename ParentAllocationT> class VoidAllocator {
@@ -68,19 +67,26 @@ template <typename ParentAllocationT> class FixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
     size_t _block_count = 0;
-    std::queue<SubAllocation<FixedAllocator, ParentAllocationT>*> _free_blocks;
+    safe_queue<SubAllocation<FixedAllocator, ParentAllocationT>*> _free_blocks;
 
   public:
     FixedAllocator(size_t const& block_size, ParentAllocationT* parent) : _parent(parent), _block_size(block_size) {}
     const ParentAllocationT* parent() const { return _parent; }
     size_t const& block_size() const { return _block_size; }
     size_t const& block_count() const { return _block_count; }
-    void preallocate(size_t count) {
-        int grow_size = (int)count - (int)_free_blocks.size();
-        if (grow_size > 0) {
-            grow(grow_size);
+    void reserve(size_t count) {
+        _free_blocks.reserve(count);
+        if (count > _block_count) {
+            size_t base_size = _parent->size();
+            _parent->realloc(base_size + _block_size * count);
+            for (size_t i = 0; i < count; ++i) {
+                _free_blocks.push(
+                    new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
+                ++_block_count;
+            }
         }
     }
+    void grow(size_t count) { reserve(count + _block_count); }
 
     SubAllocation<FixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
         throw std::runtime_error("unimplemented alloc(byte_size)");
@@ -100,17 +106,6 @@ template <typename ParentAllocationT> class FixedAllocator {
     void free(SubAllocation<FixedAllocator, ParentAllocationT>* allocation) {
         if (allocation->size() != 0) {
             _free_blocks.push(allocation);
-        }
-    }
-
-  private:
-    void grow(uint32_t count) {
-        size_t base_size = _parent->size();
-        _parent->realloc(base_size + _block_size * count);
-        for (size_t i = 0; i < count; ++i) {
-            _free_blocks.push(
-                new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
-            ++_block_count;
         }
     }
 };

@@ -51,7 +51,7 @@ Draw::~Draw() {
 
 void Draw::preallocate(uint32_t count) {
     std::unique_lock<std::mutex> lock(_alloc_lock);
-    _allocators.instance_data->preallocate(count);
+    _allocators.instance_data->reserve(count);
     instance_indices_allocator->preallocate(count);
 }
 

@@ -10,6 +10,7 @@
 #include <queue>
 #include <type_traits>
 
+/*
 // thread safe queue
 template <typename T> class safe_queue {
   public:
@@ -71,11 +72,13 @@ template <typename T> class safe_queue_external_sync {
     std::mutex _mutex;
 };
 
+*/
+
 template <typename T> class safe_vector {
     T* _data = nullptr;
     size_t _capacity = 0;
     std::atomic<size_t> _size = 0;
-    std::mutex _grow_lock;
+    std::mutex _reserve_lock;
 
   public:
     // returns index of item it pushed back
@@ -87,6 +90,7 @@ template <typename T> class safe_vector {
     }
     void reserve(size_t capacity) {
         if (capacity > _capacity) {
+            std::unique_lock<std::mutex> lock(_reserve_lock);
             T* tmp = reinterpret_cast<T*>(new char[capacity * sizeof(T)]);
             if (_data != nullptr) {
                 memcpy(tmp, _data, _capacity * sizeof(T));
@@ -95,10 +99,7 @@ template <typename T> class safe_vector {
             _capacity = capacity;
         }
     }
-    void grow(size_t grow_size) {
-        std::unique_lock<std::mutex> lock(_grow_lock);
-        reserve(grow_size + _size);
-    }
+    void grow(size_t grow_size) { reserve(grow_size + size()); }
     inline T& operator[](size_t const& idx) { return _data[idx]; }
     void clear() { _size.store(0, std::memory_order_seq_cst); }
     size_t size() const { return _size.load(std::memory_order_seq_cst); }
@@ -109,7 +110,21 @@ template <typename T> class safe_vector {
             throw std::runtime_error("not enough capacity in safe vector for index: " + std::to_string(idx));
         }
     }
+    template <typename> friend class safe_queue;
 };
+
+template <typename T> class safe_queue {
+    safe_vector<T> _vector;
+
+  public:
+    void push(T const& item) { _vector.push_back(item); }
+    void pop() { _vector._size.fetch_sub(1, std::memory_order_relaxed); }
+    T front() { return _vector[_vector._size.load(std::memory_order_seq_cst) - 1]; }
+    void reserve(size_t capacity) { _vector.reserve(capacity); }
+    void grow(size_t grow_size) { _vector.grow(grow_size); }
+    bool empty() { return _vector.size() == 0; }
+};
+template <typename T> class safe_deque {};
 
 struct Chunk {
     size_t offset;
