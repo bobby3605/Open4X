@@ -158,7 +158,7 @@ void Open4X::run() {
         size_t engine_id = _object_manager->add_object(engine_model);
         Object* engine_obj = _object_manager->get_object(engine_id);
         engine_obj->scale({0.01, 0.01, 0.01});
-        engine_obj->position({0, 0, 0});
+        engine_obj->position({5, 0, 0});
 
         if (settings->showFPS) {
             std::stringstream title;

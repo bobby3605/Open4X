@@ -34,6 +34,7 @@ class Model {
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
     void add_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
+    NewAABB& aabb() { return _aabb; }
 
     class Scene {
       public:
@@ -84,6 +85,7 @@ class Model {
             // char* and a byte size
             std::vector<NewVertex> _vertices;
             std::vector<uint32_t> _indices;
+            NewAABB _aabb;
 
           public:
             std::vector<NewVertex> const& vertices() const { return _vertices; }
@@ -100,6 +102,7 @@ class Model {
 
       protected:
         std::vector<Primitive> _primitives;
+        NewAABB _aabb;
 
       public:
         std::vector<Primitive> const& primitives() const { return _primitives; }
@@ -119,6 +122,7 @@ class Model {
     std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
     safe_vector<Draw*>& _invalid_draws;
+    NewAABB _aabb;
 
   private:
     // TODO

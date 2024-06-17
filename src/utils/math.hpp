@@ -108,3 +108,23 @@ inline void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotat
     trs[2][3] = 0;
     trs[3][3] = 1;
 }
+
+class NewAABB {
+  public:
+    glm::vec3 max() { return _max; }
+    glm::vec3 min() { return _min; }
+    glm::vec3 length();
+    glm::vec3 centerpoint();
+
+    void update(glm::vec3 const& new_bounds);
+    void update(NewAABB const& new_bounds);
+    void update(glm::vec4 const& new_bounds);
+
+  private:
+    glm::vec3 _max{-MAXFLOAT};
+    glm::vec3 _min{MAXFLOAT};
+    glm::vec3 _length;
+    glm::vec3 _centerpoint;
+    bool length_cached = false;
+    bool centerpoint_cached = false;
+};

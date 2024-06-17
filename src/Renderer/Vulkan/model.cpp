@@ -74,7 +74,10 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
         if (!_model->_meshes[_mesh_index.value()].has_value()) {
             _model->_meshes[_mesh_index.value()].value() = new Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
         }
-        _model->_total_instance_data_count += _model->_meshes[_mesh_index.value()].value()->primitives().size();
+        Mesh* mesh = _model->_meshes[_mesh_index.value()].value();
+        _model->_total_instance_data_count += mesh->primitives().size();
+        _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.max(), 1.0f));
+        _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.min(), 1.0f));
     }
 
     _child_node_indices.reserve(_node->children.size());
@@ -93,6 +96,7 @@ Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh, DrawAllocators const& draw
     _model->_invalid_draws.grow(_primitives.capacity());
     for (auto primitive : mesh->primitives) {
         _primitives.emplace_back(_model, &primitive, draw_allocators);
+        _aabb.update(_primitives.back()._aabb);
     }
 }
 
@@ -103,6 +107,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
     tmp_vertices.resize(positions.size());
     for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
         tmp_vertices[i].pos = positions[i];
+        _aabb.update(tmp_vertices[i].pos);
     }
 
     SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
