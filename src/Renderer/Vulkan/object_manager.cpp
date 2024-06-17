@@ -8,21 +8,21 @@
 ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, new_settings->rand_limit) {
     // Using more threads than supported by the hardware would only slow things down
     size_t num_threads = std::min((unsigned int)new_settings->object_refresh_threads, std::thread::hardware_concurrency());
-    _invalid_objects_processor =
-        new ChunkProcessor<Object*>(_invalid_objects, num_threads, [&](size_t i) { _invalid_objects[i]->refresh_instance_data(); });
+    _invalid_objects_processor = new ChunkProcessor<Object*, safe_vector>(_invalid_objects, num_threads,
+                                                                          [&](size_t i) { _invalid_objects[i]->refresh_instance_data(); });
 
     _bulk_objects_processor = new ChunkProcessor<Object*>(_objects, new_settings->object_bulk_create_threads, [&](size_t i) {
         // NOTE:
         // _objects has to be a std::vector<Object*>, otherwise bulk add will fail,
         // because objects can have varying sizes (ex: _instances gets alloced after the constructor)
-        _objects[i] = new Object(_bulk_add_model, _invalid_objects, _invalid_objects_count);
+        _objects[i] = new Object(_bulk_add_model, _invalid_objects);
     });
 }
 
 ObjectManager::~ObjectManager() { delete _invalid_objects_processor; }
 
 size_t ObjectManager::add_object(Model* model) {
-    _objects.emplace_back(new Object(model, _invalid_objects, _invalid_objects_count));
+    _objects.emplace_back(new Object(model, _invalid_objects));
     return _objects.size() - 1;
 }
 
@@ -45,9 +45,8 @@ Object* ObjectManager::get_object(std::string const& name) { return get_object(_
 void ObjectManager::refresh_invalid_objects() {
     // TODO
     // mutex to block object from modifying invalid_objects
-    _invalid_objects_processor->run({.offset = 0, .size = _invalid_objects_count});
+    _invalid_objects_processor->run({.offset = 0, .size = _invalid_objects.size()});
     _invalid_objects.clear();
-    _invalid_objects_count = 0;
 }
 
 void ObjectManager::preallocate(size_t const& count) {

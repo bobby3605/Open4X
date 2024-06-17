@@ -27,9 +27,8 @@ class ObjectManager {
   private:
     std::vector<Object*> _objects;
     std::unordered_map<std::string, size_t> _object_names;
-    std::vector<Object*> _invalid_objects;
-    std::atomic<size_t> _invalid_objects_count = 0;
-    ChunkProcessor<Object*>* _invalid_objects_processor;
+    safe_vector<Object*> _invalid_objects;
+    ChunkProcessor<Object*, safe_vector>* _invalid_objects_processor;
     ChunkProcessor<Object*>* _bulk_objects_processor;
     Model* _bulk_add_model;
 

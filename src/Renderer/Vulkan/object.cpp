@@ -7,13 +7,9 @@
 // but they'll never be used if model is nullptr
 // references should be faster than pointers, but it might not be worth it
 // const pointer might get optimized to a reference, but without this issue
-Object::Object(std::vector<Object*>& invalid_objects, std::atomic<size_t>& invalid_objects_count)
-    : _model(nullptr), _invalid_objects(invalid_objects), _invalid_objects_count(invalid_objects_count) {
-    register_invalid_matrices();
-}
+Object::Object(safe_vector<Object*>& invalid_objects) : _model(nullptr), _invalid_objects(invalid_objects) { register_invalid_matrices(); }
 
-Object::Object(Model* model, std::vector<Object*>& invalid_objects, std::atomic<size_t>& invalid_objects_count)
-    : _model(model), _invalid_objects(invalid_objects), _invalid_objects_count(invalid_objects_count) {
+Object::Object(Model* model, safe_vector<Object*>& invalid_objects) : _model(model), _invalid_objects(invalid_objects) {
     model->add_instance(_instances);
     register_invalid_matrices();
 }
@@ -60,7 +56,7 @@ void Object::register_invalid_matrices() {
         // NOTE:
         // Camera sets _model to nullptr
         if (_model != nullptr) {
-            _invalid_objects[_invalid_objects_count.fetch_add(1)] = this;
+            _invalid_objects.push_back(this);
         }
     }
 }

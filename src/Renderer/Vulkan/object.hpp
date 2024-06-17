@@ -1,13 +1,12 @@
 #ifndef OBJECT_H_
 #define OBJECT_H_
 #include "model.hpp"
-#include <atomic>
 #include <glm/gtx/quaternion.hpp>
 
 class Object {
   public:
-    Object(std::vector<Object*>& invalid_objects, std::atomic<size_t>& invalid_objects_count);
-    Object(Model* model, std::vector<Object*>& invalid_objects, std::atomic<size_t>& invalid_objects_count);
+    Object(safe_vector<Object*>& invalid_objects);
+    Object(Model* model, safe_vector<Object*>& invalid_objects);
 
     glm::vec3 const& position() { return _position; }
     glm::quat const& rotation() { return _rotation; }
@@ -30,8 +29,7 @@ class Object {
     bool _instance_data_invalid = false;
     std::vector<InstanceAllocPair> _instances;
 
-    std::vector<Object*>& _invalid_objects;
-    std::atomic<size_t>& _invalid_objects_count;
+    safe_vector<Object*>& _invalid_objects;
 
     bool _t_invalid = false;
     bool _rs_invalid = false;

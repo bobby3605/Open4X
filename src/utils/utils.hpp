@@ -131,7 +131,7 @@ class ThreadPool {
     void run();
 };
 
-template <typename T, template <typename CT> class CT = std::vector> class ChunkProcessor {
+template <typename T, template <class CT> class CT = std::vector> class ChunkProcessor {
     size_t _num_threads;
     CT<T>& _vector;
     std::vector<Chunk> _vector_slices;
