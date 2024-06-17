@@ -3,76 +3,10 @@
 
 #include <atomic>
 #include <barrier>
-#include <condition_variable>
 #include <functional>
-#include <iostream>
 #include <mutex>
-#include <queue>
+#include <semaphore>
 #include <type_traits>
-
-/*
-// thread safe queue
-template <typename T> class safe_queue {
-  public:
-    ~safe_queue() { exit(); }
-    void push(T item) {
-        std::unique_lock<std::mutex> lock(_mutex);
-        _queue.push(item);
-        _cond.notify_one();
-    }
-    T pop() {
-        std::unique_lock<std::mutex> lock(_mutex);
-        _cond.wait(lock, [&]() { return _should_exit || !_queue.empty(); });
-        if (_should_exit) {
-            return nullptr;
-        }
-        T item = _queue.front();
-        _queue.pop();
-        return item;
-    }
-    bool empty() {
-        std::unique_lock<std::mutex> lock(_mutex);
-        return _queue.empty();
-    }
-
-    void exit() {
-        _should_exit = true;
-        _cond.notify_all();
-    }
-
-  private:
-    std::queue<T> _queue;
-    std::mutex _mutex;
-    std::condition_variable _cond;
-    std::atomic<bool> _should_exit = false;
-};
-
-template <typename T> class safe_queue_external_sync {
-  public:
-    void push(T item) {
-        std::unique_lock<std::mutex> lock(_mutex);
-        _queue.push(item);
-    }
-    T pop() {
-        std::unique_lock<std::mutex> lock(_mutex);
-        if (_queue.empty()) {
-            return nullptr;
-        }
-        T item = _queue.front();
-        _queue.pop();
-        return item;
-    }
-    bool empty() {
-        std::unique_lock<std::mutex> lock(_mutex);
-        return _queue.empty();
-    }
-
-  private:
-    std::queue<T> _queue;
-    std::mutex _mutex;
-};
-
-*/
 
 template <typename T> class safe_vector {
     T* _data = nullptr;
@@ -124,6 +58,7 @@ template <typename T> class safe_queue {
     void grow(size_t grow_size) { _vector.grow(grow_size); }
     bool empty() { return _vector.size() == 0; }
 };
+
 template <typename T> class safe_deque {};
 
 struct Chunk {
@@ -193,61 +128,6 @@ template <typename T, template <class CT> class CT = std::vector> class ChunkPro
 template <typename F, typename... Args> auto partial(F f, Args... tail_args) {
     return [=](auto head_arg) { return f(head_arg, tail_args...); };
 }
-
-/*
-template <typename T, bool = std::is_pointer<T>::value> struct fast_optional {};
-
-template <typename T> struct fast_optional<T, true> {
-    fast_optional() {}
-    fast_optional(T& value) : _value(value) {}
-    T _value = nullptr;
-    inline bool has_value() { return _value == nullptr; };
-    inline T& value() { return _value; }
-};
-
-// value only needs to be a pointer if T isn't
-template <typename T> struct fast_optional<T, false> {
-    fast_optional() {}
-    fast_optional(T& value) : _value(value) {}
-    T* _value = nullptr;
-    inline bool has_value() { return _value == nullptr; };
-    inline T* value() { return _value; }
-};
-*/
-
-/*
-template <typename T, bool = std::is_pointer<T>::value> struct fast_optional {};
-
-template <typename T> struct fast_optional<T, true> {
-    fast_optional() {}
-    fast_optional(T& value) : _value(value) {}
-    T _value = nullptr;
-    inline bool has_value() { return _value == nullptr; };
-    inline T& value() { return _value; }
-    template <typename... Args> fast_optional(Args&&... args) : _value(args...) {}
-};
-
-template <typename T> struct fast_optional<T, false> {
-    fast_optional() {}
-    fast_optional(T& value) : _value(value) {}
-    T _value = NULL;
-    inline bool has_value() { return _value == NULL; };
-    inline T& value() { return _value; }
-    template <typename... Args> fast_optional(Args&&... args) : _value(args...) {}
-};
-*/
-
-/*
-template <typename T> struct fast_optional {
-    T* _value = nullptr;
-    fast_optional() {}
-    fast_optional(T& value) : _value(value) {}
-    fast_optional(T&& value) : _value(value) {}
-    template <typename... Args> fast_optional(Args&&... args) : _value(new T(args...)) {}
-    inline bool has_value() { return _value == nullptr; }
-    inline T& value() { return *_value; }
-};
-*/
 
 template <typename T> struct fast_optional {};
 
