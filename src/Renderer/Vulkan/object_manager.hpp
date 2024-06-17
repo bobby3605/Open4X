@@ -29,8 +29,8 @@ class ObjectManager {
     std::unordered_map<std::string, size_t> _object_names;
     std::vector<Object*> _invalid_objects;
     std::atomic<size_t> _invalid_objects_count = 0;
-    VectorSlicer<Object*>* _invalid_objects_slicer;
-    VectorSlicer<Object*>* _bulk_objects_slicer;
+    ChunkProcessor<Object*>* _invalid_objects_processor;
+    ChunkProcessor<Object*>* _bulk_objects_processor;
     Model* _bulk_add_model;
 
     std::mt19937 _mt;

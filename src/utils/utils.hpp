@@ -70,7 +70,7 @@ template <typename T> class safe_queue_external_sync {
     std::mutex _mutex;
 };
 
-struct VectorSlice {
+struct Chunk {
     size_t offset;
     size_t size;
 };
@@ -90,17 +90,17 @@ class ThreadPool {
     void run();
 };
 
-template <typename T> class VectorSlicer {
+template <typename T> class ChunkProcessor {
     size_t _num_threads;
     std::vector<T>& _vector;
-    std::vector<VectorSlice> _vector_slices;
+    std::vector<Chunk> _vector_slices;
     std::function<void(size_t i)> _work_task;
     ThreadPool _thread_pool;
 
   public:
-    VectorSlicer(std::vector<T>& vector, size_t const& num_threads, std::function<void(size_t i)> const& work_task)
+    ChunkProcessor(std::vector<T>& vector, size_t const& num_threads, std::function<void(size_t i)> const& work_task)
         : _num_threads(num_threads), _vector(vector), _work_task(work_task), _thread_pool(num_threads, [&](size_t thread_id) {
-              VectorSlice& slice = _vector_slices[thread_id];
+              Chunk& slice = _vector_slices[thread_id];
               size_t end_offset = slice.offset + slice.size;
               for (size_t i = slice.offset; i < end_offset; ++i) {
                   _work_task(i);
@@ -108,7 +108,7 @@ template <typename T> class VectorSlicer {
           }) {
         _vector_slices.reserve(num_threads);
     }
-    void run(VectorSlice const& section_to_slice) {
+    void run(Chunk const& section_to_slice) {
         // run on this thread if the thread pool would be too much overhead
         if (section_to_slice.size < _num_threads || _num_threads == 0) {
             for (size_t i = section_to_slice.offset; i < (section_to_slice.offset + section_to_slice.size); ++i) {
