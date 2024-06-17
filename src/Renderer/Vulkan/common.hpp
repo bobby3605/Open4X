@@ -45,6 +45,7 @@ struct NewSettings {
     bool pause_on_minimization = false;
     uint32_t object_refresh_threads = 2;
     uint32_t object_bulk_create_threads = 2;
+    uint32_t invalid_draws_refresh_threads = 0;
 };
 
 inline NewSettings* new_settings;

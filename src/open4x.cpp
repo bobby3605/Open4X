@@ -142,6 +142,7 @@ void Open4X::loadSettings() {
         new_settings->pause_on_minimization = settings->pauseOnMinimization;
         new_settings->object_refresh_threads = miscJSON["object_refresh_threads"].GetInt();
         new_settings->object_bulk_create_threads = miscJSON["object_bulk_create_threads"].GetInt();
+        new_settings->invalid_draws_refresh_threads = miscJSON["invalid_draws_refresh_threads"].GetInt();
 
     } else {
         std::cout << "Failed to open settings file, using defaults" << std::endl;
@@ -169,6 +170,7 @@ void Open4X::run() {
         ShaderGlobals shader_globals;
         auto refresh_start = std::chrono::high_resolution_clock::now();
         _object_manager->refresh_invalid_objects();
+        _model_manager->refresh_invalid_draws();
         std::cout << "initial refresh time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() -
                                                                                      refresh_start)
@@ -185,6 +187,7 @@ void Open4X::run() {
             start_time = current_time;
             glfwPollEvents();
             _object_manager->refresh_invalid_objects();
+            _model_manager->refresh_invalid_draws();
             cam.update_transform(frame_time);
             // TODO
             // cache camera matrix

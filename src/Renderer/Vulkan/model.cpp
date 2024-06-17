@@ -15,8 +15,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material)
-    : _default_material(default_material) {
+Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
+             safe_vector<Draw*>& invalid_draws)
+    : _default_material(default_material), _invalid_draws(invalid_draws) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -89,6 +90,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
 Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh, DrawAllocators const& draw_allocators) : _model(model), _mesh(mesh) {
     // Load primitives
     _primitives.reserve(mesh->primitives.size());
+    _model->_invalid_draws.grow(_primitives.capacity());
     for (auto primitive : mesh->primitives) {
         _primitives.emplace_back(_model, &primitive, draw_allocators);
     }
@@ -148,7 +150,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
-    _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc);
+    _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc, model->_invalid_draws);
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {

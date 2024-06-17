@@ -1,6 +1,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
+#include <atomic>
 #include <barrier>
 #include <condition_variable>
 #include <functional>
@@ -70,6 +71,46 @@ template <typename T> class safe_queue_external_sync {
     std::mutex _mutex;
 };
 
+template <typename T> class safe_vector {
+    T* _data = nullptr;
+    size_t _capacity = 0;
+    std::atomic<size_t> _size = 0;
+    std::mutex _grow_lock;
+
+  public:
+    // returns index of item it pushed back
+    size_t push_back(T const& item) {
+        size_t idx = _size.fetch_add(1, std::memory_order_relaxed);
+        ensure_capacity(idx);
+        _data[idx] = item;
+        return idx;
+    }
+    void reserve(size_t capacity) {
+        if (capacity > _capacity) {
+            T* tmp = reinterpret_cast<T*>(new char[capacity * sizeof(T)]);
+            if (_data != nullptr) {
+                memcpy(tmp, _data, _capacity * sizeof(T));
+            }
+            _data = tmp;
+            _capacity = capacity;
+        }
+    }
+    void grow(size_t grow_size) {
+        std::unique_lock<std::mutex> lock(_grow_lock);
+        reserve(grow_size + _size);
+    }
+    inline T& operator[](size_t const& idx) { return _data[idx]; }
+    void clear() { _size.store(0, std::memory_order_seq_cst); }
+    size_t size() const { return _size.load(std::memory_order_seq_cst); }
+
+  private:
+    void ensure_capacity(size_t const& idx) {
+        if (idx > _capacity || _capacity == 0) {
+            throw std::runtime_error("not enough capacity in safe vector for index: " + std::to_string(idx));
+        }
+    }
+};
+
 struct Chunk {
     size_t offset;
     size_t size;
@@ -90,15 +131,15 @@ class ThreadPool {
     void run();
 };
 
-template <typename T> class ChunkProcessor {
+template <typename T, template <typename CT> class CT = std::vector> class ChunkProcessor {
     size_t _num_threads;
-    std::vector<T>& _vector;
+    CT<T>& _vector;
     std::vector<Chunk> _vector_slices;
     std::function<void(size_t i)> _work_task;
     ThreadPool _thread_pool;
 
   public:
-    ChunkProcessor(std::vector<T>& vector, size_t const& num_threads, std::function<void(size_t i)> const& work_task)
+    ChunkProcessor(CT<T>& vector, size_t const& num_threads, std::function<void(size_t i)> const& work_task)
         : _num_threads(num_threads), _vector(vector), _work_task(work_task), _thread_pool(num_threads, [&](size_t thread_id) {
               Chunk& slice = _vector_slices[thread_id];
               size_t end_offset = slice.offset + slice.size;

@@ -10,11 +10,14 @@ class ModelManager {
     ~ModelManager();
     Model* get_model(std::filesystem::path model_path);
     void preallocate(std::filesystem::path model_path, uint32_t count);
+    void refresh_invalid_draws();
 
   private:
     std::unordered_map<std::filesystem::path, Model*> _models;
     DrawAllocators _draw_allocators;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material_alloc;
+    safe_vector<Draw*> _invalid_draws;
+    ChunkProcessor<Draw*, safe_vector>* _invalid_draws_processor;
 };
 
 #endif // MODEL_MANAGER_H_
