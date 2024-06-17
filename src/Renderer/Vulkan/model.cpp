@@ -66,7 +66,6 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     _transform = parent_transform * _transform;
     // Check if node has mesh
     if (node->meshIndex.has_value()) {
-        ++_model->_total_instance_data_count;
         _mesh_index = *node->meshIndex;
         // NOTE:
         // resize is fine here because it's a vector<optional>
@@ -75,6 +74,7 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
         if (!_model->_meshes[_mesh_index.value()].has_value()) {
             _model->_meshes[_mesh_index.value()].value() = new Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
         }
+        _model->_total_instance_data_count += _model->_meshes[_mesh_index.value()].value()->primitives().size();
     }
 
     _child_node_indices.reserve(_node->children.size());

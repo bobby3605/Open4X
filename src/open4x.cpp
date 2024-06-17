@@ -152,8 +152,13 @@ void Open4X::loadSettings() {
 void Open4X::run() {
     if (NEW_RENDERER) {
         std::string base_path = std::filesystem::current_path().string();
-        Model* box_model = _model_manager->get_model(base_path + "/assets/glTF/Box.gltf");
+        Model* box_model = _model_manager->get_model(base_path + "/" + "assets/glTF/Box.gltf");
         _object_manager->create_n_objects(box_model, new_settings->extra_object_count);
+        Model* engine_model = _model_manager->get_model(base_path + "/" + "assets/glTF/2CylinderEngine.glb");
+        size_t engine_id = _object_manager->add_object(engine_model);
+        Object* engine_obj = _object_manager->get_object(engine_id);
+        engine_obj->scale({0.01, 0.01, 0.01});
+        engine_obj->position({0, 0, 0});
 
         if (settings->showFPS) {
             std::stringstream title;
