@@ -53,7 +53,7 @@ template <typename T> class safe_queue {
   public:
     void push(T const& item) { _vector.push_back(item); }
     void pop() { _vector._size.fetch_sub(1, std::memory_order_relaxed); }
-    T front() { return _vector[_vector._size.load(std::memory_order_seq_cst) - 1]; }
+    T front() { return _vector[_vector._size.load(std::memory_order_relaxed) - 1]; }
     void reserve(size_t capacity) { _vector.reserve(capacity); }
     void grow(size_t grow_size) { _vector.grow(grow_size); }
     bool empty() { return _vector.size() == 0; }
