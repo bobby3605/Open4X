@@ -94,16 +94,23 @@ struct InstanceAllocPair {
 class Draw {
   public:
     Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
-         SubAllocation<FixedAllocator, GPUAllocation>* material_alloc);
+         SubAllocation<FixedAllocator, GPUAllocation>* material_alloc, std::vector<Draw*>& invalid_draws,
+         std::atomic<size_t>& invalid_draws_idx);
     ~Draw();
     void preallocate(uint32_t count);
     void add_instance(InstanceAllocPair& output);
     void remove_instance(InstanceAllocPair instance);
     void write_instance_data(uint32_t instance_id, InstanceData const& instance_data);
+    void write_indirect_command();
 
   private:
     DrawAllocators _allocators;
     VkDrawIndexedIndirectCommand _indirect_command;
+    std::atomic<uint32_t> _instance_count;
+    void register_invalid();
+    bool _registered = false;
+    std::vector<Draw*>& _invalid_draws;
+    std::atomic<size_t>& _invalid_draws_idx;
     SubAllocation<LinearAllocator, GPUAllocation>* _vertex_alloc;
     SubAllocation<LinearAllocator, GPUAllocation>* _index_alloc;
     SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _indirect_commands_alloc;

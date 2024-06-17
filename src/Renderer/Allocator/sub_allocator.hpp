@@ -3,7 +3,6 @@
 #include "../../utils/utils.hpp"
 #include "allocation.hpp"
 #include <cstdint>
-#include <queue>
 #include <stdexcept>
 
 template <typename ParentAllocationT> class VoidAllocator {
@@ -67,7 +66,8 @@ template <typename ParentAllocationT> class FixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
     size_t _block_count = 0;
-    std::queue<SubAllocation<FixedAllocator, ParentAllocationT>*> _free_blocks;
+    safe_queue_v2<SubAllocation<FixedAllocator, ParentAllocationT>*> _free_blocks;
+    std::mutex _grow_lock;
 
   public:
     FixedAllocator(size_t const& block_size, ParentAllocationT* parent) : _parent(parent), _block_size(block_size) {}
@@ -104,6 +104,7 @@ template <typename ParentAllocationT> class FixedAllocator {
 
   private:
     void grow(uint32_t count) {
+        std::unique_lock<std::mutex> lock(_grow_lock);
         size_t base_size = _parent->size();
         _parent->realloc(base_size + _block_size * count);
         for (size_t i = 0; i < count; ++i) {
@@ -120,8 +121,9 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
     size_t _block_count = 0;
-    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
-    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
+    safe_deque_v3<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
+    safe_deque_v3<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
+    std::mutex _grow_lock;
 
   public:
     ContiguousFixedAllocator(size_t const& block_size, ParentAllocationT* parent) : _parent(parent), _block_size(block_size) {}
@@ -186,8 +188,11 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
 
   private:
     void grow(size_t count) {
+        std::unique_lock<std::mutex> lock(_grow_lock);
         // FIXME:
-        // _parent->realloc is NOT thread safe with multiple models
+        // If another thread calls grow on the parent after this gets the size, but before the realloc runs,
+        // then the parent size will not be enough
+        // maybe keep a needed_size atomic in parent?
         size_t base_size = _parent->size();
         _parent->realloc(base_size + _block_size * count);
         //        _parent->preallocate(_block_size * count);

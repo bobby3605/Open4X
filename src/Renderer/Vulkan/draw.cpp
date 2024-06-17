@@ -5,8 +5,9 @@
 #include <vulkan/vulkan_core.h>
 
 Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
-           SubAllocation<FixedAllocator, GPUAllocation>* material_alloc)
-    : _allocators(draw_allocators) {
+           SubAllocation<FixedAllocator, GPUAllocation>* material_alloc, std::vector<Draw*>& invalid_draws,
+           std::atomic<size_t>& invalid_draws_idx)
+    : _allocators(draw_allocators), _invalid_draws(invalid_draws), _invalid_draws_idx(invalid_draws_idx) {
 
     _vertex_alloc = _allocators.vertex->alloc(vertices.size() * sizeof(vertices[0]));
     _indirect_command.vertexOffset = _vertex_alloc->offset() / sizeof(vertices[0]);
@@ -38,38 +39,27 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
     _indirect_commands_alloc->write(&_indirect_command);
 
     instance_indices_allocator = new ContiguousFixedAllocator(sizeof(uint32_t), _allocators.instance_indices->alloc_0());
+    register_invalid();
 }
 
 Draw::~Draw() {
     _allocators.indirect_commands->pop_and_swap(_indirect_commands_alloc);
     _allocators.material_indices->pop_and_swap(_material_index_alloc);
     delete instance_indices_allocator;
-    // TODO
+    // FIXME:
     // Free instance data
 }
 
 void Draw::preallocate(uint32_t count) {
-    // FIXME:
-    // Allocator::preallocate is NOT thread safe with multiple Draw objects/models/primitives
     _allocators.instance_data->preallocate(count);
     instance_indices_allocator->preallocate(count);
 }
 
 void Draw::add_instance(InstanceAllocPair& output) {
-    // TODO
-    // remove this lock
-    // instance count needs to be atomic
-    // defer writing instance data until all instances have been added
-    // thread safe (ideally lock free) fixed allocator
-    std::unique_lock<std::mutex> lock(_alloc_lock);
-    // TODO
-    // preallocate when creating a large amount of instances
     InstanceDataAlloc& instance_data_alloc = output.data = _allocators.instance_data->alloc();
     InstanceIndexAlloc& instance_index_alloc = output.index = instance_indices_allocator->alloc();
-    ++_indirect_command.instanceCount;
-    // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
-    _indirect_command.firstInstance = instance_indices_allocator->parent()->offset() / sizeof(uint32_t);
-    _indirect_commands_alloc->write(&_indirect_command);
+    ++_instance_count;
+    register_invalid();
     // NOTE:
     // Since instance_data_alloc is directly on a GPUAllocation, offset() is the correct index
     // If it was stacked on top of another allocator, then a global_offset() function would be needed
@@ -86,4 +76,19 @@ void Draw::remove_instance(InstanceAllocPair instance) {
     instance_indices_allocator->pop_and_swap(instance_index_alloc);
     --_indirect_command.instanceCount;
     _indirect_commands_alloc->write(&_indirect_command);
+}
+
+void Draw::write_indirect_command() {
+    _indirect_command.instanceCount = _instance_count;
+    // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
+    _indirect_command.firstInstance = instance_indices_allocator->parent()->offset() / sizeof(uint32_t);
+    _indirect_commands_alloc->write(&_indirect_command);
+    _registered = false;
+}
+
+void Draw::register_invalid() {
+    if (!_registered) {
+        _registered = true;
+        _invalid_draws[_invalid_draws_idx++] = this;
+    }
 }

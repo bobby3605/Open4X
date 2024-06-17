@@ -29,10 +29,12 @@ template <typename T> inline std::vector<T> load_accessor(fastgltf::Asset* asset
 
 class Model {
   public:
-    Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material);
+    Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
+          std::vector<Draw*>& invalid_draws, std::atomic<size_t>& invalid_draws_idx);
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
     void add_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
+    size_t const& total_draws() const { return _total_draws; }
 
     class Scene {
       public:
@@ -117,6 +119,9 @@ class Model {
     std::vector<fast_optional<Mesh*>> _meshes;
     std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
+    size_t _total_draws = 0;
+    std::vector<Draw*>& _invalid_draws;
+    std::atomic<size_t>& _invalid_draws_idx;
 
   private:
     // TODO

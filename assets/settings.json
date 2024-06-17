@@ -8,5 +8,6 @@
         ,"pauseOnMinimization": false
         ,"object_refresh_threads": 15
         ,"object_bulk_create_threads": 4
+        ,"indirect_write_threads": 0
     }
 }

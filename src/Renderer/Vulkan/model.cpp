@@ -15,8 +15,9 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material)
-    : _default_material(default_material) {
+Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
+             std::vector<Draw*>& invalid_draws, std::atomic<size_t>& invalid_draws_idx)
+    : _default_material(default_material), _invalid_draws(invalid_draws), _invalid_draws_idx(invalid_draws_idx) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -34,6 +35,7 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
+        std::cout << "emplacing scene" << std::endl;
         _scenes.emplace_back(this, &scene, draw_allocators);
     }
 }
@@ -89,8 +91,12 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
 Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh, DrawAllocators const& draw_allocators) : _model(model), _mesh(mesh) {
     // Load primitives
     _primitives.reserve(mesh->primitives.size());
+    // FIXME:
+    // This isn't thread safe
+    model->_invalid_draws.reserve(model->_invalid_draws.size() + _primitives.capacity());
     for (auto primitive : mesh->primitives) {
         _primitives.emplace_back(_model, &primitive, draw_allocators);
+        ++model->_total_draws;
     }
 }
 
@@ -148,7 +154,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
-    _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc);
+    _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc, model->_invalid_draws, model->_invalid_draws_idx);
 }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {
