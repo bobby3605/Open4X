@@ -35,7 +35,6 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
-        std::cout << "emplacing scene" << std::endl;
         _scenes.emplace_back(this, &scene, draw_allocators);
     }
 }
