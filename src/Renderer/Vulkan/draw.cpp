@@ -1,4 +1,5 @@
 #include "draw.hpp"
+#include <atomic>
 #include <cstdint>
 #include <glm/gtx/string_cast.hpp>
 #include <mutex>
@@ -50,21 +51,16 @@ Draw::~Draw() {
 }
 
 void Draw::preallocate(uint32_t count) {
-    std::unique_lock<std::mutex> lock(_alloc_lock);
     _allocators.instance_data->reserve(count);
-    instance_indices_allocator->preallocate(count);
+    instance_indices_allocator->reserve(count);
 }
 
 void Draw::add_instance(InstanceAllocPair& output) {
     // TODO
-    // remove this lock
-    // thread safe (ideally lock free) fixed allocator
-    std::unique_lock<std::mutex> lock(_alloc_lock);
-    // TODO
     // preallocate when creating a large amount of instances
     InstanceDataAlloc& instance_data_alloc = output.data = _allocators.instance_data->alloc();
     InstanceIndexAlloc& instance_index_alloc = output.index = instance_indices_allocator->alloc();
-    ++_instance_count;
+    _instance_count.fetch_add(1, std::memory_order_relaxed);
     register_invalid();
     // NOTE:
     // Since instance_data_alloc is directly on a GPUAllocation, offset() is the correct index
@@ -74,19 +70,18 @@ void Draw::add_instance(InstanceAllocPair& output) {
 }
 
 void Draw::remove_instance(InstanceAllocPair instance) {
-    std::unique_lock<std::mutex> lock(_alloc_lock);
     InstanceDataAlloc& instance_data_alloc = instance.data;
     InstanceIndexAlloc& instance_index_alloc = instance.index;
 
     _allocators.instance_data->free(instance_data_alloc);
     instance_indices_allocator->pop_and_swap(instance_index_alloc);
-    --_instance_count;
+    _instance_count.fetch_sub(1, std::memory_order_relaxed);
     register_invalid();
 }
 
 void Draw::register_invalid() {
-    if (!_registered) {
-        _registered = true;
+    if (!_registered.load(std::memory_order_relaxed)) {
+        _registered.store(true, std::memory_order_relaxed);
         _invalid_draws.push_back(this);
     }
 }

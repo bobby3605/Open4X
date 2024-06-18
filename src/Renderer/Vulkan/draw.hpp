@@ -107,9 +107,9 @@ class Draw {
     DrawAllocators _allocators;
     VkDrawIndexedIndirectCommand _indirect_command;
     safe_vector<Draw*>& _invalid_draws;
-    bool _registered = false;
+    std::atomic<bool> _registered = false;
     void register_invalid();
-    size_t _instance_count = 0;
+    std::atomic<size_t> _instance_count = 0;
     SubAllocation<LinearAllocator, GPUAllocation>* _vertex_alloc;
     SubAllocation<LinearAllocator, GPUAllocation>* _index_alloc;
     SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _indirect_commands_alloc;

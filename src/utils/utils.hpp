@@ -3,28 +3,68 @@
 
 #include <atomic>
 #include <barrier>
+#include <cstring>
 #include <functional>
-#include <mutex>
 #include <semaphore>
 #include <type_traits>
 
+inline void atomic_wait_eq(std::atomic<size_t> const& atomic_val, size_t eq_val) {
+    // FIXME:
+    // This is really bad
+    while (atomic_val.load(std::memory_order_relaxed) != eq_val) {
+    }
+}
+
+// TODO:
+// Write a test for this
 template <typename T> class safe_vector {
     T* _data = nullptr;
     size_t _capacity = 0;
     std::atomic<size_t> _size = 0;
-    std::mutex _reserve_lock;
+    std::atomic<size_t> _in_progress_threads = 0;
+    // std::atomic<size_t> _post_wait_in_progress_threads = 0;
+    std::atomic<size_t> _grow_size = 0;
 
   public:
     // returns index of item it pushed back
     size_t push_back(T const& item) {
         size_t idx = _size.fetch_add(1, std::memory_order_relaxed);
-        ensure_capacity(idx);
+        realloc_check(idx);
+        _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        atomic_wait_eq(_grow_size, 0);
         _data[idx] = item;
+        _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
         return idx;
     }
-    void reserve(size_t capacity) {
+    inline T operator[](size_t const& idx) {
+        _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        atomic_wait_eq(_grow_size, 0);
+        T t = _data[idx];
+        _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
+        return t;
+    }
+    void clear() { _size.store(0, std::memory_order_seq_cst); }
+    size_t size() const { return _size.load(std::memory_order_seq_cst); }
+    void reserve(size_t const& capacity) { realloc_check(capacity); }
+    void grow(size_t const& grow_size) { realloc_check(grow_size + size()); }
+
+  private:
+    void realloc_check(size_t const& idx) {
+        if (idx > _capacity || _capacity == 0) {
+            size_t tmp = _grow_size.fetch_add(idx, std::memory_order_relaxed);
+            // Run grow on only a single thread
+            if (tmp == 0) {
+                // wait for in progress threads to complete or get stuck on realloc
+                atomic_wait_eq(_in_progress_threads, 0);
+                _grow(_grow_size.load(std::memory_order_relaxed));
+                _grow_size.store(0, std::memory_order_relaxed);
+            } else {
+                atomic_wait_eq(_grow_size, 0);
+            }
+        }
+    }
+    void _reserve(size_t capacity) {
         if (capacity > _capacity) {
-            std::unique_lock<std::mutex> lock(_reserve_lock);
             T* tmp = reinterpret_cast<T*>(new char[capacity * sizeof(T)]);
             if (_data != nullptr) {
                 memcpy(tmp, _data, _capacity * sizeof(T));
@@ -33,16 +73,10 @@ template <typename T> class safe_vector {
             _capacity = capacity;
         }
     }
-    void grow(size_t grow_size) { reserve(grow_size + size()); }
-    inline T& operator[](size_t const& idx) { return _data[idx]; }
-    void clear() { _size.store(0, std::memory_order_seq_cst); }
-    size_t size() const { return _size.load(std::memory_order_seq_cst); }
-
-  private:
-    void ensure_capacity(size_t const& idx) {
-        if (idx > _capacity || _capacity == 0) {
-            throw std::runtime_error("not enough capacity in safe vector for index: " + std::to_string(idx));
-        }
+    void _grow(size_t grow_size) {
+        // NOTE:
+        // size() is probably bigger than the actual size because push_back calls fetch_add, but it's fine to overallocate
+        _reserve(grow_size + size());
     }
     template <typename> friend class safe_queue;
 };
@@ -59,7 +93,100 @@ template <typename T> class safe_queue {
     bool empty() { return _vector.size() == 0; }
 };
 
-template <typename T> class safe_deque {};
+template <typename T> class safe_deque {
+  public:
+    safe_deque() {
+        // NOTE:
+        // This must be here in order for the indices to work properly
+        _grow(2);
+    }
+    ~safe_deque() {
+        if (_data != nullptr) {
+            free(_data);
+        }
+    }
+    void push_front(T const& item) {
+        // - 1 pre increment because _front_idx starts at 0
+        size_t idx = --_front_idx;
+        safe_write(idx, item);
+    }
+    void push_back(T const& item) {
+        size_t idx = _back_idx++;
+        safe_write(idx, item);
+    }
+    void pop_front() { _front_idx.fetch_add(1, std::memory_order_relaxed); }
+    void pop_back() { _back_idx.fetch_sub(1, std::memory_order_relaxed); }
+    T front() {
+        _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        T t = _data[_base_index + _front_idx];
+        _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
+        return t;
+    }
+    T back() {
+        _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        T t = _data[_base_index + _back_idx];
+        _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
+        return t;
+    }
+    void reserve(size_t count) { _grow(count); }
+    bool empty() { return size() == 0; }
+    int size() {
+        // NOTE:
+        // - _front_idx because _front_idx is negative,
+        // so this will return the total amount of alloced Ts
+        return _back_idx - _front_idx;
+    }
+
+  private:
+    void safe_write(int idx, T const& item) {
+        size_t tmp_base_index = _base_index;
+        ensure_space(tmp_base_index, idx);
+        _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        _data[tmp_base_index + idx] = item;
+        _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
+    }
+    void ensure_space(int tmp_base_index, int idx) {
+        // base_index points to the middle of the _data block, and is how many indices have been allocated on one side,
+        // if the abs(idx) to write to is greater than the number of indices allocated on one side
+        // grow the data to ensure space
+        if (abs(idx) > tmp_base_index || _data == nullptr) {
+            size_t tmp = _grow_size.fetch_add(abs(idx), std::memory_order_relaxed);
+            // Run grow on only a single thread
+            if (tmp == 0) {
+                // wait for in progress threads to complete or get stuck on realloc
+                atomic_wait_eq(_in_progress_threads, 0);
+                _grow(_grow_size.load(std::memory_order_relaxed));
+                _grow_size.store(0, std::memory_order_relaxed);
+            } else {
+                atomic_wait_eq(_grow_size, 0);
+            }
+        }
+    }
+    void _grow(size_t count) {
+        // put one extra block on each side
+        size_t grow_count = 2 * count;
+        size_t current_count = _base_index * 2;
+        size_t new_count = current_count + grow_count;
+        size_t new_byte_size = new_count * sizeof(T);
+        T* tmp = reinterpret_cast<T*>(new char[new_byte_size]);
+        _base_index = new_count / 2;
+        if (_data != nullptr) {
+            // copy data to tmp so that there's grow_size extra blocks on the left and right
+            // NOTE:
+            // grow_count / 2 = count, so just using count here
+            std::memcpy(tmp + count, _data, current_count * sizeof(T));
+            free(_data);
+        }
+        _data = tmp;
+    }
+    std::atomic<int> _front_idx = 0;
+    std::atomic<int> _back_idx = 0;
+    T* _data = nullptr;
+    std::atomic<int> _base_index = 0;
+    std::atomic<int> _size = 0;
+    std::atomic<size_t> _in_progress_threads = 0;
+    std::atomic<size_t> _grow_size = 0;
+};
 
 struct Chunk {
     size_t offset;
