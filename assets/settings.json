@@ -1,6 +1,6 @@
 {
     "objects": {
-        "extraObjectCount": 10000000
+        "extraObjectCount": 100000
         ,"randLimit": 1000
     },
     "misc": {

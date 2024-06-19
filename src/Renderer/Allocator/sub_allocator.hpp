@@ -67,7 +67,7 @@ template <typename ParentAllocationT> class LinearAllocator {
 template <typename ParentAllocationT> class FixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
-    size_t _block_count = 0;
+    std::atomic<size_t> _block_count = 0;
     safe_queue<SubAllocation<FixedAllocator, ParentAllocationT>*> _free_blocks;
     std::mutex _reserve_lock;
 
@@ -75,17 +75,17 @@ template <typename ParentAllocationT> class FixedAllocator {
     FixedAllocator(size_t const& block_size, ParentAllocationT* parent) : _parent(parent), _block_size(block_size) {}
     const ParentAllocationT* parent() const { return _parent; }
     size_t const& block_size() const { return _block_size; }
-    size_t const& block_count() const { return _block_count; }
+    size_t const block_count() const { return _block_count; }
     void reserve(size_t count) {
         std::unique_lock<std::mutex> lock(_reserve_lock);
         _free_blocks.reserve(count);
         if (count > _block_count) {
             size_t base_size = _parent->size();
             _parent->realloc(base_size + _block_size * count);
-            for (size_t i = 0; i < count; ++i) {
+            size_t count_to_add = count - _block_count;
+            for (size_t i = 0; i < count_to_add; ++i) {
                 _free_blocks.push(
-                    new SubAllocation<FixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
-                ++_block_count;
+                    new SubAllocation<FixedAllocator, ParentAllocationT>(_block_size * _block_count++, _block_size, this, _parent));
             }
         }
     }
@@ -102,7 +102,7 @@ template <typename ParentAllocationT> class FixedAllocator {
             // alloc new blocks if empty
             grow(1);
         }
-        SubAllocation<FixedAllocator, ParentAllocationT>* output = _free_blocks.front();
+        SubAllocation<FixedAllocator, ParentAllocationT>* output = _free_blocks.pop();
         return output;
     }
     void free(SubAllocation<FixedAllocator, ParentAllocationT>* allocation) {
@@ -117,30 +117,30 @@ template <typename ParentAllocationT> class FixedAllocator {
 template <typename ParentAllocationT> class ContiguousFixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
-    size_t _block_count = 0;
-    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
-    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
+    std::atomic<size_t> _block_count = 0;
+    std::deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
+    std::deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
     std::mutex _reserve_lock;
 
   public:
     ContiguousFixedAllocator(size_t const& block_size, ParentAllocationT* parent) : _parent(parent), _block_size(block_size) {}
     const ParentAllocationT* parent() const { return _parent; }
     size_t const& block_size() const { return _block_size; }
-    size_t const& block_count() const { return _block_count; }
+    size_t block_count() const { return _block_count.load(); }
     SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
         throw std::runtime_error("unimplemented alloc(byte_size)");
     }
     void reserve(size_t count) {
         std::unique_lock<std::mutex> lock(_reserve_lock);
-        _free_blocks.reserve(count);
+        //  _free_blocks.reserve(count);
         if (count > _block_count) {
             size_t base_size = _parent->size();
             _parent->realloc(base_size + _block_size * count);
-            for (size_t i = 0; i < count; ++i) {
-                _free_blocks.push_back(new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(base_size + _block_size * i,
+            size_t count_to_add = count - _block_count;
+            for (size_t i = 0; i < count_to_add; ++i) {
+                _free_blocks.push_back(new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(_block_size * _block_count++,
                                                                                                       _block_size, this, _parent));
                 // _free_blocks = [0,1,2]
-                ++_block_count;
             }
         }
     }
@@ -154,8 +154,8 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
             grow(1);
         }
         SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* output = _free_blocks.front();
-        // output = 0
         _free_blocks.pop_front();
+        // output = 0
         // _free_blocks = [1, 2]
         _alloced_blocks.push_back(output);
         // _alloced_blocks = [0]
@@ -168,8 +168,8 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
         // after alloc twice
         // suppose allocation = 0
         SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* last_block = _alloced_blocks.back();
-        // last_block = 1
         _alloced_blocks.pop_back();
+        // last_block = 1
         // _alloced_blocks = [0]
         // copy last block to allocation
         last_block->copy(allocation);

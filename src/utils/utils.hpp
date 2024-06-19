@@ -88,6 +88,33 @@ template <typename T> class safe_vector {
     template <typename> friend class safe_queue;
 };
 
+/*
+template <typename T> class queue {
+    T* _data = nullptr;
+    int _front = 0;
+    int _back = 0;
+    size_t _capacity = 0;
+
+  public:
+    queue(size_t capacity) : _capacity(capacity) { _data = reinterpret_cast<T*>(malloc(capacity * sizeof(T))); }
+    ~queue() { free(_data); }
+    void push(T const& item) {
+        _data[_back] = item;
+        ++_back;
+        _back = _back % _capacity;
+    }
+    void pop(T const& item) {
+        T t = _data[_front];
+        --_front;
+        // this is remainder, not mod, so it can return negative
+        _front = _front % _capacity;
+    }
+    bool empty() {}
+};
+*/
+
+// FIXME:
+// This is a stack, not a queue
 template <typename T> class safe_queue {
     safe_vector<T> _vector;
 
@@ -153,7 +180,7 @@ template <typename T> class safe_deque {
         // base_index points to the middle of the _data block, and is how many indices have been allocated on one side,
         // if the abs(idx) to write to is greater than the number of indices allocated on one side
         // grow the data to ensure space
-        if (abs(idx) > tmp_base_index || _data == nullptr) {
+        if (abs(idx) >= tmp_base_index || _data == nullptr) {
             size_t tmp = _grow_size.fetch_add(abs(idx), std::memory_order_relaxed);
             // Run grow on only a single thread
             if (tmp == 0) {

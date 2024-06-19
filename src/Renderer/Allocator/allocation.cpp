@@ -28,6 +28,9 @@ void CPUAllocation::get(void* dst, size_t const& offset, size_t const& byte_size
 void CPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
     if (_size < dst_offset + byte_size) {
         std::cout << "shouldn't be here, cpu write realloc" << std::endl;
+        std::cout << "buffer byte size: " << _size << std::endl;
+        std::cout << "dst_offset: " << dst_offset << std::endl;
+        std::cout << "byte_size: " << byte_size << std::endl;
     }
     //    std::lock_guard<std::mutex> lock(_realloc_lock);
     std::memcpy(_data + dst_offset, src_data, byte_size);
@@ -138,6 +141,9 @@ void GPUAllocation::get(void* dst, size_t const& offset, size_t const& byte_size
 inline void GPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t const& byte_size) {
     if (_buffer_info.size < (dst_offset + byte_size)) {
         std::cout << "write realloc, should never be here, buffer: " << _name << std::endl;
+        std::cout << "buffer byte size: " << _buffer_info.size << std::endl;
+        std::cout << "dst_offset: " << dst_offset << std::endl;
+        std::cout << "byte_size: " << byte_size << std::endl;
     }
     if (!_is_mapped) {
         throw std::runtime_error("tried to write to unmapped gpu buffer: " + _name);
