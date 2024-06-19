@@ -201,6 +201,7 @@ void Open4X::run() {
             globals_alloc->write(&shader_globals);
 
             renderer->render();
+            exit(0);
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);

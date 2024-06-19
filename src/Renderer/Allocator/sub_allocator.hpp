@@ -118,8 +118,8 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     ParentAllocationT* _parent;
     size_t _block_size;
     std::atomic<size_t> _block_count = 0;
-    std::deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
-    std::deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
+    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _free_blocks;
+    safe_deque<SubAllocation<ContiguousFixedAllocator, ParentAllocationT>*> _alloced_blocks;
     std::mutex _reserve_lock;
 
   public:
@@ -136,12 +136,14 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
         if (count > _block_count) {
             size_t base_size = _parent->size();
             _parent->realloc(base_size + _block_size * count);
+            std::cout << "contiguous fixed parent realloc with size: " << base_size + _block_size * count << std::endl;
             size_t count_to_add = count - _block_count;
             for (size_t i = 0; i < count_to_add; ++i) {
                 _free_blocks.push_back(new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(_block_size * _block_count++,
                                                                                                       _block_size, this, _parent));
                 // _free_blocks = [0,1,2]
             }
+            std::cout << "block count after reserve: " << _block_count << std::endl;
         }
     }
     void grow(size_t count) { reserve(count + _block_count); }
@@ -153,12 +155,14 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
             // alloc new block if empty
             grow(1);
         }
-        SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* output = _free_blocks.front();
-        _free_blocks.pop_front();
+        SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* output = _free_blocks.pop_front();
         // output = 0
         // _free_blocks = [1, 2]
         _alloced_blocks.push_back(output);
         // _alloced_blocks = [0]
+        if (output == nullptr) {
+            std::cout << "null output" << std::endl;
+        }
         return output;
         // alloc again
         // _alloced_blocks = [0, 1]
@@ -167,8 +171,7 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
     void pop_and_swap(SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* allocation) {
         // after alloc twice
         // suppose allocation = 0
-        SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* last_block = _alloced_blocks.back();
-        _alloced_blocks.pop_back();
+        SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* last_block = _alloced_blocks.pop_back();
         // last_block = 1
         // _alloced_blocks = [0]
         // copy last block to allocation

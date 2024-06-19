@@ -149,12 +149,14 @@ template <typename T> class safe_deque {
     }
     T pop_front() {
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        atomic_wait_eq(_grow_size, 0);
         T t = _data[_base_index + _front_idx.fetch_add(1, std::memory_order_relaxed)];
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
         return t;
     }
     T pop_back() {
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
+        atomic_wait_eq(_grow_size, 0);
         T t = _data[_base_index + _back_idx.fetch_sub(1, std::memory_order_relaxed) - 1];
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
         return t;
@@ -173,7 +175,8 @@ template <typename T> class safe_deque {
         size_t tmp_base_index = _base_index;
         ensure_space(tmp_base_index, idx);
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
-        _data[_base_index + idx] = item;
+        atomic_wait_eq(_grow_size, 0);
+        _data[tmp_base_index + idx] = item;
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
     }
     void ensure_space(int tmp_base_index, int idx) {
@@ -214,7 +217,6 @@ template <typename T> class safe_deque {
     std::atomic<int> _back_idx = 0;
     T* _data = nullptr;
     std::atomic<int> _base_index = 0;
-    std::atomic<int> _size = 0;
     std::atomic<size_t> _in_progress_threads = 0;
     std::atomic<size_t> _grow_size = 0;
 };
