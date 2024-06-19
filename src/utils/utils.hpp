@@ -5,6 +5,7 @@
 #include <barrier>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <semaphore>
 #include <type_traits>
 
@@ -26,6 +27,11 @@ template <typename T> class safe_vector {
     std::atomic<size_t> _grow_size = 0;
 
   public:
+    ~safe_vector() {
+        if (_data != nullptr) {
+            free(_data);
+        }
+    }
     // returns index of item it pushed back
     size_t push_back(T const& item) {
         size_t idx = _size.fetch_add(1, std::memory_order_relaxed);
@@ -50,8 +56,8 @@ template <typename T> class safe_vector {
 
   private:
     void realloc_check(size_t const& idx) {
-        if (idx > _capacity || _capacity == 0) {
-            size_t tmp = _grow_size.fetch_add(idx, std::memory_order_relaxed);
+        if (idx >= _capacity || _capacity == 0) {
+            size_t tmp = _grow_size.fetch_add(idx + 1 - _capacity, std::memory_order_relaxed);
             // Run grow on only a single thread
             if (tmp == 0) {
                 // wait for in progress threads to complete or get stuck on realloc
@@ -65,9 +71,10 @@ template <typename T> class safe_vector {
     }
     void _reserve(size_t capacity) {
         if (capacity > _capacity) {
-            T* tmp = reinterpret_cast<T*>(new char[capacity * sizeof(T)]);
+            T* tmp = reinterpret_cast<T*>(malloc(capacity * sizeof(T)));
             if (_data != nullptr) {
                 memcpy(tmp, _data, _capacity * sizeof(T));
+                free(_data);
             }
             _data = tmp;
             _capacity = capacity;
@@ -86,8 +93,7 @@ template <typename T> class safe_queue {
 
   public:
     void push(T const& item) { _vector.push_back(item); }
-    void pop() { _vector._size.fetch_sub(1, std::memory_order_relaxed); }
-    T front() { return _vector[_vector._size.load(std::memory_order_relaxed) - 1]; }
+    T pop() { return _vector[_vector._size.fetch_sub(1, std::memory_order_relaxed) - 1]; }
     void reserve(size_t capacity) { _vector.reserve(capacity); }
     void grow(size_t grow_size) { _vector.grow(grow_size); }
     bool empty() { return _vector.size() == 0; }
@@ -114,17 +120,15 @@ template <typename T> class safe_deque {
         size_t idx = _back_idx++;
         safe_write(idx, item);
     }
-    void pop_front() { _front_idx.fetch_add(1, std::memory_order_relaxed); }
-    void pop_back() { _back_idx.fetch_sub(1, std::memory_order_relaxed); }
-    T front() {
+    T pop_front() {
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
-        T t = _data[_base_index + _front_idx];
+        T t = _data[_base_index + _front_idx.fetch_add(1, std::memory_order_relaxed)];
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
         return t;
     }
-    T back() {
+    T pop_back() {
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
-        T t = _data[_base_index + _back_idx];
+        T t = _data[_base_index + _back_idx.fetch_sub(1, std::memory_order_relaxed) - 1];
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
         return t;
     }
@@ -142,7 +146,7 @@ template <typename T> class safe_deque {
         size_t tmp_base_index = _base_index;
         ensure_space(tmp_base_index, idx);
         _in_progress_threads.fetch_add(1, std::memory_order_relaxed);
-        _data[tmp_base_index + idx] = item;
+        _data[_base_index + idx] = item;
         _in_progress_threads.fetch_sub(1, std::memory_order_relaxed);
     }
     void ensure_space(int tmp_base_index, int idx) {
@@ -168,7 +172,7 @@ template <typename T> class safe_deque {
         size_t current_count = _base_index * 2;
         size_t new_count = current_count + grow_count;
         size_t new_byte_size = new_count * sizeof(T);
-        T* tmp = reinterpret_cast<T*>(new char[new_byte_size]);
+        T* tmp = reinterpret_cast<T*>(malloc(new_byte_size));
         _base_index = new_count / 2;
         if (_data != nullptr) {
             // copy data to tmp so that there's grow_size extra blocks on the left and right

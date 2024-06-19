@@ -103,7 +103,6 @@ template <typename ParentAllocationT> class FixedAllocator {
             grow(1);
         }
         SubAllocation<FixedAllocator, ParentAllocationT>* output = _free_blocks.front();
-        _free_blocks.pop();
         return output;
     }
     void free(SubAllocation<FixedAllocator, ParentAllocationT>* allocation) {
