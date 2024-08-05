@@ -6,7 +6,7 @@ The rewrite branch has the latest updates, but is not yet feature complete with 
 
 ## Building on Linux:
 First run 'git submodule update --init --recursive'
-Just run 'make' in the root directory. This is using 'make' and cmake to minimize the number of commands I need to use to build and run it.!
+Just run 'make' in the root directory. This is using 'make' and cmake to minimize the number of commands I need to use to build and run it.
 
 'make run' will run open4x.
 
