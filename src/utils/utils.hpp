@@ -5,9 +5,12 @@
 #include <barrier>
 #include <functional>
 #include <mutex>
+#include <queue>
 #include <semaphore>
+#include <shared_mutex>
 #include <type_traits>
 
+/*
 template <typename T> class safe_vector {
     T* _data = nullptr;
     size_t _capacity = 0;
@@ -60,6 +63,108 @@ template <typename T> class safe_queue {
 };
 
 template <typename T> class safe_deque {};
+*/
+
+template <typename T> class safe_vector {
+    std::vector<T> _vec;
+    std::shared_mutex _mutex;
+
+  public:
+    void push_back(const T& item) {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.push_back(item);
+    }
+    void push_back(T& item) {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.push_back(item);
+    }
+    void reserve(size_t const& size) {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.reserve(size);
+    }
+    T at(size_t const& index) {
+        std::shared_lock<std::shared_mutex> _mutex;
+        return _vec[index];
+    }
+    void clear() {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.clear();
+    }
+    // NOTE:
+    // This isn't thread safe
+    inline T& operator[](size_t const& index) { return _vec[index]; }
+    size_t size() {
+        std::unique_lock<std::shared_mutex> _mutex;
+        return _vec.size();
+    }
+    void grow(size_t grow_size) {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.reserve(grow_size + _vec.size());
+    }
+};
+
+template <typename T> class safe_queue {
+    std::queue<T> _queue;
+    std::mutex _mutex;
+
+  public:
+    void push(const T& item) {
+        std::unique_lock<std::mutex> _mutex;
+        _queue.push(item);
+    }
+    void push(T& item) {
+        std::unique_lock<std::mutex> _mutex;
+        _queue.push(item);
+    }
+    // NOTE:
+    // need pop and front to be the same because of multithreading,
+    // so they just get combined into pop
+    T pop() {
+        std::unique_lock<std::mutex> _mutex;
+        T item = _queue.front();
+        _queue.pop();
+        return item;
+    }
+    bool empty() {
+        std::unique_lock<std::mutex> _mutex;
+        return _queue.empty();
+    }
+};
+
+template <typename T> class safe_deque {
+    std::deque<T> _deque;
+    std::mutex _mutex;
+
+  public:
+    void push_back(const T& item) {
+        std::unique_lock<std::mutex> _mutex;
+        _deque.push_back(item);
+    }
+    void push_front(T& item) {
+        std::unique_lock<std::mutex> _mutex;
+        _deque.push_back(item);
+    }
+    T pop_back() {
+        std::unique_lock<std::mutex> _mutex;
+        T item = _deque.back();
+        _deque.pop_back();
+        return item;
+    }
+    T pop_front() {
+        std::unique_lock<std::mutex> _mutex;
+        T item = _deque.front();
+        _deque.pop_front();
+        return item;
+    }
+    bool empty() {
+        std::unique_lock<std::mutex> _mutex;
+        return _deque.empty();
+    }
+    size_t size() {
+        std::unique_lock<std::mutex> _mutex;
+        return _deque.size();
+    }
+};
 
 struct Chunk {
     size_t offset;
