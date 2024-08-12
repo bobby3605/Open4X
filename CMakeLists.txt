@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(PROJECT_NAME Open4X)
-set(COMPILE_FLAGS "-march=native")
+set(COMPILE_FLAGS "-march=native -mavx2")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 project("${PROJECT_NAME}")
@@ -53,5 +53,5 @@ target_include_directories("${PROJECT_NAME}" PUBLIC
 # include static spirv-tools
 target_link_libraries("${PROJECT_NAME}" PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp GPUOpen::VulkanMemoryAllocator fastgltf)
 
-set(LIBRARY_FLAGS "-lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi -ltbb")
+set(LIBRARY_FLAGS "-lglfw -lvulkan -ldl -lpthread")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LIBRARY_FLAGS}")
