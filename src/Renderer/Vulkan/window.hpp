@@ -16,7 +16,7 @@ class Window {
     GLFWwindow* glfw_window() { return _window; }
     std::string name() { return _name; }
     bool should_close() { return glfwWindowShouldClose(glfw_window()); }
-    VkExtent2D extent() { return {static_cast<uint32_t>(_width), static_cast<uint32_t>(_height)}; }
+    VkExtent2D extent();
 
   private:
     GLFWwindow* _window;

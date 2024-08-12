@@ -28,11 +28,11 @@ class SwapChain {
     VkExtent2D _extent;
     void clamp_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
     std::vector<VkImage> _swap_chain_images;
-    void create_swap_chain(VkSwapchainKHR _old_swap_chain = VK_NULL_HANDLE);
+    void create_swap_chain();
     std::vector<VkImageView> _swap_chain_image_views;
     void create_image_views();
-    // FIXME:
-    // color image probably isn't needed
+    // NOTE:
+    // _color_image is used for MSAA
     VkImage _color_image;
     VkDeviceMemory _color_image_memory;
     VkImageView _color_image_view;

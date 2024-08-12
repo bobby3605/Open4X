@@ -57,9 +57,8 @@ void RenderGraph::record_buffer(VkCommandBuffer command_buffer, VkCommandBufferU
 }
 
 void RenderGraph::recreate_swap_chain() {
-    /*
     // pause on minimization
-    if (_settings->pauseOnMinimization) {
+    if (new_settings->pause_on_minimization) {
         int width = 0, height = 0;
         while (width == 0 || height == 0) {
             glfwGetFramebufferSize(Window::window->glfw_window(), &width, &height);
@@ -69,10 +68,8 @@ void RenderGraph::recreate_swap_chain() {
 
     vkDeviceWaitIdle(Device::device->vk_device());
 
-    // FIXME:
-    // recreate swap chain
-    //    swapChain = new VulkanSwapChain(_device, _window->getExtent(), swapChain);
-    //    */
+    delete _swap_chain;
+    _swap_chain = new SwapChain(Window::window->extent());
 }
 
 bool RenderGraph::render() {
@@ -103,7 +100,6 @@ VkResult RenderGraph::submit() {
 
     record_buffer(_command_buffers[_swap_chain->current_frame()], VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, _graph);
 
-    // Return true if swapchain recreated
     return _swap_chain->submit_command_buffer(_command_buffers[_swap_chain->current_frame()]);
 }
 

@@ -165,7 +165,13 @@ void Open4X::run() {
             title << "objects: " << _object_manager->object_count();
             glfwSetWindowTitle(Window::window->glfw_window(), title.str().c_str());
         }
-        Camera cam;
+        float vertical_fov = 45.0f;
+        float near = 0.0001f;
+        float far = 1000.0f;
+        VkExtent2D extent = Window::window->extent();
+        float aspect_ratio = (float)extent.width / (float)extent.height;
+
+        Camera cam(vertical_fov, aspect_ratio, near, far);
         // TODO
         // Get ShaderGlobals from the shader itself
         FixedAllocator<GPUAllocation>* shader_globals_allocator =
@@ -200,7 +206,13 @@ void Open4X::run() {
             shader_globals.cam_pos = cam.position();
             globals_alloc->write(&shader_globals);
 
-            renderer->render();
+    // returns true when swapchain was resized
+    if(renderer->render()){
+        extent = Window::window->extent();
+        aspect_ratio = (float)extent.width / (float)extent.height;
+        // adjust perspective projection matrix
+        cam.update_projection(vertical_fov, aspect_ratio, near ,far);
+    }
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);

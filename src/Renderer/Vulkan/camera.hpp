@@ -5,8 +5,9 @@
 
 class Camera : public Object {
   public:
-    Camera();
+    Camera(float vertical_fov, float aspect_ratio, float near, float far);
     void update_transform(float frame_time);
+    void update_projection(float vertical_fov, float aspect_ratio, float near, float far);
     glm::mat4 const& proj_view();
 
     inline static const glm::vec3 up_vector = glm::vec3(0.f, -1.0f, 0.f);
@@ -33,13 +34,6 @@ class Camera : public Object {
         static const inline int slow_down = GLFW_KEY_LEFT_ALT;
     };
     static constexpr KeyMappings keys{};
-
-    // FIXME:
-    // Set these dynamically
-    float vertical_fov = 45.0f;
-    float aspect_ratio = 640.0f / 480.0f;
-    float near = 0.0001f;
-    float far = 1000.0f;
 
     float move_speed{6.0f};
     float look_speed{2.0f};

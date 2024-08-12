@@ -15,7 +15,9 @@ SwapChain::SwapChain(VkExtent2D extent) : _extent(extent) {
 
 SwapChain::~SwapChain() {
     vkDestroyImageView(Device::device->vk_device(), _color_image_view, nullptr);
+    MemoryManager::memory_manager->delete_image("color_image");
     vkDestroyImageView(Device::device->vk_device(), _depth_image_view, nullptr);
+    MemoryManager::memory_manager->delete_image("depth_image");
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(Device::device->vk_device(), _render_finished_semaphores[i], nullptr);
         vkDestroySemaphore(Device::device->vk_device(), _image_available_semaphores[i], nullptr);
@@ -64,7 +66,7 @@ void SwapChain::clamp_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) 
         _extent.height = std::clamp(_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     }
 }
-void SwapChain::create_swap_chain(VkSwapchainKHR _old_swap_chain) {
+void SwapChain::create_swap_chain() {
     Device::SwapChainSupportDetails swap_chain_support = Device::device->query_swap_chain_support();
 
     choose_swap_surface_format(swap_chain_support.formats);
@@ -85,7 +87,8 @@ void SwapChain::create_swap_chain(VkSwapchainKHR _old_swap_chain) {
     createInfo.imageExtent = _extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    createInfo.oldSwapchain = _old_swap_chain;
+    createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO: use this field
+                                              // problem is that it's not RAII compliant (color, depth, and swapchain images need to persist)
 
     Device::QueueFamilyIndices indices = Device::device->find_queue_families();
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
