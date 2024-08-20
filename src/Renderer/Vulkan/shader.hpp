@@ -12,6 +12,9 @@ class Shader {
     ~Shader();
     VkPipelineBindPoint bind_point() const { return _bind_point; }
     VkPipelineShaderStageCreateInfo stage_info() const { return _stage_info; }
+    bool has_push_constants() const { return _push_constant_range.has_value(); }
+    VkPushConstantRange const& push_constant_range() const { return _push_constant_range.value(); };
+    std::string const& push_constants_name() const { return _push_constants_name; };
 
   private:
     std::filesystem::path _path;
@@ -26,6 +29,8 @@ class Shader {
     void create_module();
     void reflect();
     DescriptorLayout* _pipeline_descriptor_layout;
+    std::optional<VkPushConstantRange> _push_constant_range;
+    std::string _push_constants_name;
 };
 
 #endif // SHADER_H_

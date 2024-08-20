@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "device.hpp"
 #include "draw.hpp"
+#include "shader.hpp"
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -208,15 +209,14 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
     _shaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert"), std::forward_as_tuple(vert_path, &_descriptor_layout));
     _shaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag"), std::forward_as_tuple(frag_path, &_descriptor_layout));
 
-    /*
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(PushConstants);
-    */
-
-    // pipelineLayoutInfo.pushConstantRangeCount = 1;
-    //  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    // handle push constants
+    std::vector<VkPushConstantRange> push_constant_ranges;
+    for (const auto& shader_pair : shaders()) {
+        const Shader& shader = shader_pair.second;
+        if (shader.has_push_constants()) {
+            push_constant_ranges.push_back(shader.push_constant_range());
+        }
+    }
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
     // Copy stages and descriptor layouts into contiguous memory
@@ -232,6 +232,8 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pipeline_layout_info.setLayoutCount = descriptor_buffer_layouts.size();
     pipeline_layout_info.pSetLayouts = descriptor_buffer_layouts.data();
+    pipeline_layout_info.pushConstantRangeCount = push_constant_ranges.size();
+    pipeline_layout_info.pPushConstantRanges = push_constant_ranges.data();
 
     check_result(vkCreatePipelineLayout(Device::device->vk_device(), &pipeline_layout_info, nullptr, &_pipeline_layout),
                  "failed to create graphics pipeline layout");

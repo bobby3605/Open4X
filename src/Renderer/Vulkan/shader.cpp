@@ -227,6 +227,13 @@ void Shader::reflect() {
         VkMemoryPropertyFlags mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
         _pipeline_descriptor_layout->add_binding(set, binding, usage_to_type(usage), stage_info().stage, resource.name, mem_props);
     }
+    for (const spirv_cross::Resource& resource : res.push_constant_buffers) {
+        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+        size_t size = comp.get_declared_struct_size(type);
+        // Name of the type for the push constants
+        _push_constants_name = comp.get_name(resource.base_type_id);
+        _push_constant_range = {.stageFlags = stage_info().stage, .offset = 0, .size = (uint32_t)size};
+    }
     /*
     for (const spirv_cross::Resource& resource : res.separate_samplers) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -248,15 +255,6 @@ void Shader::reflect() {
         } else {
             throw std::runtime_error("missing image info named: '" + name + "' for file: " + path);
         }
-    }
-    for (const spirv_cross::Resource& resource : res.push_constant_buffers) {
-        const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
-        size_t size = comp.get_declared_struct_size(type);
-        std::string name = resource.name;
-        pushConstantRange.size = size;
-        pushConstantRange.stageFlags = stageFlags;
-        pushConstantRange.offset = 0;
-        hasPushConstants = true;
     }
     std::set<uint32_t> uniqueConstantIds;
     uint32_t offset = 0;

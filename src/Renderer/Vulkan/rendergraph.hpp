@@ -75,6 +75,7 @@ class RenderGraph {
     void graphics_pass(std::string const& vert_path, std::string const& frag_path, LinearAllocator<GPUAllocation>* vertex_buffer_allocator,
                        LinearAllocator<GPUAllocation>* index_buffer_allocator);
     void buffer(std::string name, VkDeviceSize size);
+    void* get_push_constant(std::string const& name) { return _push_constants[name].get(); };
 
   private:
     VkCommandPool _pool;
@@ -86,6 +87,7 @@ class RenderGraph {
     SwapChain* _swap_chain;
     VkResult submit();
     void recreate_swap_chain();
+    std::unordered_map<std::string, std::shared_ptr<char>> _push_constants;
 };
 
 #endif // RENDEROPS_H_

@@ -274,6 +274,20 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
     }
 
     // push constants
+    for (const auto& shader_pair : pipeline->shaders()) {
+        const Shader& shader = shader_pair.second;
+        if (shader.has_push_constants()) {
+            // if the memory for the push constants isn't allocated,
+            // create it
+            if (_push_constants.count(shader.push_constants_name()) == 0) {
+                _push_constants[shader.push_constants_name()] = std::make_shared<char>(shader.push_constant_range().size);
+            }
+            // set the push constants from the shader and get the pointer from the global map
+            add_node({}, void_update, vkCmdPushConstants, pipeline->vk_pipeline_layout(), shader.stage_info().stage,
+                     shader.push_constant_range().offset, shader.push_constant_range().size,
+                     _push_constants[shader.push_constants_name()].get());
+        }
+    }
 
     // set vertex and index buffers
     auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
