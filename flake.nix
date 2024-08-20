@@ -20,6 +20,7 @@
 	vulkan-validation-layers
 	glfw
 	glslang
+	spirv-cross
       ];
       shellHook = ''
         exec zsh
