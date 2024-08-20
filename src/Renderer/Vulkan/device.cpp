@@ -277,7 +277,7 @@ void Device::set_required_features() {
     vk13_features.subgroupSizeControl = VK_TRUE;
     vk13_features.maintenance4 = VK_TRUE;
 
-    descriptor_buffer_features.descriptorBuffer = _use_descriptor_buffers ? VK_TRUE : VK_FALSE;
+    descriptor_buffer_features.descriptorBuffer = VK_TRUE;
     // NOTE:
     // Neither mesa nor renderdoc support this
     // amdgpu does, but without renderdoc support it's useless
@@ -288,7 +288,9 @@ void Device::set_required_features() {
     device_features.pNext = &vk11_features;
     vk11_features.pNext = &vk12_features;
     vk12_features.pNext = &vk13_features;
-    vk13_features.pNext = &descriptor_buffer_features;
+    if (use_descriptor_buffers()) {
+        vk13_features.pNext = &descriptor_buffer_features;
+    }
 }
 
 // Macro abuse to try to make comparing device has and must have features a little easier
