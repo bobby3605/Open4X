@@ -233,7 +233,6 @@ void Shader::reflect() {
         // Name of the type for the push constants
         _push_constants_name = comp.get_name(resource.base_type_id);
         _push_constant_range = {.stageFlags = stage_info().stage, .offset = 0, .size = (uint32_t)size};
-        std::cout << "got push constant size: " << _push_constant_range->size << " for " << _push_constants_name << std::endl;
     }
     /*
     for (const spirv_cross::Resource& resource : res.separate_samplers) {
