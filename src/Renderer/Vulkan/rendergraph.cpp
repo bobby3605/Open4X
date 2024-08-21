@@ -278,9 +278,9 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
         const Shader& shader = shader_pair.second;
         if (shader.has_push_constants()) {
             // if the memory for the push constants isn't allocated,
-            // create it
+            // allocate it
             if (_push_constants.count(shader.push_constants_name()) == 0) {
-                _push_constants[shader.push_constants_name()] = std::make_shared<char>(shader.push_constant_range().size);
+                _push_constants[shader.push_constants_name()] = std::shared_ptr<char[]>(new char[shader.push_constant_range().size]);
             }
             // set the push constants from the shader and get the pointer from the global map
             add_node({}, void_update, vkCmdPushConstants, pipeline->vk_pipeline_layout(), shader.stage_info().stage,

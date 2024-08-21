@@ -67,7 +67,7 @@ void Renderer::create_data_buffers() {
 }
 
 bool Renderer::render() {
-    *reinterpret_cast<glm::vec4*>(rg->get_push_constant("constants")) = {1, 0, 0, 1};
+    rg->set_push_constant("constants", glm::vec4{0, 1, 0, 1});
     return rg->render();
 }
 
