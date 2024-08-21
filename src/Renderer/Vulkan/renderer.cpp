@@ -66,10 +66,7 @@ void Renderer::create_data_buffers() {
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledMaterialIndices"));
 }
 
-bool Renderer::render() {
-    rg->set_push_constant("constants", glm::vec4{0, 1, 0, 1});
-    return rg->render();
-}
+bool Renderer::render() { return rg->render(); }
 
 /*
 
