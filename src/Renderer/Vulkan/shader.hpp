@@ -31,6 +31,7 @@ class Shader {
     DescriptorLayout* _pipeline_descriptor_layout;
     std::optional<VkPushConstantRange> _push_constant_range;
     std::string _push_constants_name;
+    std::mutex _glslang_mutex;
 };
 
 #endif // SHADER_H_

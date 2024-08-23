@@ -77,8 +77,9 @@ void Shader::create_module() {
 }
 
 void Shader::compile() {
-    // FIXME
-    // put a mutex around this to allow for multi-threaded compilation
+    // TODO:
+    // use a semaphore or something similar to allow for multithreaded compilation
+    std::unique_lock<std::mutex> _glslang_mutex;
     glslang::InitializeProcess();
     EShLanguage stage;
     std::tie(stage, _stage_info.stage) = get_stage(_path);
