@@ -29,6 +29,8 @@ class DescriptorLayout {
     ~DescriptorLayout();
     void add_binding(uint32_t set, uint32_t binding, VkDescriptorType type, VkShaderStageFlags stage, std::string buffer_name,
                      VkMemoryPropertyFlags mem_props);
+    void add_image(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name);
+    void add_sampler(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name);
     void create_layouts();
     uint32_t set_offset(uint32_t set) const;
     std::vector<VkDeviceSize> set_offsets() const;

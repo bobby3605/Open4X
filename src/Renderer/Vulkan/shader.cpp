@@ -241,28 +241,20 @@ void Shader::reflect() {
         _push_constants_name = comp.get_name(resource.base_type_id);
         _push_constant_range = {.stageFlags = stage_info().stage, .offset = 0, .size = (uint32_t)size};
     }
-    /*
     for (const spirv_cross::Resource& resource : res.separate_samplers) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
 
-        if (globalImageInfos.count(name) == 1) {
-            descriptor->setImageInfos(set, binding, globalImageInfos[name]);
-        } else {
-            throw std::runtime_error("missing image info named: '" + name + "' for file: " + path);
-        }
+        _pipeline_descriptor_layout->add_image(set, binding, stage_info().stage, name);
     }
     for (const spirv_cross::Resource& resource : res.separate_images) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
-        if (globalImageInfos.count(name) == 1) {
-            descriptor->setImageInfos(set, binding, globalImageInfos[name]);
-        } else {
-            throw std::runtime_error("missing image info named: '" + name + "' for file: " + path);
-        }
+        _pipeline_descriptor_layout->add_image(set, binding, stage_info().stage, name);
     }
+    /*
     std::set<uint32_t> uniqueConstantIds;
     uint32_t offset = 0;
     for (const spirv_cross::SpecializationConstant& constant : comp.get_specialization_constants()) {

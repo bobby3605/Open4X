@@ -78,6 +78,26 @@ void DescriptorLayout::add_binding(uint32_t set, uint32_t binding, VkDescriptorT
     _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
 }
 
+void DescriptorLayout::add_image(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name) {
+    BindingLayout layout;
+    layout.binding.binding = binding;
+    layout.binding.descriptorCount = 0; // to be set later
+    layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    layout.binding.stageFlags = stage;
+
+    _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
+}
+
+void DescriptorLayout::add_sampler(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name) {
+    BindingLayout layout;
+    layout.binding.binding = binding;
+    layout.binding.descriptorCount = 0; // to be set later
+    layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    layout.binding.stageFlags = stage;
+
+    _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
+}
+
 void DescriptorLayout::create_layouts() {
     // NOTE:
     // _set_layouts is a map,
