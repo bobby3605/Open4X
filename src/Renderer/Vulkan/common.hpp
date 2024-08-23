@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
@@ -76,22 +77,35 @@ class MMIO {
     int _fd;
     void* _mapping;
     size_t _size;
+    size_t _write_offset = 0;
+    size_t _read_offset = 0;
 
   public:
     MMIO(std::filesystem::path const& file_path, int oflag, size_t size = 0);
     void* mapping() { return _mapping; }
     const size_t& size() const { return _size; }
+    void write(void* data, size_t size);
+    template <typename T> void write(T const& data) { write(&data, sizeof(data)); }
+    void read(void* data, size_t size);
+    template <typename T> void read(T& data) { read(&data, sizeof(data)); }
     ~MMIO();
+    [[nodiscard]] bool is_open();
 };
 
-template <typename T> void read_file(std::filesystem::path const& file_path, std::vector<T>& buffer) {
+template <typename T> [[nodiscard]] bool read_buffer(std::filesystem::path const& file_path, std::vector<T>& buffer) {
     MMIO mmio = MMIO(file_path, O_RDONLY);
+    if (!mmio.is_open()) {
+        return false;
+    }
     buffer.resize(mmio.size() / sizeof(T));
     memcpy(buffer.data(), mmio.mapping(), mmio.size());
 }
 
-template <typename T> void write_file(std::filesystem::path const& file_path, std::vector<T>& buffer) {
+template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path const& file_path, std::vector<T>& buffer) {
     MMIO mmio = MMIO(file_path, O_RDWR | O_CREAT | O_TRUNC, buffer.size() * sizeof(T));
+    if (!mmio.is_open()) {
+        return false;
+    }
     memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
 }
 

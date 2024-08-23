@@ -68,7 +68,10 @@ VkBufferUsageFlags type_to_usage(VkDescriptorType type) {
 MMIO::MMIO(std::filesystem::path const& file_path, int oflag, size_t size) {
     _fd = open(file_path.c_str(), oflag, (mode_t)0600);
     if (_fd == -1) {
-        throw std::runtime_error("failed to open file: " + file_path.string() + " errno: " + std::to_string(errno));
+        // early return,
+        // whatever uses MMIO is responsible for checking to ensure the file is open
+        return;
+        //  throw std::runtime_error("failed to open file: " + file_path.string() + " errno: " + std::to_string(errno));
     }
     struct stat sb;
     fstat(_fd, &sb);
@@ -97,7 +100,19 @@ MMIO::MMIO(std::filesystem::path const& file_path, int oflag, size_t size) {
     }
 }
 
+bool MMIO::is_open() { return _fd != -1; }
+
 MMIO::~MMIO() {
     munmap(_mapping, _size);
     close(_fd);
+}
+
+void MMIO::write(void* data, size_t size) {
+    std::memcpy(reinterpret_cast<char*>(_mapping) + _write_offset, data, size);
+    _write_offset += size;
+}
+
+void MMIO::read(void* data, size_t size) {
+    std::memcpy(data, reinterpret_cast<char*>(_mapping) + _read_offset, size);
+    _read_offset += size;
 }

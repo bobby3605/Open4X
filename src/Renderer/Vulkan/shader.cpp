@@ -9,7 +9,6 @@
 #include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
-#include <iostream>
 #include <spirv-tools/libspirv.h>
 #include <spirv-tools/libspirv.hpp>
 #include <spirv-tools/optimizer.hpp>
@@ -51,7 +50,9 @@ Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descr
     // TODO
     // Compare against file hash
     if (std::filesystem::exists(_cache_path)) {
-        read_file(_cache_path, _spirv);
+        if (!read_buffer(_cache_path, _spirv)) {
+            throw std::runtime_error("failed to open cached shader: " + _cache_path.string());
+        }
         _stage_info.stage = std::get<VkShaderStageFlagBits>(get_stage(_path));
     } else {
         compile();
@@ -95,7 +96,9 @@ void Shader::compile() {
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
     std::vector<char> shader_code;
-    read_file(_path, shader_code);
+    if (!read_buffer(_path, shader_code)) {
+        throw std::runtime_error("failed to open shader: " + _path.string());
+    }
     const char* shader_string = shader_code.data();
     const int shader_length = shader_code.size();
     const char* shader_names = _path.c_str();
@@ -168,7 +171,10 @@ void Shader::compile() {
             throw std::runtime_error("Optimization failed for file: " + _path.string());
         }
     }
-    write_file(_cache_path, _spirv);
+    if (!write_buffer(_cache_path, _spirv)) {
+        std::cout << "WARNING: "
+                  << "failed to write shader cache at: " << _cache_path << std::endl;
+    }
 }
 
 void Shader::reflect() {
