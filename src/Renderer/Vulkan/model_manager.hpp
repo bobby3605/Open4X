@@ -18,6 +18,7 @@ class ModelManager {
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material_alloc;
     safe_vector<Draw*> _invalid_draws;
     ChunkProcessor<Draw*, safe_vector>* _invalid_draws_processor;
+    std::unordered_map<uint32_t, Sampler*> _default_samplers;
 };
 
 #endif // MODEL_MANAGER_H_

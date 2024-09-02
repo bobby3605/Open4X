@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "device.hpp"
 #include "draw.hpp"
+#include "memory_manager.hpp"
 #include "shader.hpp"
 #include <list>
 #include <tuple>
@@ -25,10 +26,9 @@ void Pipeline::update_descriptors() {
     // For example, a global set at 0 only needs to be set once per GPUAllocator->realloc
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::list<VkDescriptorBufferInfo> descriptor_buffer_infos;
-    std::list<std::vector<VkDescriptorImageInfo>> descriptor_image_infos;
     for (auto const& set_layout : _descriptor_layout.set_layouts()) {
         for (auto const& binding_layout : set_layout.second.bindings) {
-            std::string descriptor_name = binding_layout.second.buffer_name;
+            std::string const& descriptor_name = binding_layout.second.descriptor_name;
             descriptor_writes.push_back({
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstSet = set_layout.second.set,
@@ -36,7 +36,7 @@ void Pipeline::update_descriptors() {
                 // TODO:
                 // only update needed array elements
                 .dstArrayElement = 0,
-                .descriptorCount = 1,
+                .descriptorCount = (uint32_t)MemoryManager::memory_manager->global_image_infos[descriptor_name].size(),
                 .descriptorType = binding_layout.second.binding.descriptorType,
             });
             switch (binding_layout.second.binding.descriptorType) {
@@ -58,7 +58,7 @@ void Pipeline::update_descriptors() {
                     _descriptor_layout.set_descriptor_buffer(set_layout.first, binding_layout.first, buffer->descriptor_data());
                 } else {
                     descriptor_buffer_infos.push_back({
-                        .buffer = nullptr,
+                        .buffer = buffer->buffer(),
                         .offset = 0,
                         .range = VK_WHOLE_SIZE,
                     });
@@ -66,8 +66,8 @@ void Pipeline::update_descriptors() {
                 }
                 break;
             case VK_DESCRIPTOR_TYPE_SAMPLER:
-                break;
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                descriptor_writes.back().pImageInfo = MemoryManager::memory_manager->global_image_infos[descriptor_name].data();
                 break;
             default:
                 throw std::runtime_error("unsupported descriptor type when updating: " +

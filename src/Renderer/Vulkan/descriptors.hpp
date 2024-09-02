@@ -11,7 +11,7 @@ class DescriptorLayout {
   private:
     struct BindingLayout {
         VkDescriptorSetLayoutBinding binding;
-        std::string buffer_name;
+        std::string descriptor_name;
         VkMemoryPropertyFlags mem_props;
         SubAllocation<VoidAllocator, SubAllocation<LinearAllocator, GPUAllocation>>* allocation;
     };

@@ -1,8 +1,14 @@
 #include "image.hpp"
 #include "common.hpp"
+#include "fastgltf/types.hpp"
+#include "memory_manager.hpp"
 #include <fcntl.h>
 #include <filesystem>
 #include <stdexcept>
+#include <variant>
+#include <vulkan/vulkan_core.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 VkSamplerAddressMode switch_wrap(uint32_t wrap) {
     switch (wrap) {
@@ -17,7 +23,7 @@ VkSamplerAddressMode switch_wrap(uint32_t wrap) {
     }
 }
 
-VkFilter switch_filter(uint32_t filter) {
+VkFilter switch_filter(uint16_t filter) {
     switch (filter) {
     case 9728:
         return VK_FILTER_NEAREST;
@@ -37,7 +43,7 @@ VkFilter switch_filter(uint32_t filter) {
     }
 }
 
-VkSamplerMipmapMode switch_mipmap_filter(uint32_t filter) {
+VkSamplerMipmapMode switch_mipmap_filter(uint16_t filter) {
     switch (filter) {
     case 9984:
         return VK_SAMPLER_MIPMAP_MODE_NEAREST;
@@ -65,15 +71,15 @@ void Image::write_image(std::string path) {
     std::string file_name = path.substr(path.find_last_of("/") + 1) + ".imageCache";
     // write image data to file
     MMIO mmio = MMIO(directory + file_name, O_RDWR | O_CREAT | O_TRUNC,
-                     sizeof(tex_width) + sizeof(tex_height) + sizeof(tex_channels) + tex_width * tex_height * 4);
+                     sizeof(_tex_width) + sizeof(_tex_height) + sizeof(_tex_channels) + _tex_width * _tex_height * 4);
     if (!mmio.is_open()) {
         std::cout << "WARNING: "
                   << "failed to write image cache: " << directory + file_name << std::endl;
     }
-    mmio.write(tex_width);
-    mmio.write(tex_height);
-    mmio.write(tex_channels);
-    mmio.write(_pixels, tex_width * tex_height * 4);
+    mmio.write(_tex_width);
+    mmio.write(_tex_height);
+    mmio.write(_tex_channels);
+    mmio.write(_pixels, _tex_width * _tex_height * 4);
 }
 
 bool Image::read_image(std::string path) {
@@ -81,158 +87,200 @@ bool Image::read_image(std::string path) {
     if (!mmio.is_open()) {
         return false;
     }
-    mmio.read(tex_width);
-    mmio.read(tex_height);
-    mmio.read(tex_channels);
+    mmio.read(_tex_width);
+    mmio.read(_tex_height);
+    mmio.read(_tex_channels);
     // NOTE:
     // _pixel_read_buffer should never be changed after this point,
     // if it does, then pixels should get a new pointer,
     // since vector operations can change the base memory location
-    _pixel_read_buffer.reserve(tex_width * tex_height * 4);
+    _pixel_read_buffer.reserve(_tex_width * _tex_height * 4);
     _pixels = _pixel_read_buffer.data();
-    mmio.read(_pixels, tex_width * tex_height * 4);
+    mmio.read(_pixels, _tex_width * _tex_height * 4);
     return true;
 }
 
-Image::Image(Model* model, uint32_t textureID, VkFormat format) : model{model}, _textureID{textureID}, _format{format} {
-    uint32_t sourceID = model->textures[textureID].source;
-
+Image::Image(fastgltf::Asset const& asset, uint32_t image_ID, std::string relative_gltf_path) {
     // Get the directory path for the image cache
     // Example:
-    // model-path(): assets/glTF/ABeautifulGame/
-    // model->fileName(): ABeautifulGame.gltf
-    // gltfPath: glTF/ABeautifulGame/
+    // relative_path: assets/glTF/ABeautifulGame/ABeautifulGame.gltf
+    // file_name: ABeautifulGame.gltf
+    // base_path: assets/glTF/ABeautifulGame/
+    // gltf_path: glTF/ABeautifulGame/
     // path: ABeautifulGame/
-    // cacheFilePath: ABeautifulGame/ABeautifulGame-gltf/
+    // cache_base_path: ABeautifulGame/ABeautifulGame-gltf/
 
-    std::string gltf_path = model->path().substr(model->path().find_first_of("/") + 1);
+    std::string base_path = relative_gltf_path.substr(0, relative_gltf_path.find_last_of("/"));
+    std::string file_name = get_filename(relative_gltf_path);
+    std::string gltf_path = base_path.substr(base_path.find_first_of("/") + 1);
     std::string path = gltf_path.substr(gltf_path.find_first_of("/") + 1);
-    std::string cache_file_path = path + model->file_name().substr(0, model->file_name().find_last_of(".")) + "-" +
-                                  model->file_name().substr(model->file_name().find_last_of(".") + 1) + "/";
+    std::string cache_path =
+        path + file_name.substr(0, file_name.find_last_of(".")) + "-" + file_name.substr(file_name.find_last_of(".") + 1) + "/";
 
-    bool stbi_flag = false;
-    // TODO
-    // check if file has already been loaded
-    if (model->images[sourceID].uri.has_value()) {
-        // add the uri to the directory path
-        cache_file_path += model->images[sourceID].uri.value();
+    if (std::holds_alternative<fastgltf::sources::URI>(asset.images[image_ID].data)) {
+        fastgltf::URI const& uri = std::get<fastgltf::sources::URI>(asset.images[image_ID].data).uri;
+        // add the uri to the cache path
+        cache_path += uri.string();
         // check if the image file has been loaded from the cache
-        if (!read_image(cache_file_path)) {
+        if (!read_image(cache_path)) {
             // if it hasn't been loaded,
             // load it from the gltf image and cache it
-            _pixels = stbi_load((model->path() + model->images[sourceID].uri.value()).c_str(), &tex_width, &tex_height, &tex_channels,
-                                STBI_rgb_alpha);
+            _pixels = stbi_load((base_path + uri.c_str()).c_str(), &_tex_width, &_tex_height, &_tex_channels, STBI_rgb_alpha);
             if (!_pixels) {
-                throw std::runtime_error("failed to load texture image: " + model->path() + model->images[sourceID].uri.value());
+                throw std::runtime_error("failed to load texture image: " + base_path + uri.c_str());
             }
-            stbi_flag = true;
-            write_image(cache_file_path);
+            _stbi_flag = true;
+            write_image(cache_path);
         }
-    } else if (model->images[sourceID].bufferView.has_value()) {
+    } else if (std::holds_alternative<fastgltf::sources::BufferView>(asset.images[image_ID].data)) {
+        throw std::runtime_error("TODO buffer view images");
+
+        fastgltf::sources::BufferView const& buffer_view_sources = std::get<fastgltf::sources::BufferView>(asset.images[image_ID].data);
         // add bufferView-n to the directory path
-        cache_file_path += "bufferView-" + std::to_string(model->images[sourceID].bufferView.value());
-        if (!read_image(cache_file_path)) {
-            GLTF::BufferView* bufferView = &model->bufferViews[model->images[sourceID].bufferView.value()];
-            pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
-                                           &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
-            if (!pixels) {
+        cache_path += "bufferView-" + std::to_string(buffer_view_sources.bufferViewIndex);
+        if (!read_image(cache_path)) {
+            fastgltf::BufferView const& buffer_view = asset.bufferViews[buffer_view_sources.bufferViewIndex];
+            if (buffer_view.byteStride.has_value()) {
+                throw std::runtime_error("byte stride unsupported on image buffer views: " + cache_path);
+            }
+            asset.buffers[buffer_view.bufferIndex].data;
+            /*
+            _pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
+                                            &_tex_width, &_tex_height, &_tex_channels, STBI_rgb_alpha);
+            if (!_pixels) {
                 throw std::runtime_error("failed to load texture image from bufferView: " +
                                          std::to_string(model->images[sourceID].bufferView.value()));
             }
-            stbi_flag = true;
-            write_image(cache_file_path);
+                                            */
+            _stbi_flag = true;
+            write_image(cache_path);
         }
     } else {
-        throw std::runtime_error("no data found for image on textureID: " + std::to_string(textureID));
+        throw std::runtime_error("no data found for image on imageID: " + std::to_string(image_ID));
     }
+    // _mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(_tex_width, _tex_height)))) + 1;
+    _mip_levels = 1;
 
-    loadPixels();
-    if (stbi_flag) {
-        stbi_image_free(pixels);
-    }
-}
-
-Image::Image(std::string path, VkFormat format) : _format{format} {
-    pixels = stbi_load(path.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
-    if (!pixels) {
-        throw std::runtime_error("failed to load texture image");
-    }
     load_pixels();
 }
 
+Image::Image(std::string path) {
+    _pixels = stbi_load(path.c_str(), &_tex_width, &_tex_height, &_tex_channels, STBI_rgb_alpha);
+    if (!_pixels) {
+        throw std::runtime_error("failed to load texture image");
+    }
+    //_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(_tex_width, _tex_height)))) + 1;
+    _mip_levels = 1;
+    load_pixels();
+}
+// TODO:
+// set debug name for image, image view, and sampler
+
 void Image::load_pixels() {
+    VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    VkDeviceSize image_size = tex_width * tex_height * 4;
-    _mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(tex_width, tex_height)))) + 1;
+    VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    image_create_info.imageType = VK_IMAGE_TYPE_2D;
+    image_create_info.extent.width = width();
+    image_create_info.extent.height = height();
+    image_create_info.extent.depth = 1;
+    image_create_info.mipLevels = mip_levels();
+    image_create_info.arrayLayers = 1;
+    image_create_info.format = format;
+    image_create_info.tiling = tiling;
+    image_create_info.initialLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    image_create_info.usage = usage;
+    image_create_info.samples = num_samples;
+    image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VulkanBuffer staging_buffer(device, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    VmaAllocationCreateInfo alloc_info = {};
+    alloc_info.requiredFlags = properties;
+    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+    check_result(vmaCreateImage(Device::device->vma_allocator(), &image_create_info, &alloc_info, &_vk_image, &_vma_allocation, nullptr),
+                 "failed to create image!");
 
-    stagingBuffer.map();
-    stagingBuffer.write(pixels, image_size);
-    stagingBuffer.unmap();
+    VkImageViewCreateInfo view_info{};
+    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_info.image = _vk_image;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.format = format;
+    view_info.subresourceRange.aspectMask = aspect_flags;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = mip_levels();
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
 
-    device->createImage(tex_width, tex_height, _mip_levels, VK_SAMPLE_COUNT_1_BIT, _format, VK_IMAGE_TILING_OPTIMAL,
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _image, _imageMemory);
+    check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_vk_image_view),
+                 "failed to create texture image view!");
 
-    device->singleTimeCommands()
-        .transitionImageLayout(_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mip_levels)
-        .copyBufferToImage(stagingBuffer.buffer(), _image, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height))
-        // TODO
-        // Save and load mipmaps from a file
-        .generateMipmaps(_image, _format, tex_width, tex_height, _mip_levels)
-        .run();
+    // FIXME:
+    // staging buffer
+    void* mapped;
+    vmaMapMemory(Device::device->vma_allocator(), _vma_allocation, &mapped);
+    std::memcpy(reinterpret_cast<unsigned char*>(mapped), pixels(), width() * height() * 4);
+    vmaUnmapMemory(Device::device->vma_allocator(), _vma_allocation);
 
-    _imageView = device->createImageView(_image, _format, VK_IMAGE_ASPECT_COLOR_BIT, _mip_levels);
-
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = _imageView;
-    imageInfo.sampler = nullptr;
+    _image_info.imageView = _vk_image_view;
+    /*
+    // TODO
+    // Save and load mipmaps from a file
+    //        .generateMipmaps(_image, _format, tex_width, _tex_height, _mip_levels)
+    */
+    // FIXME:
+    // transition layout
+    _image_info.imageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 }
 
 Image::~Image() {
-    vkDestroyImageView(Device::device->vk_device(), _imageView, nullptr);
-    vkDestroyImage(Device::device->vk_device(), _image, nullptr);
-    vkFreeMemory(Device::device->vk_device(), _imageMemory, nullptr);
+    if (_stbi_flag) {
+        stbi_image_free(_pixels);
+    }
+    vmaDestroyImage(Device::device->vma_allocator(), _vk_image, _vma_allocation);
+    vkDestroyImageView(Device::device->vk_device(), _vk_image_view, nullptr);
 }
 
-Sampler::Sampler(GLTF* model, uint32_t samplerID, uint32_t mipLevels) : model{model}, samplerID{samplerID}, mipLevels{mipLevels} {
+Sampler::Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID, uint32_t mip_levels) {
 
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    if (model != nullptr) {
-        samplerInfo.magFilter = switch_filter(model->samplers[samplerID].magFilter);
-        samplerInfo.minFilter = switch_filter(model->samplers[samplerID].minFilter);
-        samplerInfo.addressModeU = switch_wrap(model->samplers[samplerID].wrapS);
-        samplerInfo.addressModeV = switch_wrap(model->samplers[samplerID].wrapT);
-        // gltf doesn't have support for w coordinates
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    if (asset.samplers[sampler_ID].magFilter.has_value()) {
+        sampler_info.magFilter = switch_filter(static_cast<uint16_t>(asset.samplers[sampler_ID].magFilter.value()));
     } else {
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.magFilter = VK_FILTER_LINEAR;
     }
-    samplerInfo.anisotropyEnable = VK_TRUE;
+    if (asset.samplers[sampler_ID].minFilter.has_value()) {
+        sampler_info.minFilter = switch_filter(static_cast<uint16_t>(asset.samplers[sampler_ID].minFilter.value()));
+    } else {
+        sampler_info.minFilter = VK_FILTER_LINEAR;
+    }
+    sampler_info.addressModeU = switch_wrap(static_cast<uint16_t>(asset.samplers[sampler_ID].wrapS));
+    sampler_info.addressModeV = switch_wrap(static_cast<uint16_t>(asset.samplers[sampler_ID].wrapT));
+    // gltf doesn't have support for w coordinates
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.anisotropyEnable = VK_TRUE;
 
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(Device::device->physical_device(), &properties);
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(mipLevels);
+    sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.mipLodBias = 0.0f;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = static_cast<float>(mip_levels);
 
-    checkResult(vkCreateSampler(Device::device->vk_device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
+    check_result(vkCreateSampler(Device::device->vk_device(), &sampler_info, nullptr, &_vk_sampler), "failed to create texture sampler!");
+
+    _image_info.sampler = _vk_sampler;
 }
 
-Sampler::Sampler(uint32_t mipLevels) : mipLevels{mipLevels} {
+Sampler::Sampler(uint32_t mip_levels) {
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -253,13 +301,11 @@ Sampler::Sampler(uint32_t mipLevels) : mipLevels{mipLevels} {
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(mipLevels);
+    samplerInfo.maxLod = static_cast<float>(mip_levels);
 
-    checkResult(vkCreateSampler(Device::device->vk_device(), &samplerInfo, nullptr, &_imageSampler), "failed to create texture sampler!");
+    check_result(vkCreateSampler(Device::device->vk_device(), &samplerInfo, nullptr, &_vk_sampler), "failed to create texture sampler!");
+
+    _image_info.sampler = _vk_sampler;
 }
 
-Sampler::~Sampler() { vkDestroySampler(Device::device->vk_device(), _imageSampler, nullptr); }
-
-bool operator==(const Sampler& s1, const Sampler& s2) {
-    return s1.model == s2.model && s1.samplerID == s2.samplerID && s1.mipLevels == s2.mipLevels;
-}
+Sampler::~Sampler() { vkDestroySampler(Device::device->vk_device(), _vk_sampler, nullptr); }

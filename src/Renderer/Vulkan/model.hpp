@@ -4,6 +4,7 @@
 #include "../../utils/utils.hpp"
 #include "draw.hpp"
 #include "fastgltf/types.hpp"
+#include "image.hpp"
 #include <cstdint>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
@@ -35,6 +36,8 @@ class Model {
     void add_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
     NewAABB& aabb() { return _aabb; }
+    std::string const& path() { return _path; }
+    Image const& get_image(size_t image_index) { return _images[image_index]; }
 
     class Scene {
       public:
@@ -131,6 +134,9 @@ class Model {
     fastgltf::MappedGltfFile* _data;
     std::size_t _default_scene;
     std::size_t _total_instance_data_count = 0;
+    std::string _path;
+    void load_images();
+    std::vector<Image> _images;
 };
 
 #endif // MODEL_H_

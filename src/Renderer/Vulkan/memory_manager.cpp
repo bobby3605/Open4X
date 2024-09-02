@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <string>
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
@@ -18,8 +19,8 @@ MemoryManager::~MemoryManager() {
     }
 }
 
-MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mipLevels,
-                                                 VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
+MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t width, uint32_t height, uint32_t mip_levels,
+                                                 VkSampleCountFlagBits num_samples, VkFormat format, VkImageTiling tiling,
                                                  VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
     if (_images.count(name) != 0) {
         throw std::runtime_error(name + " already exists!");
@@ -30,13 +31,13 @@ MemoryManager::Image MemoryManager::create_image(std::string name, uint32_t widt
     image_info.extent.width = width;
     image_info.extent.height = height;
     image_info.extent.depth = 1;
-    image_info.mipLevels = mipLevels;
+    image_info.mipLevels = mip_levels;
     image_info.arrayLayers = 1;
     image_info.format = format;
     image_info.tiling = tiling;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     image_info.usage = usage;
-    image_info.samples = numSamples;
+    image_info.samples = num_samples;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VmaAllocationCreateInfo alloc_info = {};

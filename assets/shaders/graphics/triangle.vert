@@ -12,7 +12,7 @@ struct InstanceData {
 struct MaterialData {
     vec4 base_color_factor;
     uint sampler_index;
-    uint image_index;
+    uint base_texture_index;
     uint normal_index;
     float normal_scale;
     uint metallic_roughness_index;
@@ -35,7 +35,7 @@ layout(location = 3) in vec4 tangent;
 layout(location = 0) out vec4 base_color_factor;
 layout(location = 1) out vec2 frag_texcoord;
 layout(location = 2) out uint sampler_index;
-layout(location = 3) out uint image_index;
+layout(location = 3) out uint base_texture_index;
 layout(location = 4) out uint normal_index;
 layout(location = 5) out uint metallic_roughness_index;
 layout(location = 6) out uint ao_index;
@@ -57,7 +57,7 @@ void main() {
     base_color_factor = material.base_color_factor;
 
     sampler_index = material.sampler_index;
-    image_index = material.image_index;
+    base_texture_index = material.base_texture_index;
     normal_index = material.normal_index;
     metallic_roughness_index = material.metallic_roughness_index;
     ao_index = material.ao_index;

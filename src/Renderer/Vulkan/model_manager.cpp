@@ -1,6 +1,7 @@
 #include "model_manager.hpp"
 #include "common.hpp"
 #include "draw.hpp"
+#include "memory_manager.hpp"
 #include <vulkan/vulkan_core.h>
 
 ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(draw_allocators) {
@@ -10,6 +11,9 @@ ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(d
     _default_material_alloc->write(&default_material);
     _invalid_draws_processor = new ChunkProcessor<Draw*, safe_vector>(_invalid_draws, new_settings->invalid_draws_refresh_threads,
                                                                       [&](size_t i) { _invalid_draws[i]->write_indirect_command(); });
+
+    _default_samplers[0] = new Sampler(0);
+    MemoryManager::memory_manager->global_image_infos["samplers"].push_back(_default_samplers[0]->image_info());
 }
 ModelManager::~ModelManager() {
     for (auto model : _models) {

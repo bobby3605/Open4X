@@ -107,7 +107,7 @@ MMIO::~MMIO() {
     close(_fd);
 }
 
-void MMIO::write(void* data, size_t size) {
+void MMIO::write(const void* data, size_t size) {
     std::memcpy(reinterpret_cast<char*>(_mapping) + _write_offset, data, size);
     _write_offset += size;
 }

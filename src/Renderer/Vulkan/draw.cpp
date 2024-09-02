@@ -23,6 +23,7 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
     // because indirect_commands_alloc and material_index_alloc always get
     // alloced and pop and swapped together,
     // so their offsets should be identical
+    // FIXME: This isn't thread safe
     uint32_t material_index = ((uint32_t)material_alloc->offset()) / sizeof(NewMaterialData);
     _material_index_alloc = _allocators.material_indices->alloc();
     _material_index_alloc->write(&material_index);
@@ -73,12 +74,18 @@ void Draw::add_instance(InstanceAllocPair& output) {
     instance_index_alloc->write(&instance_data_index);
 }
 
+// FIXME:
+// This isn't currently being called on object destruction
 void Draw::remove_instance(InstanceAllocPair instance) {
     std::unique_lock<std::mutex> lock(_alloc_lock);
     InstanceDataAlloc& instance_data_alloc = instance.data;
     InstanceIndexAlloc& instance_index_alloc = instance.index;
 
     _allocators.instance_data->free(instance_data_alloc);
+    // NOTE:
+    // instance data index doesn't need to be updated here,
+    // because the index of instance data of the still existing instance is the same,
+    // (free was called on the instance data, rather than pop and swap)
     instance_indices_allocator->pop_and_swap(instance_index_alloc);
     --_instance_count;
     register_invalid();

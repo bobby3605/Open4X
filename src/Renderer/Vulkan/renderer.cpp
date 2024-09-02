@@ -34,6 +34,8 @@ void Renderer::create_data_buffers() {
     draw_allocators.index = new LinearAllocator(gpu_allocator->create_buffer(
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "index_buffer"));
 
+    // TODO:
+    // Have some kind of interface mapping for shader buffer names to required buffers as metadata in the shader
     draw_allocators.instance_data = new FixedAllocator(
         sizeof(InstanceData),
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

@@ -68,7 +68,7 @@ void DescriptorLayout::add_binding(uint32_t set, uint32_t binding, VkDescriptorT
     // TODO:
     // support immutable samplers
     layout.binding.pImmutableSamplers = VK_NULL_HANDLE;
-    layout.buffer_name = buffer_name;
+    layout.descriptor_name = buffer_name;
     layout.mem_props = mem_props;
     // Create the set mapping if it doesn't exist
     // Add the binding to the set layout
@@ -81,7 +81,10 @@ void DescriptorLayout::add_binding(uint32_t set, uint32_t binding, VkDescriptorT
 void DescriptorLayout::add_image(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name) {
     BindingLayout layout;
     layout.binding.binding = binding;
-    layout.binding.descriptorCount = 0; // to be set later
+    // FIXME:
+    // assign count dynamically,
+    // descriptor set needs to be reallocated whenever this changes
+    layout.binding.descriptorCount = 100;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     layout.binding.stageFlags = stage;
 
@@ -91,7 +94,10 @@ void DescriptorLayout::add_image(uint32_t set, uint32_t binding, VkShaderStageFl
 void DescriptorLayout::add_sampler(uint32_t set, uint32_t binding, VkShaderStageFlags stage, std::string const& name) {
     BindingLayout layout;
     layout.binding.binding = binding;
-    layout.binding.descriptorCount = 0; // to be set later
+    // FIXME:
+    // assign count dynamically,
+    // descriptor set needs to be reallocated whenever this changes
+    layout.binding.descriptorCount = 100;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
     layout.binding.stageFlags = stage;
 

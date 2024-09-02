@@ -5,6 +5,7 @@
 #include "fastgltf/core.hpp"
 #include "fastgltf/math.hpp"
 #include "fastgltf/types.hpp"
+#include "memory_manager.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
@@ -17,7 +18,7 @@
 
 Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
              safe_vector<Draw*>& invalid_draws)
-    : _default_material(default_material), _invalid_draws(invalid_draws) {
+    : _default_material(default_material), _invalid_draws(invalid_draws), _path(path) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -32,10 +33,24 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
         throw std::runtime_error("error " + std::string(fastgltf::getErrorMessage(error)) + " when loading gltf: " + path.string());
     }
     _asset = asset.get_if();
+
+    // Pre load all images
+    // This is less complex than loading images on demand,
+    // because the Model doesn't need to keep track of which images exist
+    // It allows allows for further optimization by creating images in bulk
+    // If needed, gltf files can be optimized to get rid of any unused images
+    load_images();
+
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
     for (auto scene : _asset->scenes) {
         _scenes.emplace_back(this, &scene, draw_allocators);
+    }
+}
+
+void Model::load_images() {
+    for (size_t i = 0; i < _asset->images.size(); ++i) {
+        _images.emplace_back(*_asset, i, _path);
     }
 }
 
@@ -116,6 +131,29 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             NewMaterialData material_data{};
             fastgltf::Material& material = model->_asset->materials[*primitive->materialIndex];
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
+            if (material.pbrData.baseColorTexture.has_value()) {
+                fastgltf::Texture& texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
+                if (texture.samplerIndex.has_value()) {
+                    throw std::runtime_error("not creating samplers yet");
+                    material_data.sampler_index;
+                } else {
+                    // FIXME:
+                    // Need a default sampler per mip-levels used
+                    material_data.sampler_index = 0;
+                }
+                if (texture.imageIndex.has_value()) {
+                    // TODO:
+                    // not thread safe
+                    Image const& image = model->get_image(texture.imageIndex.value());
+                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(image.image_info());
+                    // FIXME:
+                    // update texture index when a texture is deleted
+                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size();
+                } else {
+                    throw std::runtime_error("unsupported texture without image index" + model->path() +
+                                             " image index: " + std::to_string(texture.imageIndex.value()));
+                }
+            }
             std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
             if (base_color_texture.has_value()) {
                 std::vector<glm::vec2> texcoords = get_texcoords((*base_color_texture).texCoordIndex);

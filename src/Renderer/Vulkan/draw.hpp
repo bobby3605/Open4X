@@ -27,13 +27,13 @@ struct InstanceData {
 struct NewMaterialData {
     alignas(16) glm::vec4 base_color_factor = {1.0f, 1.0f, 1.0f, 1.0f};
     uint sampler_index = 0;
-    uint image_index = 0;
-    uint normal_index = 0;
-    float normal_scale = 1.0f;
+    uint base_texture_index = 0;
     uint metallic_roughness_index = 0;
+    uint normal_index = 0;
+    uint ao_index = 0;
+    float normal_scale = 1.0f;
     float metallic_factor = 1.0f;
     float roughness_factor = 1.0f;
-    uint ao_index = 0;
     float occlusion_strength = 1.0f;
     // TODO:
     // Does this need padding?

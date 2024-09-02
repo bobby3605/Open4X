@@ -84,7 +84,7 @@ class MMIO {
     MMIO(std::filesystem::path const& file_path, int oflag, size_t size = 0);
     void* mapping() { return _mapping; }
     const size_t& size() const { return _size; }
-    void write(void* data, size_t size);
+    void write(const void* data, size_t size);
     template <typename T> void write(T const& data) { write(&data, sizeof(data)); }
     void read(void* data, size_t size);
     template <typename T> void read(T& data) { read(&data, sizeof(data)); }
@@ -99,6 +99,7 @@ template <typename T> [[nodiscard]] bool read_buffer(std::filesystem::path const
     }
     buffer.resize(mmio.size() / sizeof(T));
     memcpy(buffer.data(), mmio.mapping(), mmio.size());
+    return true;
 }
 
 template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path const& file_path, std::vector<T>& buffer) {
@@ -107,6 +108,7 @@ template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path cons
         return false;
     }
     memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
+    return true;
 }
 
 #endif // NEWCOMMON_H_
