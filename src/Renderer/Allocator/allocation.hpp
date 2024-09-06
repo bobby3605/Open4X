@@ -120,6 +120,7 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VkDescriptorDataEXT const& descriptor_data() const { return _descriptor_data; }
     VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
     VkBuffer const& buffer() const { return _buffer; }
+    void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size);
 
   protected:
     friend class GPUAllocator;
@@ -137,7 +138,6 @@ class GPUAllocation : Allocation<GPUAllocation> {
     void free();
 
     void get(void* dst, size_t const& offset, size_t const& byte_size);
-    void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size);
     void copy(GPUAllocation* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size);
     void copy(GPUAllocation* dst_allocation);
 

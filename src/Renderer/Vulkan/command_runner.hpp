@@ -9,10 +9,14 @@ class CommandRunner {
     CommandRunner();
     void run();
     void copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     transition_image(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels);
+
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     transition_image(VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource_range);
+
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     image_barrier(VkImageMemoryBarrier2& barrier);
 

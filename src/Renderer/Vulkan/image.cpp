@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "command_runner.hpp"
 #include "common.hpp"
 #include "fastgltf/types.hpp"
 #include "memory_manager.hpp"
@@ -8,6 +9,7 @@
 #include <variant>
 #include <vulkan/vulkan_core.h>
 #define STB_IMAGE_IMPLEMENTATION
+#include "../Allocator/base_allocator.hpp"
 #include "stb/stb_image.h"
 
 VkSamplerAddressMode switch_wrap(uint32_t wrap) {
@@ -218,12 +220,21 @@ void Image::load_pixels() {
     check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_vk_image_view),
                  "failed to create texture image view!");
 
-    // FIXME:
-    // staging buffer
-    void* mapped;
-    vmaMapMemory(Device::device->vma_allocator(), _vma_allocation, &mapped);
-    std::memcpy(reinterpret_cast<unsigned char*>(mapped), pixels(), width() * height() * 4);
-    vmaUnmapMemory(Device::device->vma_allocator(), _vma_allocation);
+    GPUAllocation staging_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "");
+
+    staging_buffer.realloc(width() * height() * 4);
+    staging_buffer.write(0, pixels(), width() * height() * 4);
+
+    CommandRunner staged_upload;
+    staged_upload.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, width(), height());
+    staged_upload.run();
+
+    std::shared_ptr<VkImageMemoryBarrier2> tmp_barrier;
+    std::shared_ptr<VkDependencyInfo> dependency_info;
+    std::tie(tmp_barrier, dependency_info) =
+        CommandRunner::transition_image(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mip_levels());
+    tmp_barrier->image = _vk_image;
 
     _image_info.imageView = _vk_image_view;
     /*
@@ -231,9 +242,7 @@ void Image::load_pixels() {
     // Save and load mipmaps from a file
     //        .generateMipmaps(_image, _format, tex_width, _tex_height, _mip_levels)
     */
-    // FIXME:
-    // transition layout
-    _image_info.imageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    _image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 }
 
 Image::~Image() {
