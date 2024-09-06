@@ -36,7 +36,6 @@ void Pipeline::update_descriptors() {
                 // TODO:
                 // only update needed array elements
                 .dstArrayElement = 0,
-                .descriptorCount = (uint32_t)MemoryManager::memory_manager->global_image_infos[descriptor_name].size(),
                 .descriptorType = binding_layout.second.binding.descriptorType,
             });
             switch (binding_layout.second.binding.descriptorType) {
@@ -63,11 +62,14 @@ void Pipeline::update_descriptors() {
                         .range = VK_WHOLE_SIZE,
                     });
                     descriptor_writes.back().pBufferInfo = &descriptor_buffer_infos.back();
+                    descriptor_writes.back().descriptorCount = 1;
                 }
                 break;
             case VK_DESCRIPTOR_TYPE_SAMPLER:
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
                 descriptor_writes.back().pImageInfo = MemoryManager::memory_manager->global_image_infos[descriptor_name].data();
+                descriptor_writes.back().descriptorCount =
+                    (uint32_t)MemoryManager::memory_manager->global_image_infos[descriptor_name].size();
                 break;
             default:
                 throw std::runtime_error("unsupported descriptor type when updating: " +
