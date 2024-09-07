@@ -14,7 +14,7 @@ ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(d
 
     _default_samplers[0] = new Sampler(1);
     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(_default_samplers[0]->image_info());
-    _default_base_textures[0] = new Image("assets/pixels/white_pixel.png");
+    _default_base_textures[0] = new Texture("assets/pixels/white_pixel.png");
     MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(_default_base_textures[0]->image_info());
 }
 ModelManager::~ModelManager() {

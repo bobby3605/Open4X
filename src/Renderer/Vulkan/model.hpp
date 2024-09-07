@@ -37,7 +37,7 @@ class Model {
     void preallocate(size_t count);
     NewAABB& aabb() { return _aabb; }
     std::string const& path() { return _path; }
-    Image const& get_image(size_t image_index) { return _images[image_index]; }
+    Texture const& get_texture(size_t image_index) { return _textures[image_index]; }
 
     class Scene {
       public:
@@ -135,8 +135,8 @@ class Model {
     std::size_t _default_scene;
     std::size_t _total_instance_data_count = 0;
     std::string _path;
-    void load_images();
-    std::vector<Image> _images;
+    void load_textures();
+    std::vector<Texture> _textures;
     void load_samplers();
     std::vector<Sampler> _samplers;
 };

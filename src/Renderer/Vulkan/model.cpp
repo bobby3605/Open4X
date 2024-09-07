@@ -39,7 +39,7 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     // because the Model doesn't need to keep track of which images exist
     // It allows allows for further optimization by creating images in bulk
     // If needed, gltf files can be optimized to get rid of any unused images
-    load_images();
+    load_textures();
     load_samplers();
 
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
@@ -49,9 +49,9 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     }
 }
 
-void Model::load_images() {
+void Model::load_textures() {
     for (size_t i = 0; i < _asset->images.size(); ++i) {
-        _images.emplace_back(*_asset, i, _path);
+        _textures.emplace_back(*_asset, i, _path);
     }
 }
 
@@ -141,27 +141,27 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             fastgltf::Material& material = model->_asset->materials[*primitive->materialIndex];
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
             if (material.pbrData.baseColorTexture.has_value()) {
-                fastgltf::Texture& texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
-                if (texture.samplerIndex.has_value()) {
+                fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
+                if (gltf_texture.samplerIndex.has_value()) {
                     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
-                        model->_samplers[texture.samplerIndex.value()].image_info());
+                        model->_samplers[gltf_texture.samplerIndex.value()].image_info());
                     material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
                 } else {
                     // FIXME:
                     // Need a default sampler per mip-levels used
                     material_data.sampler_index = 0;
                 }
-                if (texture.imageIndex.has_value()) {
+                if (gltf_texture.imageIndex.has_value()) {
                     // TODO:
                     // not thread safe
-                    Image const& image = model->get_image(texture.imageIndex.value());
-                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(image.image_info());
+                    Texture const& texture = model->get_texture(gltf_texture.imageIndex.value());
+                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(texture.image_info());
                     // FIXME:
                     // update texture index when a texture is deleted
                     material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size() - 1;
                 } else {
                     throw std::runtime_error("unsupported texture without image index" + model->path() +
-                                             " image index: " + std::to_string(texture.imageIndex.value()));
+                                             " image index: " + std::to_string(gltf_texture.imageIndex.value()));
                 }
             } else {
                 material_data.base_texture_index = 0;

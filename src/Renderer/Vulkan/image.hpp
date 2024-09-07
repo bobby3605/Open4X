@@ -9,30 +9,51 @@
 
 class Image {
   public:
-    Image(fastgltf::Asset const& asset, uint32_t image_ID, std::string relative_path);
-    Image(std::string path);
+    /*
+    VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+    VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT;
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
+    */
+    Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling tiling, VkImageUsageFlags usage,
+          VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height, uint32_t mip_levels);
     ~Image();
+    void transition(VkImageLayout new_layout);
+    void load_pixels(const void* src, VkImageLayout final_layout);
+    VkDescriptorImageInfo const& image_info() const { return _image_info; };
+
+  private:
+    VkImage _vk_image;
+    VkImageView _vk_image_view;
+    VmaAllocation _vma_allocation;
+    VkDescriptorImageInfo _image_info{};
+    uint32_t _width;
+    uint32_t _height;
+    uint32_t _mip_levels;
+};
+
+class Texture {
+  public:
+    Texture(fastgltf::Asset const& asset, uint32_t image_ID, std::string relative_path);
+    Texture(std::string path);
+    ~Texture();
     int const& width() const { return _tex_width; }
     int const& height() const { return _tex_height; }
     int const& channels() const { return _tex_channels; }
-    uint32_t const& mip_levels() const { return _mip_levels; }
     stbi_uc const* pixels() const { return _pixels; }
-    VkImage const& vk_image() const { return _vk_image; }
-    VkDescriptorImageInfo const& image_info() const { return _image_info; }
+    VkDescriptorImageInfo const& image_info() const { return _image->image_info(); }
 
   private:
     void write_image(std::string path);
     bool read_image(std::string path);
     void load_pixels();
     int _tex_width, _tex_height, _tex_channels;
-    uint32_t _mip_levels;
     stbi_uc* _pixels;
     bool _stbi_flag = false;
     std::vector<unsigned char> _pixel_read_buffer;
-    VkImage _vk_image;
-    VkImageView _vk_image_view;
-    VmaAllocation _vma_allocation;
-    VkDescriptorImageInfo _image_info{};
+    Image* _image = nullptr;
 };
 
 class Sampler {
