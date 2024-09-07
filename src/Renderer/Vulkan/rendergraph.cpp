@@ -2,6 +2,7 @@
 #include "../Allocator/base_allocator.hpp"
 #include "command_runner.hpp"
 #include "common.hpp"
+#include "descriptor_manager.hpp"
 #include "device.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
@@ -252,7 +253,7 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
             // global set at 0
             // vertex and fragment at 1 and 2
             // So only 1 and 2 need to be updated
-            pipeline->update_descriptors();
+            DescriptorManager::descriptor_manager->update(pipeline);
         },
         vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
 

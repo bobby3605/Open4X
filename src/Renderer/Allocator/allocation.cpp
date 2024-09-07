@@ -1,6 +1,7 @@
 #include "allocation.hpp"
 #include "../Vulkan/command_runner.hpp"
 #include "../Vulkan/common.hpp"
+#include "../Vulkan/descriptor_manager.hpp"
 #include <cstring>
 #include <iostream>
 #include <vulkan/vulkan_core.h>
@@ -189,4 +190,5 @@ void GPUAllocation::realloc(size_t const& byte_size) {
     _addr_info = new_alloc._addr_info;
     _is_mapped = new_alloc._is_mapped;
     _mapped = new_alloc._mapped;
+    //  DescriptorManager::descriptor_manager->register_invalid(_name);
 }

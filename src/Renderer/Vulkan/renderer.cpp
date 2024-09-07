@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 #include "../Allocator/base_allocator.hpp"
+#include "descriptor_manager.hpp"
 #include "device.hpp"
 #include "draw.hpp"
 #include "globals.hpp"
@@ -13,6 +14,7 @@ Renderer::Renderer(NewSettings* settings) : _settings(settings) {
     new MemoryManager();
     globals.memory_manager = MemoryManager::memory_manager;
     gpu_allocator = new GPUAllocator();
+    new DescriptorManager(gpu_allocator);
     create_data_buffers();
     _command_pool = Device::device->command_pools()->get_pool();
     create_rendergraph();
