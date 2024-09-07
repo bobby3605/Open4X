@@ -180,9 +180,9 @@ bool Texture::read_image(std::string path) {
     // _pixel_read_buffer should never be changed after this point,
     // if it does, then pixels should get a new pointer,
     // since vector operations can change the base memory location
-    _pixel_read_buffer.reserve(_tex_width * _tex_height * 4);
+    _pixel_read_buffer.reserve(_tex_width * _tex_height * _tex_channels);
     _pixels = _pixel_read_buffer.data();
-    mmio.read(_pixels, _tex_width * _tex_height * 4);
+    mmio.read(_pixels, _tex_width * _tex_height * _tex_channels);
     return true;
 }
 
