@@ -17,6 +17,8 @@ shaders:
 
 clean:
 	rm -r build
+	make clean_shaders
+	make clean_cache
 
 clean_cache:
 	rm -r assets/cache/*
