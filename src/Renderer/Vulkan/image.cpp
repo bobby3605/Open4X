@@ -220,6 +220,7 @@ void Image::load_pixels() {
     check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_vk_image_view),
                  "failed to create texture image view!");
 
+    /*
     GPUAllocation staging_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "");
 
@@ -229,6 +230,11 @@ void Image::load_pixels() {
     CommandRunner staged_upload;
     staged_upload.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, width(), height());
     staged_upload.run();
+    */
+    void* mapped;
+    vmaMapMemory(Device::device->vma_allocator(), _vma_allocation, &mapped);
+    std::memcpy(reinterpret_cast<unsigned char*>(mapped), pixels(), width() * height() * 4);
+    vmaUnmapMemory(Device::device->vma_allocator(), _vma_allocation);
 
     std::shared_ptr<VkImageMemoryBarrier2> tmp_barrier;
     std::shared_ptr<VkDependencyInfo> dependency_info;
