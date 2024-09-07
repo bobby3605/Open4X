@@ -218,6 +218,7 @@ void Open4X::run() {
                 cam.update_projection(vertical_fov, aspect_ratio, near, far);
             }
         }
+        vkDeviceWaitIdle(Device::device->vk_device());
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
 
