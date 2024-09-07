@@ -40,6 +40,7 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     // It allows allows for further optimization by creating images in bulk
     // If needed, gltf files can be optimized to get rid of any unused images
     load_images();
+    load_samplers();
 
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
@@ -51,6 +52,14 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
 void Model::load_images() {
     for (size_t i = 0; i < _asset->images.size(); ++i) {
         _images.emplace_back(*_asset, i, _path);
+    }
+}
+
+void Model::load_samplers() {
+    for (size_t i = 0; i < _asset->samplers.size(); ++i) {
+        // FIXME:
+        // mip levels
+        _samplers.emplace_back(*_asset, i, 1);
     }
 }
 
@@ -134,8 +143,9 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             if (material.pbrData.baseColorTexture.has_value()) {
                 fastgltf::Texture& texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
                 if (texture.samplerIndex.has_value()) {
-                    throw std::runtime_error("not creating samplers yet");
-                    material_data.sampler_index;
+                    MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
+                        model->_samplers[texture.samplerIndex.value()].image_info());
+                    material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size();
                 } else {
                     // FIXME:
                     // Need a default sampler per mip-levels used

@@ -246,7 +246,7 @@ void Shader::reflect() {
         uint32_t binding = comp.get_decoration(resource.id, spv::DecorationBinding);
         std::string name = resource.name;
 
-        _pipeline_descriptor_layout->add_image(set, binding, stage_info().stage, name);
+        _pipeline_descriptor_layout->add_sampler(set, binding, stage_info().stage, name);
     }
     for (const spirv_cross::Resource& resource : res.separate_images) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);

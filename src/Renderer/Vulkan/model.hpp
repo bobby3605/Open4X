@@ -137,6 +137,8 @@ class Model {
     std::string _path;
     void load_images();
     std::vector<Image> _images;
+    void load_samplers();
+    std::vector<Sampler> _samplers;
 };
 
 #endif // MODEL_H_

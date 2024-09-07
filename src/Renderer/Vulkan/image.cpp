@@ -157,8 +157,17 @@ Image::Image(fastgltf::Asset const& asset, uint32_t image_ID, std::string relati
             _stbi_flag = true;
             write_image(cache_path);
         }
+    } else if (std::holds_alternative<fastgltf::sources::Array>(asset.images[image_ID].data)) {
+        fastgltf::sources::Array const& array_source = std::get<fastgltf::sources::Array>(asset.images[image_ID].data);
+        _pixels = stbi_load_from_memory(array_source.bytes.data(), array_source.bytes.size_bytes(), &_tex_width, &_tex_height,
+                                        &_tex_channels, STBI_rgb_alpha);
+        if (!_pixels) {
+            throw std::runtime_error("failed to load texture image from array: " + base_path + " image id: " + std::to_string(image_ID));
+        }
+        _stbi_flag = true;
     } else {
-        throw std::runtime_error("no data found for image on imageID: " + std::to_string(image_ID));
+        throw std::runtime_error("no data found for image on imageID: " + std::to_string(image_ID) + " file: " + path +
+                                 " holding alternative: " + std::to_string(asset.images[image_ID].data.index()));
     }
     // _mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(_tex_width, _tex_height)))) + 1;
     _mip_levels = 1;
@@ -195,7 +204,7 @@ void Image::load_pixels() {
     image_create_info.arrayLayers = 1;
     image_create_info.format = format;
     image_create_info.tiling = tiling;
-    image_create_info.initialLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     image_create_info.usage = usage;
     image_create_info.samples = num_samples;
     image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -220,27 +229,24 @@ void Image::load_pixels() {
     check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_vk_image_view),
                  "failed to create texture image view!");
 
-    /*
     GPUAllocation staging_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "");
 
     staging_buffer.realloc(width() * height() * 4);
     staging_buffer.write(0, pixels(), width() * height() * 4);
 
-    CommandRunner staged_upload;
-    staged_upload.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, width(), height());
-    staged_upload.run();
-    */
+    CommandRunner process_image;
+    process_image.transition_image(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mip_levels(), _vk_image);
+    process_image.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, width(), height());
+    process_image.transition_image(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mip_levels(), _vk_image);
+    process_image.run();
+
+    /*
     void* mapped;
     vmaMapMemory(Device::device->vma_allocator(), _vma_allocation, &mapped);
     std::memcpy(reinterpret_cast<unsigned char*>(mapped), pixels(), width() * height() * 4);
     vmaUnmapMemory(Device::device->vma_allocator(), _vma_allocation);
-
-    std::shared_ptr<VkImageMemoryBarrier2> tmp_barrier;
-    std::shared_ptr<VkDependencyInfo> dependency_info;
-    std::tie(tmp_barrier, dependency_info) =
-        CommandRunner::transition_image(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mip_levels());
-    tmp_barrier->image = _vk_image;
+    */
 
     _image_info.imageView = _vk_image_view;
     /*

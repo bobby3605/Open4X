@@ -157,6 +157,10 @@ void Open4X::run() {
         Model* engine_model = _model_manager->get_model(assets_base_path + "2CylinderEngine.glb");
         size_t engine_id = _object_manager->add_object(engine_model);
         Object* engine_obj = _object_manager->get_object(engine_id);
+        Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
+        size_t simple_texture_id = _object_manager->add_object(simple_texture_model);
+        Object* simple_texture_obj = _object_manager->get_object(simple_texture_id);
+
         engine_obj->scale({0.01, 0.01, 0.01});
         engine_obj->position({5, 0, 0});
 
