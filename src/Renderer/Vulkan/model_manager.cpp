@@ -14,14 +14,14 @@ ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(d
 
     _default_samplers[0] = new Sampler(1);
     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(_default_samplers[0]->image_info());
-    _default_images[0] = new Image("assets/pixels/white_pixel.png");
-    MemoryManager::memory_manager->global_image_infos["images"].push_back(_default_images[0]->image_info());
+    _default_base_textures[0] = new Image("assets/pixels/white_pixel.png");
+    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(_default_base_textures[0]->image_info());
 }
 ModelManager::~ModelManager() {
     for (auto sampler : _default_samplers) {
         delete sampler.second;
     }
-    for (auto image : _default_images) {
+    for (auto image : _default_base_textures) {
         delete image.second;
     }
     for (auto model : _models) {
