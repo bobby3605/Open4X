@@ -49,9 +49,18 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     }
 }
 
+Model::~Model() {
+    for (auto texture : _textures) {
+        delete texture;
+    }
+    for (auto sampler : _samplers) {
+        delete sampler;
+    }
+}
+
 void Model::load_textures() {
     for (size_t i = 0; i < _asset->images.size(); ++i) {
-        _textures.emplace_back(*_asset, i, _path);
+        _textures.push_back(new Texture(*_asset, i, _path));
     }
 }
 
@@ -59,7 +68,7 @@ void Model::load_samplers() {
     for (size_t i = 0; i < _asset->samplers.size(); ++i) {
         // FIXME:
         // mip levels
-        _samplers.emplace_back(*_asset, i, 1);
+        _samplers.push_back(new Sampler(*_asset, i, 1));
     }
 }
 
@@ -128,18 +137,22 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
     : _model(model), _primitive(primitive) {
     std::vector<NewVertex> tmp_vertices;
     std::vector<glm::vec3> positions = get_positions();
+    std::vector<glm::vec3> normals = get_normals();
     tmp_vertices.resize(positions.size());
     for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
         tmp_vertices[i].pos = positions[i];
+        tmp_vertices[i].normal = normals[i];
         _aabb.update(tmp_vertices[i].pos);
     }
 
     SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
     if (primitive->materialIndex.has_value()) {
         if (!model->_material_allocs.contains(*primitive->materialIndex)) {
+            // FIXME: support multiple samplers
             NewMaterialData material_data{};
             fastgltf::Material& material = model->_asset->materials[*primitive->materialIndex];
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
+            // Load base texture
             if (material.pbrData.baseColorTexture.has_value()) {
                 fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
 
@@ -152,7 +165,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 // load sampler for texture
                 if (gltf_texture.samplerIndex.has_value()) {
                     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
-                        model->_samplers[gltf_texture.samplerIndex.value()].image_info());
+                        model->_samplers[gltf_texture.samplerIndex.value()]->image_info());
                     material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
                 } else {
                     // FIXME:
@@ -164,8 +177,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 if (gltf_texture.imageIndex.has_value()) {
                     // TODO:
                     // not thread safe
-                    Texture const& texture = model->get_texture(gltf_texture.imageIndex.value());
-                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(texture.image_info());
+                    Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
+                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(texture->image_info());
                     // FIXME:
                     // update texture index when a texture is deleted
                     material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size() - 1;
@@ -176,6 +189,19 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             } else {
                 material_data.base_texture_index = 0;
             }
+
+            // Load normal map
+            if (material.normalTexture.has_value()) {
+                material_data.normal_scale = material.normalTexture.value().scale;
+                // FIXME:
+                // custom sampler
+                fastgltf::Texture& gltf_texture = model->_asset->textures[material.normalTexture.value().textureIndex];
+                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
+                MemoryManager::memory_manager->global_image_infos["normal_textures"].push_back(texture->image_info());
+                material_data.normal_index = MemoryManager::memory_manager->global_image_infos["normal_textures"].size() - 1;
+            } else {
+                material_data.normal_index = 0;
+            }
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
             model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
@@ -184,8 +210,6 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
         }
     }
-    // FIXME:
-    // Handle normal textures and normal coordinates
 
     if (primitive->indicesAccessor.has_value()) {
         _vertices = std::move(tmp_vertices);
@@ -213,6 +237,10 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {
     return load_accessor<glm::vec3>(_model->_asset, _primitive->findAttribute("POSITION")->second);
+}
+
+std::vector<glm::vec3> Model::Mesh::Primitive::get_normals() {
+    return load_accessor<glm::vec3>(_model->_asset, _primitive->findAttribute("NORMAL")->second);
 }
 
 std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coord_selector) {

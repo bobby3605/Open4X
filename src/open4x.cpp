@@ -152,18 +152,29 @@ void Open4X::loadSettings() {
 void Open4X::run() {
     if (NEW_RENDERER) {
         std::string assets_base_path = std::filesystem::current_path().string() + "/assets/glTF/";
+
         Model* box_model = _model_manager->get_model(assets_base_path + "Box.gltf");
         _object_manager->create_n_objects(box_model, new_settings->extra_object_count);
+
         Model* engine_model = _model_manager->get_model(assets_base_path + "2CylinderEngine.glb");
         size_t engine_id = _object_manager->add_object(engine_model);
         Object* engine_obj = _object_manager->get_object(engine_id);
+
+        engine_obj->scale({0.01, 0.01, 0.01});
+        engine_obj->position({5, 0, 0});
+
         Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
         size_t simple_texture_id = _object_manager->add_object(simple_texture_model);
         Object* simple_texture_obj = _object_manager->get_object(simple_texture_id);
         simple_texture_obj->rotation_euler(0, 180, 180);
 
-        engine_obj->scale({0.01, 0.01, 0.01});
-        engine_obj->position({5, 0, 0});
+        Model* water_bottle_model = _model_manager->get_model(assets_base_path + "WaterBottle.glb");
+        size_t water_bottle_id = _object_manager->add_object(water_bottle_model);
+        Object* water_bottle_obj = _object_manager->get_object(water_bottle_id);
+
+        water_bottle_obj->position({0, -2, 0});
+        water_bottle_obj->scale({5, 5, 5});
+        water_bottle_obj->rotation_euler(0, 0, 180);
 
         if (settings->showFPS) {
             std::stringstream title;

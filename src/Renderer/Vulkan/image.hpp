@@ -31,6 +31,7 @@ class Image {
     VkDescriptorImageInfo _image_info{};
     uint32_t _width;
     uint32_t _height;
+    VkFormat _format;
     uint32_t _mip_levels;
 };
 

@@ -20,6 +20,7 @@ class ModelManager {
     ChunkProcessor<Draw*, safe_vector>* _invalid_draws_processor;
     std::unordered_map<uint32_t, Sampler*> _default_samplers;
     std::unordered_map<uint32_t, Texture*> _default_base_textures;
+    std::unordered_map<uint32_t, Texture*> _default_normal_textures;
 };
 
 #endif // MODEL_MANAGER_H_

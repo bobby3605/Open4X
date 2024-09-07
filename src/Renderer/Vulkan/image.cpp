@@ -63,7 +63,7 @@ VkSamplerMipmapMode switch_mipmap_filter(uint16_t filter) {
 // set debug name for image, image view, and sampler
 Image::Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling tiling, VkImageUsageFlags usage,
              VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height, uint32_t mip_levels)
-    : _width{width}, _height(height), _mip_levels(mip_levels) {
+    : _width{width}, _height(height), _format(format), _mip_levels(mip_levels) {
 
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -157,7 +157,7 @@ void Texture::write_image(std::string path) {
     std::string file_name = path.substr(path.find_last_of("/") + 1) + ".imageCache";
     // write image data to file
     MMIO mmio = MMIO(directory + file_name, O_RDWR | O_CREAT | O_TRUNC,
-                     sizeof(_tex_width) + sizeof(_tex_height) + sizeof(_tex_channels) + _tex_width * _tex_height * 4);
+                     sizeof(_tex_width) + sizeof(_tex_height) + sizeof(_tex_channels) + _tex_width * _tex_height * _tex_channels);
     if (!mmio.is_open()) {
         std::cout << "WARNING: "
                   << "failed to write image cache: " << directory + file_name << std::endl;
@@ -165,7 +165,7 @@ void Texture::write_image(std::string path) {
     mmio.write(_tex_width);
     mmio.write(_tex_height);
     mmio.write(_tex_channels);
-    mmio.write(_pixels, _tex_width * _tex_height * 4);
+    mmio.write(_pixels, _tex_width * _tex_height * _tex_channels);
 }
 
 bool Texture::read_image(std::string path) {
@@ -200,24 +200,25 @@ Texture::Texture(fastgltf::Asset const& asset, uint32_t image_ID, std::string re
         }
         _stbi_flag = true;
     } else if (std::holds_alternative<fastgltf::sources::BufferView>(asset.images[image_ID].data)) {
-        throw std::runtime_error("TODO buffer view images");
-
         fastgltf::sources::BufferView const& buffer_view_sources = std::get<fastgltf::sources::BufferView>(asset.images[image_ID].data);
         fastgltf::BufferView const& buffer_view = asset.bufferViews[buffer_view_sources.bufferViewIndex];
         if (buffer_view.byteStride.has_value()) {
             throw std::runtime_error("byte stride unsupported on image buffer views: " + relative_path +
                                      " bufferView: " + std::to_string(buffer_view_sources.bufferViewIndex));
         }
-        /*
-        asset.buffers[buffer_view.bufferIndex].data;
-        _pixels = stbi_load_from_memory(model->buffers[bufferView->buffer].data.data() + bufferView->byteOffset, bufferView->byteLength,
-                                        &_tex_width, &_tex_height, &_tex_channels, STBI_rgb_alpha);
-        if (!_pixels) {
-            throw std::runtime_error("failed to load texture image from bufferView: " +
-                                     std::to_string(model->images[sourceID].bufferView.value()));
+        if (std::holds_alternative<fastgltf::sources::Array>(asset.buffers[buffer_view.bufferIndex].data)) {
+            fastgltf::sources::Array const& buffer = std::get<fastgltf::sources::Array>(asset.buffers[buffer_view.bufferIndex].data);
+            _pixels = stbi_load_from_memory(buffer.bytes.data() + buffer_view.byteOffset, buffer_view.byteLength, &_tex_width, &_tex_height,
+                                            &_tex_channels, STBI_rgb_alpha);
+            if (!_pixels) {
+                throw std::runtime_error("failed to load texture image from array: " + relative_path +
+                                         " image id: " + std::to_string(image_ID));
+            }
+            _stbi_flag = true;
+        } else {
+            throw std::runtime_error("TODO buffer view image source: " +
+                                     std::to_string(asset.buffers[buffer_view.bufferIndex].data.index()));
         }
-        _stbi_flag = true;
-                                        */
     } else if (std::holds_alternative<fastgltf::sources::Array>(asset.images[image_ID].data)) {
         fastgltf::sources::Array const& array_source = std::get<fastgltf::sources::Array>(asset.images[image_ID].data);
         _pixels = stbi_load_from_memory(array_source.bytes.data(), array_source.bytes.size_bytes(), &_tex_width, &_tex_height,
@@ -252,6 +253,12 @@ void Texture::load_pixels() {
                        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                        VK_IMAGE_ASPECT_COLOR_BIT, width(), height(), mip_levels);
 
+    // TODO:
+    // Allow for different image formats and channel sizes
+    // Currently, stbi is configured to always return STBI_rgb_alpha, no matter what the input image is
+    // Then in the shader, extra components are masked off
+    // Ideally, the format/channels would be the same as the image, to save the most VRAM
+    // Changing STBI_rgb_alpha to 0 in stbi_load* will cause _pixels to be the channel size in the image
     _image->load_pixels(_pixels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 

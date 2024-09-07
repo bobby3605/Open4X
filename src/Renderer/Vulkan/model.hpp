@@ -32,12 +32,13 @@ class Model {
   public:
     Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
           safe_vector<Draw*>& invalid_draws);
+    ~Model();
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
     void add_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
     NewAABB& aabb() { return _aabb; }
     std::string const& path() { return _path; }
-    Texture const& get_texture(size_t image_index) { return _textures[image_index]; }
+    Texture const* get_texture(size_t image_index) { return _textures[image_index]; }
 
     class Scene {
       public:
@@ -97,6 +98,8 @@ class Model {
           private:
             std::vector<glm::vec3> get_positions();
             std::vector<glm::vec2> get_texcoords(std::size_t tex_coord_selector);
+            std::vector<glm::vec3> get_normals();
+
             Model* _model;
             fastgltf::Primitive* _primitive;
 
@@ -136,9 +139,9 @@ class Model {
     std::size_t _total_instance_data_count = 0;
     std::string _path;
     void load_textures();
-    std::vector<Texture> _textures;
+    std::vector<Texture*> _textures;
     void load_samplers();
-    std::vector<Sampler> _samplers;
+    std::vector<Sampler*> _samplers;
 };
 
 #endif // MODEL_H_
