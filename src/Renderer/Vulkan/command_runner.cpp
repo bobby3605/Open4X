@@ -1,5 +1,6 @@
 #include "command_runner.hpp"
 #include "device.hpp"
+#include <iostream>
 #include <vulkan/vulkan_core.h>
 
 VkCommandPool CommandRunner::_pool = VK_NULL_HANDLE;
@@ -10,6 +11,11 @@ CommandRunner::CommandRunner() {
 
     _command_buffer = Device::device->command_pools()->get_primary(_pool);
     begin_recording();
+}
+CommandRunner::~CommandRunner() {
+    if (!_did_run) {
+        std::cout << "warning: did not run command runner" << std::endl;
+    }
 }
 
 void CommandRunner::begin_recording() {
@@ -37,6 +43,7 @@ void CommandRunner::run() {
     end_recording();
     Device::device->command_pools()->release_buffer(_pool, _command_buffer);
     //    delete this;
+    _did_run = true;
 }
 
 void CommandRunner::copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos) {

@@ -7,6 +7,7 @@
 class CommandRunner {
   public:
     CommandRunner();
+    ~CommandRunner();
     void run();
     void copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -30,6 +31,7 @@ class CommandRunner {
     void begin_recording();
     void end_recording();
     std::vector<std::shared_ptr<void>> _dependencies;
+    bool _did_run = false;
 };
 
 #endif // COMMAND_RUNNER_H_
