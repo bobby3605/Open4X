@@ -78,7 +78,7 @@ void Pipeline::update_descriptors() {
             }
         }
     }
-    if (Device::device->use_descriptor_buffers()) {
+    if (!Device::device->use_descriptor_buffers()) {
         vkUpdateDescriptorSets(Device::device->vk_device(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
     }
 }
