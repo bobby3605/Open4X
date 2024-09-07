@@ -127,7 +127,7 @@ void Image::load_pixels(const void* src, VkImageLayout final_layout) {
     */
 
     GPUAllocation staging_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "");
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "");
 
     staging_buffer.realloc(_width * _height * 4);
     staging_buffer.write(0, src, _width * _height * 4);
@@ -136,6 +136,7 @@ void Image::load_pixels(const void* src, VkImageLayout final_layout) {
     process_image.transition_image(_image_info.imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mip_levels, _vk_image);
     process_image.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, _width, _height);
     process_image.transition_image(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, final_layout, _mip_levels, _vk_image);
+    process_image.run();
     /*
     // TODO
     // Save and load mipmaps from a file
