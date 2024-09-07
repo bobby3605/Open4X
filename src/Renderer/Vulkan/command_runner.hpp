@@ -17,6 +17,10 @@ class CommandRunner {
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     transition_image(VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource_range);
 
+    void transition_image(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels, VkImage image);
+
+    void transition_image(VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource_range, VkImage image);
+
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     image_barrier(VkImageMemoryBarrier2& barrier);
 
@@ -25,6 +29,7 @@ class CommandRunner {
     VkCommandBuffer _command_buffer;
     void begin_recording();
     void end_recording();
+    std::vector<std::shared_ptr<void>> _dependencies;
 };
 
 #endif // COMMAND_RUNNER_H_

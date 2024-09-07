@@ -60,6 +60,21 @@ void CommandRunner::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
     vkCmdCopyBufferToImage(_command_buffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
+void CommandRunner::transition_image(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels, VkImage image) {
+    transition_image(old_layout, new_layout, VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, mip_levels, 0, 1}, image);
+}
+
+void CommandRunner::transition_image(VkImageLayout old_layout, VkImageLayout new_layout, VkImageSubresourceRange subresource_range,
+                                     VkImage image) {
+    std::shared_ptr<VkImageMemoryBarrier2> tmp_barrier;
+    std::shared_ptr<VkDependencyInfo> dependency_info;
+    _dependencies.push_back(tmp_barrier);
+    _dependencies.push_back(dependency_info);
+    std::tie(tmp_barrier, dependency_info) = transition_image(old_layout, new_layout, subresource_range);
+    tmp_barrier->image = image;
+    vkCmdPipelineBarrier2(_command_buffer, dependency_info.get());
+}
+
 std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
 CommandRunner::transition_image(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t mip_levels) {
     return transition_image(old_layout, new_layout, VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, mip_levels, 0, 1});
