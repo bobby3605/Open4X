@@ -145,7 +145,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 if (texture.samplerIndex.has_value()) {
                     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
                         model->_samplers[texture.samplerIndex.value()].image_info());
-                    material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size();
+                    material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
                 } else {
                     // FIXME:
                     // Need a default sampler per mip-levels used
@@ -158,13 +158,16 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                     MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(image.image_info());
                     // FIXME:
                     // update texture index when a texture is deleted
-                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size();
+                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size() - 1;
                 } else {
                     throw std::runtime_error("unsupported texture without image index" + model->path() +
                                              " image index: " + std::to_string(texture.imageIndex.value()));
                 }
+            } else {
+                material_data.base_texture_index = 0;
             }
             std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
+            // FIXME: move this into the other check and ensure default texcoords
             if (base_color_texture.has_value()) {
                 std::vector<glm::vec2> texcoords = get_texcoords((*base_color_texture).texCoordIndex);
                 for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
