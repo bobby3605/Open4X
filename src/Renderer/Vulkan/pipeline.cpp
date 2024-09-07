@@ -49,6 +49,8 @@ void Pipeline::update_descriptors() {
                     // Other option is just to error out if you manually created a buffer with the wrong mem_props
                     buffer = gpu_allocator->get_buffer(descriptor_name);
                 } else {
+                    // FIXME:
+                    // vk_buffer isn't created yet, so this causes a validation error with a VK_NULL_HANDLE buffer whenever it runs
                     buffer = gpu_allocator->create_buffer(type_to_usage(binding_layout.second.binding.descriptorType),
                                                           binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                                                           descriptor_name);
@@ -233,7 +235,6 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
     }
 
     _descriptor_layout.create_layouts();
-    update_descriptors();
     std::vector<VkDescriptorSetLayout> descriptor_buffer_layouts = _descriptor_layout.vk_set_layouts();
 
     VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};

@@ -172,10 +172,10 @@ void Open4X::run() {
         float aspect_ratio = (float)extent.width / (float)extent.height;
 
         Camera cam(vertical_fov, aspect_ratio, near, far);
-        // TODO
-        // Get ShaderGlobals from the shader itself
-        FixedAllocator<GPUAllocation>* shader_globals_allocator =
-            new FixedAllocator(sizeof(ShaderGlobals), gpu_allocator->get_buffer("Globals"));
+        FixedAllocator<GPUAllocation>* shader_globals_allocator = new FixedAllocator(
+            sizeof(ShaderGlobals),
+            gpu_allocator->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Globals"));
 
         SubAllocation<FixedAllocator, GPUAllocation>* globals_alloc = shader_globals_allocator->alloc();
         ShaderGlobals shader_globals;
@@ -206,13 +206,13 @@ void Open4X::run() {
             shader_globals.cam_pos = cam.position();
             globals_alloc->write(&shader_globals);
 
-    // returns true when swapchain was resized
-    if(renderer->render()){
-        extent = Window::window->extent();
-        aspect_ratio = (float)extent.width / (float)extent.height;
-        // adjust perspective projection matrix
-        cam.update_projection(vertical_fov, aspect_ratio, near ,far);
-    }
+            // returns true when swapchain was resized
+            if (renderer->render()) {
+                extent = Window::window->extent();
+                aspect_ratio = (float)extent.width / (float)extent.height;
+                // adjust perspective projection matrix
+                cam.update_projection(vertical_fov, aspect_ratio, near, far);
+            }
         }
     } else {
         VulkanRenderGraph renderGraph(vulkanDevice, vulkanWindow, settings);
