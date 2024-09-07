@@ -1,7 +1,7 @@
 #include "swapchain.hpp"
 #include "common.hpp"
 #include "device.hpp"
-#include "memory_manager.hpp"
+#include "image.hpp"
 #include <algorithm>
 #include <vulkan/vulkan_core.h>
 
@@ -14,10 +14,8 @@ SwapChain::SwapChain(VkExtent2D extent) : _extent(extent) {
 }
 
 SwapChain::~SwapChain() {
-    vkDestroyImageView(Device::device->vk_device(), _color_image_view, nullptr);
-    MemoryManager::memory_manager->delete_image("color_image");
-    vkDestroyImageView(Device::device->vk_device(), _depth_image_view, nullptr);
-    MemoryManager::memory_manager->delete_image("depth_image");
+    delete _color_image;
+    delete _depth_image;
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(Device::device->vk_device(), _render_finished_semaphores[i], nullptr);
         vkDestroySemaphore(Device::device->vk_device(), _image_available_semaphores[i], nullptr);
@@ -87,8 +85,9 @@ void SwapChain::create_swap_chain() {
     createInfo.imageExtent = _extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO: use this field
-                                              // problem is that it's not RAII compliant (color, depth, and swapchain images need to persist)
+    createInfo.oldSwapchain =
+        VK_NULL_HANDLE; // TODO: use this field
+                        // problem is that it's not RAII compliant (color, depth, and swapchain images need to persist)
 
     Device::QueueFamilyIndices indices = Device::device->find_queue_families();
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
@@ -129,16 +128,9 @@ void SwapChain::create_image_views() {
 }
 
 void SwapChain::create_color_resources() {
-
-    _color_image =
-        MemoryManager::memory_manager
-            ->create_image("color_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _surface_format.format,
-                           VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-            .vk_image;
-    _color_image_view =
-        Device::device->create_image_view("color_image_view", MemoryManager::memory_manager->get_image("color_image").vk_image,
-                                          _surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    _color_image = new Image(_surface_format.format, Device::device->msaa_samples(), VK_IMAGE_TILING_OPTIMAL,
+                             VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT, _extent.width, _extent.height, 1);
 }
 
 VkFormat SwapChain::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -164,13 +156,10 @@ VkFormat SwapChain::find_depth_format() {
 void SwapChain::create_depth_resources() {
 
     _depth_format = find_depth_format();
+
     _depth_image =
-        MemoryManager::memory_manager
-            ->create_image("depth_image", _extent.width, _extent.height, 1, Device::device->msaa_samples(), _depth_format,
-                           VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-            .vk_image;
-    _depth_image_view = Device::device->create_image_view(
-        "depth_image_view", MemoryManager::memory_manager->get_image("depth_image").vk_image, _depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        new Image(_depth_format, Device::device->msaa_samples(), VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, _extent.width, _extent.height, 1);
 }
 
 void SwapChain::create_sync_objects() {
