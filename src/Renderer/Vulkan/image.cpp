@@ -96,16 +96,15 @@ Image::Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling t
     view_info.subresourceRange.baseArrayLayer = 0;
     view_info.subresourceRange.layerCount = 1;
 
-    check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_vk_image_view),
+    check_result(vkCreateImageView(Device::device->vk_device(), &view_info, nullptr, &_image_info.imageView),
                  "failed to create texture image view!");
 
-    _image_info.imageView = _vk_image_view;
     _image_info.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
 Image::~Image() {
     vmaDestroyImage(Device::device->vma_allocator(), _vk_image, _vma_allocation);
-    vkDestroyImageView(Device::device->vk_device(), _vk_image_view, nullptr);
+    vkDestroyImageView(Device::device->vk_device(), _image_info.imageView, nullptr);
 }
 
 void Image::transition(VkImageLayout new_layout) {

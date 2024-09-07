@@ -23,10 +23,10 @@ class Image {
     void transition(VkImageLayout new_layout);
     void load_pixels(const void* src, VkImageLayout final_layout);
     VkDescriptorImageInfo const& image_info() const { return _image_info; };
+    VkImage const& vk_image() const { return _vk_image; }
 
   private:
     VkImage _vk_image;
-    VkImageView _vk_image_view;
     VmaAllocation _vma_allocation;
     VkDescriptorImageInfo _image_info{};
     uint32_t _width;
