@@ -87,6 +87,7 @@ void DescriptorLayout::add_image(uint32_t set, uint32_t binding, VkShaderStageFl
     layout.binding.descriptorCount = 5;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     layout.binding.stageFlags = stage;
+    layout.descriptor_name = name;
 
     _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
 }
@@ -100,6 +101,8 @@ void DescriptorLayout::add_sampler(uint32_t set, uint32_t binding, VkShaderStage
     layout.binding.descriptorCount = 5;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
     layout.binding.stageFlags = stage;
+    layout.binding.pImmutableSamplers = nullptr;
+    layout.descriptor_name = name;
 
     _set_layouts.try_emplace(set).first->second.bindings.emplace(binding, layout);
 }
