@@ -84,7 +84,7 @@ void DescriptorLayout::add_image(uint32_t set, uint32_t binding, VkShaderStageFl
     // FIXME:
     // assign count dynamically,
     // descriptor set needs to be reallocated whenever this changes
-    layout.binding.descriptorCount = 100;
+    layout.binding.descriptorCount = 5;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     layout.binding.stageFlags = stage;
 
@@ -97,7 +97,7 @@ void DescriptorLayout::add_sampler(uint32_t set, uint32_t binding, VkShaderStage
     // FIXME:
     // assign count dynamically,
     // descriptor set needs to be reallocated whenever this changes
-    layout.binding.descriptorCount = 100;
+    layout.binding.descriptorCount = 5;
     layout.binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
     layout.binding.stageFlags = stage;
 
