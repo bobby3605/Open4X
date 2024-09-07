@@ -142,6 +142,14 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
             if (material.pbrData.baseColorTexture.has_value()) {
                 fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
+
+                // Load texcoords into vertices
+                std::vector<glm::vec2> texcoords = get_texcoords(material.pbrData.baseColorTexture.value().texCoordIndex);
+                for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
+                    tmp_vertices[i].tex_coord = texcoords[i];
+                }
+
+                // load sampler for texture
                 if (gltf_texture.samplerIndex.has_value()) {
                     MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
                         model->_samplers[gltf_texture.samplerIndex.value()].image_info());
@@ -151,6 +159,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                     // Need a default sampler per mip-levels used
                     material_data.sampler_index = 0;
                 }
+
+                // load texture
                 if (gltf_texture.imageIndex.has_value()) {
                     // TODO:
                     // not thread safe
@@ -165,14 +175,6 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 }
             } else {
                 material_data.base_texture_index = 0;
-            }
-            std::optional<fastgltf::TextureInfo>& base_color_texture = material.pbrData.baseColorTexture;
-            // FIXME: move this into the other check and ensure default texcoords
-            if (base_color_texture.has_value()) {
-                std::vector<glm::vec2> texcoords = get_texcoords((*base_color_texture).texCoordIndex);
-                for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
-                    tmp_vertices[i].tex_coord = texcoords[i];
-                }
             }
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
