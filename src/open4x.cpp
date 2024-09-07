@@ -160,6 +160,7 @@ void Open4X::run() {
         Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
         size_t simple_texture_id = _object_manager->add_object(simple_texture_model);
         Object* simple_texture_obj = _object_manager->get_object(simple_texture_id);
+        simple_texture_obj->rotation_euler(0, 180, 180);
 
         engine_obj->scale({0.01, 0.01, 0.01});
         engine_obj->position({5, 0, 0});

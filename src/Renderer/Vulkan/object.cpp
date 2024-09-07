@@ -1,4 +1,5 @@
 #include "object.hpp"
+#include <glm/ext/scalar_constants.hpp>
 #include <glm/gtx/transform.hpp>
 #include <vulkan/vulkan_core.h>
 
@@ -25,6 +26,8 @@ void Object::rotation(glm::quat const& new_rotation) {
     _rs_invalid = true;
     register_invalid_matrices();
 }
+
+void Object::rotation_euler(float pitch, float yaw, float roll) { rotation(glm::vec3{pitch, yaw, roll} * (glm::pi<float>() / 180)); }
 
 void Object::scale(glm::vec3 const& new_scale) {
     _scale = new_scale;

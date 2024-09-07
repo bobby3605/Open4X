@@ -14,6 +14,7 @@ class Object {
 
     void position(glm::vec3 const& new_position);
     void rotation(glm::quat const& new_rotation);
+    void rotation_euler(float pitch, float yaw, float roll);
     void scale(glm::vec3 const& new_scale);
     void register_invalid_matrices();
     void refresh_instance_data();
