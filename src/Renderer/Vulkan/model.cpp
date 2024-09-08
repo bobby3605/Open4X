@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
+#include <libintl.h>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -83,17 +84,18 @@ size_t Model::upload_texture(size_t texture_index) {
 
 void Model::load_materials(DrawAllocators& draw_allocators) {
     _material_allocs.reserve(_asset->materials.size());
-    // FIXME: support multiple samplers
     for (size_t material_index = 0; material_index < _asset->materials.size(); ++material_index) {
         NewMaterialData material_data{};
         fastgltf::Material const& material = _asset->materials[material_index];
         fastgltf::PBRData const& pbrData = material.pbrData;
         material_data.base_color_factor = glm::make_vec4(pbrData.baseColorFactor.value_ptr());
+        std::optional<size_t> gltf_sampler_index;
         // Load base texture
         if (material.pbrData.baseColorTexture.has_value()) {
             fastgltf::Texture& gltf_texture = _asset->textures[pbrData.baseColorTexture.value().textureIndex];
             // load sampler for texture
             if (gltf_texture.samplerIndex.has_value()) {
+                gltf_sampler_index = gltf_texture.samplerIndex.value();
                 MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
                     _samplers[gltf_texture.samplerIndex.value()]->image_info());
                 material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
@@ -113,13 +115,20 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
         } else {
             material_data.base_texture_index = 0;
         }
+        auto check_multiple_samplers = [&](size_t texture_index) {
+            fastgltf::Optional<size_t> const& texture_sampler_index = _asset->textures[texture_index].samplerIndex;
+            if ((texture_sampler_index.has_value() && !gltf_sampler_index.has_value()) ||
+                (texture_sampler_index.has_value() && texture_sampler_index.value() != gltf_sampler_index.value())) {
+                std::cout << "warning: "
+                          << "model: " << path() << " contains a primitive with multiple samplers, which is unsupported" << std::endl;
+            }
+        };
 
         // Load normal map
-        // FIXME:
-        // custom sampler
         if (material.normalTexture.has_value()) {
             material_data.normal_scale = material.normalTexture.value().scale;
             material_data.normal_index = upload_texture(material.normalTexture.value().textureIndex);
+            check_multiple_samplers(material.normalTexture.value().textureIndex);
         } else {
             material_data.normal_index = 0;
         }
@@ -129,6 +138,7 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
         material_data.roughness_factor = material.pbrData.roughnessFactor;
         if (material.pbrData.metallicRoughnessTexture.has_value()) {
             material_data.metallic_roughness_index = upload_texture(material.pbrData.metallicRoughnessTexture.value().textureIndex);
+            check_multiple_samplers(material.pbrData.metallicRoughnessTexture.value().textureIndex);
         } else {
             material_data.metallic_roughness_index = 0;
         }
@@ -137,6 +147,7 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
         if (material.occlusionTexture.has_value()) {
             material_data.occlusion_strength = material.occlusionTexture.value().strength;
             material_data.ao_index = upload_texture(material.occlusionTexture.value().textureIndex);
+            check_multiple_samplers(material.occlusionTexture.value().textureIndex);
         } else {
             material_data.ao_index = 0;
         }
