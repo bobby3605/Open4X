@@ -43,15 +43,32 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     load_textures();
     load_samplers();
     load_materials(draw_allocators);
+    load_meshes(draw_allocators);
 
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
-    _scenes.reserve(_asset->scenes.size());
-    for (auto scene : _asset->scenes) {
-        _scenes.emplace_back(this, &scene, draw_allocators);
+    _scenes.resize(_asset->scenes.size());
+    _nodes.resize(_asset->nodes.size());
+    for (size_t i = 0; i < _asset->scenes.size(); ++i) {
+        _scenes[i] = new Scene(this, &_asset->scenes[i], draw_allocators);
     }
 }
 
 Model::~Model() {
+    for (auto scene : _scenes) {
+        if (scene.has_value()) {
+            delete scene.value();
+        }
+    }
+    for (auto mesh : _meshes) {
+        if (mesh.has_value()) {
+            delete mesh.value();
+        }
+    }
+    for (auto node : _nodes) {
+        if (node.has_value()) {
+            delete node.value();
+        }
+    }
     for (auto texture : _textures) {
         delete texture;
     }
@@ -154,13 +171,19 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
     }
 }
 
+void Model::load_meshes(DrawAllocators& draw_allocators) {
+    _meshes.reserve(_asset->meshes.size());
+    for (size_t i = 0; i < _asset->meshes.size(); ++i) {
+        _meshes[i] = new Mesh(this, &_asset->meshes[i], draw_allocators);
+    }
+}
+
 Model::Scene::Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_allocators) : _model(model), _scene(scene) {
     _root_node_indices.reserve(scene->nodeIndices.size());
     for (auto node_index : scene->nodeIndices) {
-        _root_node_indices.emplace_back(node_index);
-        _model->_nodes.resize(node_index + 1);
+        _root_node_indices.push_back(node_index);
         if (!_model->_nodes[node_index].has_value()) {
-            _model->_nodes[node_index].value() = new Node(_model, &_model->_asset->nodes[node_index], glm::mat4(1.0f), draw_allocators);
+            _model->_nodes[node_index] = new Node(_model, &_model->_asset->nodes[node_index], glm::mat4(1.0f), draw_allocators);
         }
     }
 }
@@ -181,26 +204,24 @@ Model::Node::Node(Model* model, fastgltf::Node* node, glm::mat4 const& parent_tr
     _transform = parent_transform * _transform;
     // Check if node has mesh
     if (node->meshIndex.has_value()) {
-        _mesh_index = *node->meshIndex;
-        // NOTE:
-        // resize is fine here because it's a vector<optional>
-        _model->_meshes.resize(_mesh_index.value() + 1);
-        // Create mesh if it doesn't already exist
-        if (!_model->_meshes[_mesh_index.value()].has_value()) {
-            _model->_meshes[_mesh_index.value()].value() = new Mesh(model, &_model->_asset->meshes[_mesh_index.value()], draw_allocators);
+        _mesh_index = node->meshIndex.value();
+        std::optional<Mesh*> mesh_opt = _model->_meshes[_mesh_index.value()];
+        if (mesh_opt.has_value()) {
+            Mesh* mesh = mesh_opt.value();
+            _model->_total_instance_data_count += mesh->primitives().size();
+            _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.max(), 1.0f));
+            _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.min(), 1.0f));
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + model->path());
         }
-        Mesh* mesh = _model->_meshes[_mesh_index.value()].value();
-        _model->_total_instance_data_count += mesh->primitives().size();
-        _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.max(), 1.0f));
-        _model->_aabb.update(_transform * glm::vec4(mesh->_aabb.min(), 1.0f));
     }
 
     _child_node_indices.reserve(_node->children.size());
     for (auto child_index : _node->children) {
-        _child_node_indices.emplace_back(child_index);
-        _model->_nodes.resize(child_index + 1);
+        _child_node_indices.push_back(child_index);
         if (!_model->_nodes[child_index].has_value()) {
-            _model->_nodes[child_index].value() = new Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators);
+            _model->_nodes[child_index] = new Node(_model, &_model->_asset->nodes[child_index], _transform, draw_allocators);
         }
     }
 }
@@ -286,9 +307,18 @@ std::vector<glm::vec2> Model::Mesh::Primitive::get_texcoords(std::size_t tex_coo
 
 void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances) {
     size_t id_index = 0;
-    std::vector<fast_optional<size_t>>& root_node_indices = _scenes[_default_scene]->_root_node_indices;
-    for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
-        _nodes[root_node_indices[i].value()]->write_instance_data(this, object_matrix, instances, id_index);
+    if (_scenes[_default_scene].has_value()) {
+        std::vector<size_t>& root_node_indices = _scenes[_default_scene].value()->_root_node_indices;
+        for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
+            if (_nodes[root_node_indices[i]].has_value()) {
+                _nodes[root_node_indices[i]].value()->write_instance_data(this, object_matrix, instances, id_index);
+            } else {
+                throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_indices[i]) +
+                                         " doesn't exist: " + path());
+            }
+        }
+    } else {
+        throw std::runtime_error("error: malformed gltf: scene id: " + std::to_string(_default_scene) + " doesn't exist: " + path());
     }
 }
 
@@ -296,13 +326,23 @@ void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matr
                                       size_t& id_index) {
     InstanceData instance_data{};
     if (_mesh_index.has_value()) {
-        for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()]->_primitives.size(); ++i) {
-            fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
-            instances[id_index++].data->write(&instance_data);
+        if (model->_meshes[_mesh_index.value()].has_value()) {
+            for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
+                fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
+                instances[id_index++].data->write(&instance_data);
+            }
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + _model->path());
         }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
-        _model->_nodes[_child_node_indices[i].value()]->write_instance_data(model, object_matrix, instances, id_index);
+        if (_model->_nodes[_child_node_indices[i]].has_value()) {
+            _model->_nodes[_child_node_indices[i]].value()->write_instance_data(model, object_matrix, instances, id_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
+                                     " doesn't exist: " + _model->path());
+        }
     }
 }
 
@@ -314,40 +354,78 @@ void Model::add_instance(std::vector<InstanceAllocPair>& instances) {
     size_t instance_index = 0;
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
-    for (auto& root_node_index : _scenes[_default_scene]->_root_node_indices) {
-        _nodes[root_node_index.value()]->add_instance(this, instances, instance_index);
+    for (auto& root_node_index : _scenes[_default_scene].value()->_root_node_indices) {
+        if (_nodes[root_node_index].has_value()) {
+            _nodes[root_node_index].value()->add_instance(this, instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_index) + " doesn't exist: " + path());
+        }
     }
 }
 
 void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index) {
     if (_mesh_index.has_value()) {
-        std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()]->_primitives;
-        for (uint32_t i = 0; i < primitives.size(); ++i) {
-            primitives[i]._draw->add_instance(instances[instance_index++]);
+        if (model->_meshes[_mesh_index.value()].has_value()) {
+            std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()].value()->_primitives;
+            for (uint32_t i = 0; i < primitives.size(); ++i) {
+                primitives[i]._draw->add_instance(instances[instance_index++]);
+            }
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + _model->path());
         }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
-        _model->_nodes[_child_node_indices[i].value()]->add_instance(model, instances, instance_index);
+        if (_model->_nodes[_child_node_indices[i]].has_value()) {
+            _model->_nodes[_child_node_indices[i]].value()->add_instance(model, instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
+                                     " doesn't exist: " + _model->path());
+        }
     }
 }
 
 void Model::preallocate(size_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
-    std::vector<fast_optional<size_t>>& root_node_indices = _scenes[_default_scene]->_root_node_indices;
-    for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
-        _nodes[root_node_indices[i].value()]->preallocate(this, count);
+    if (_scenes[_default_scene].has_value()) {
+        std::vector<size_t>& root_node_indices = _scenes[_default_scene].value()->_root_node_indices;
+        for (uint32_t i = 0; i < root_node_indices.size(); ++i) {
+            if (_nodes[root_node_indices[i]].has_value()) {
+                _nodes[root_node_indices[i]].value()->preallocate(this, count);
+            } else {
+                throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_indices[i]) +
+                                         " doesn't exist: " + path());
+            }
+        }
+    } else {
+        throw std::runtime_error("error: malformed gltf: scene id: " + std::to_string(_default_scene) + " doesn't exist: " + path());
     }
 }
 
 void Model::Node::preallocate(Model* model, size_t count) {
     if (_mesh_index.has_value()) {
-        std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()]->_primitives;
-        for (uint32_t i = 0; i < primitives.size(); ++i) {
-            primitives[i]._draw->preallocate(count);
+        if (model->_meshes[_mesh_index.value()].has_value()) {
+            std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()].value()->_primitives;
+            for (uint32_t i = 0; i < primitives.size(); ++i) {
+                primitives[i]._draw->preallocate(count);
+            }
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + _model->path());
         }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
-        _model->_nodes[_child_node_indices[i].value()]->preallocate(model, count);
+        if (_model->_nodes[_child_node_indices[i]].has_value()) {
+            if (_model->_nodes[_child_node_indices[i]].value() == this) {
+                throw std::runtime_error("node cycle detected on node: " + std::to_string(_child_node_indices[i]) +
+                                         " in file: " + _model->path());
+            }
+            _model->_nodes[_child_node_indices[i]].value()->preallocate(model, count);
+        } else {
+
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
+                                     " doesn't exist: " + _model->path());
+        }
     }
 }

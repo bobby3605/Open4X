@@ -45,7 +45,7 @@ class Model {
         Scene(Model* model, fastgltf::Scene* scene, DrawAllocators& draw_allocators);
 
       protected:
-        std::vector<fast_optional<size_t>> _root_node_indices;
+        std::vector<size_t> _root_node_indices;
 
       private:
         Model* _model;
@@ -63,8 +63,8 @@ class Model {
       protected:
         void add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
         void preallocate(Model* model, size_t count);
-        fast_optional<size_t> _mesh_index;
-        std::vector<fast_optional<size_t>> _child_node_indices;
+        std::optional<size_t> _mesh_index;
+        std::vector<size_t> _child_node_indices;
         alignas(32) glm::mat4 _transform;
 
       private:
@@ -122,9 +122,9 @@ class Model {
 
   protected:
     fastgltf::Asset* _asset;
-    std::vector<fast_optional<Scene*>> _scenes;
-    std::vector<fast_optional<Node*>> _nodes;
-    std::vector<fast_optional<Mesh*>> _meshes;
+    std::vector<std::optional<Scene*>> _scenes;
+    std::vector<std::optional<Node*>> _nodes;
+    std::vector<std::optional<Mesh*>> _meshes;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
     safe_vector<Draw*>& _invalid_draws;
     NewAABB _aabb;
@@ -138,12 +138,15 @@ class Model {
     std::size_t _total_instance_data_count = 0;
     std::string _path;
     void load_textures();
+    // TODO:
+    // Use optionals here in case of a malformed GLTF file
     std::vector<Texture*> _textures;
     void load_samplers();
     std::vector<Sampler*> _samplers;
     void load_materials(DrawAllocators& draw_allocators);
     std::vector<SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     [[nodiscard]] size_t upload_texture(size_t texture_index);
+    void load_meshes(DrawAllocators& draw_allocators);
 };
 
 #endif // MODEL_H_
