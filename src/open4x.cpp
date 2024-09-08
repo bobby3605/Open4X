@@ -181,6 +181,12 @@ void Open4X::run() {
 
         water_bottle_light_obj->position({0, 2, 1});
 
+        /*
+        Model* a_beautiful_game_model = _model_manager->get_model(assets_base_path + "ABeautifulGame/ABeautifulGame.gltf");
+        size_t a_beautiful_game_id = _object_manager->add_object(a_beautiful_game_model);
+        Object* a_beautiful_game_object = _object_manager->get_object(a_beautiful_game_id);
+        */
+
         if (settings->showFPS) {
             std::stringstream title;
             title << "objects: " << _object_manager->object_count();
