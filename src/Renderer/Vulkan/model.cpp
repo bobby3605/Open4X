@@ -41,6 +41,7 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     // If needed, gltf files can be optimized to get rid of any unused images
     load_textures();
     load_samplers();
+    load_materials(draw_allocators);
 
     _default_scene = _asset->defaultScene.has_value() ? *_asset->defaultScene : 0;
     _scenes.reserve(_asset->scenes.size());
@@ -69,6 +70,80 @@ void Model::load_samplers() {
         // FIXME:
         // mip levels
         _samplers.push_back(new Sampler(*_asset, i, 1));
+    }
+}
+
+size_t Model::upload_texture(size_t texture_index) {
+    Texture const* texture = get_texture(_asset->textures[texture_index].imageIndex.value());
+    MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
+    // TODO
+    // not thread safe
+    return MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
+};
+
+void Model::load_materials(DrawAllocators& draw_allocators) {
+    _material_allocs.reserve(_asset->materials.size());
+    // FIXME: support multiple samplers
+    for (size_t material_index = 0; material_index < _asset->materials.size(); ++material_index) {
+        NewMaterialData material_data{};
+        fastgltf::Material const& material = _asset->materials[material_index];
+        fastgltf::PBRData const& pbrData = material.pbrData;
+        material_data.base_color_factor = glm::make_vec4(pbrData.baseColorFactor.value_ptr());
+        // Load base texture
+        if (material.pbrData.baseColorTexture.has_value()) {
+            fastgltf::Texture& gltf_texture = _asset->textures[pbrData.baseColorTexture.value().textureIndex];
+            // load sampler for texture
+            if (gltf_texture.samplerIndex.has_value()) {
+                MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
+                    _samplers[gltf_texture.samplerIndex.value()]->image_info());
+                material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
+            } else {
+                // FIXME:
+                // Need a default sampler per mip-levels used
+                material_data.sampler_index = 0;
+            }
+
+            // load texture
+            if (gltf_texture.imageIndex.has_value()) {
+                material_data.base_texture_index = upload_texture(gltf_texture.imageIndex.value());
+            } else {
+                throw std::runtime_error("unsupported texture without image index" + path() +
+                                         " image index: " + std::to_string(gltf_texture.imageIndex.value()));
+            }
+        } else {
+            material_data.base_texture_index = 0;
+        }
+
+        // Load normal map
+        // FIXME:
+        // custom sampler
+        if (material.normalTexture.has_value()) {
+            material_data.normal_scale = material.normalTexture.value().scale;
+            material_data.normal_index = upload_texture(material.normalTexture.value().textureIndex);
+        } else {
+            material_data.normal_index = 0;
+        }
+
+        // Load metallic roughness
+        material_data.metallic_factor = material.pbrData.metallicFactor;
+        material_data.roughness_factor = material.pbrData.roughnessFactor;
+        if (material.pbrData.metallicRoughnessTexture.has_value()) {
+            material_data.metallic_roughness_index = upload_texture(material.pbrData.metallicRoughnessTexture.value().textureIndex);
+        } else {
+            material_data.metallic_roughness_index = 0;
+        }
+
+        // Load ambient occlusion
+        if (material.occlusionTexture.has_value()) {
+            material_data.occlusion_strength = material.occlusionTexture.value().strength;
+            material_data.ao_index = upload_texture(material.occlusionTexture.value().textureIndex);
+        } else {
+            material_data.ao_index = 0;
+        }
+
+        // Upload material
+        _material_allocs[material_index] = draw_allocators.material_data->alloc();
+        _material_allocs[material_index]->write(&material_data);
     }
 }
 
@@ -139,100 +214,30 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
     std::vector<glm::vec3> positions = get_positions();
     std::vector<glm::vec3> normals = get_normals();
     tmp_vertices.resize(positions.size());
+
+    // Get material and texture coordinates
+    std::vector<glm::vec2> texcoords(0);
+    SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
+    if (primitive->materialIndex.has_value()) {
+        material_alloc = model->_material_allocs[primitive->materialIndex.value()];
+        fastgltf::Material const& material = model->_asset->materials[primitive->materialIndex.value()];
+        if (material.pbrData.baseColorTexture.has_value()) {
+            // Load texcoords into vertices
+            texcoords = get_texcoords(material.pbrData.baseColorTexture.value().texCoordIndex);
+            for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
+                tmp_vertices[i].tex_coord = texcoords[i];
+            }
+        }
+    }
+
+    // load vertices
     for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
         tmp_vertices[i].pos = positions[i];
         tmp_vertices[i].normal = normals[i];
-        _aabb.update(tmp_vertices[i].pos);
-    }
-
-    SubAllocation<FixedAllocator, GPUAllocation>* material_alloc = model->_default_material;
-    if (primitive->materialIndex.has_value()) {
-        if (!model->_material_allocs.contains(*primitive->materialIndex)) {
-            // FIXME: support multiple samplers
-            NewMaterialData material_data{};
-            fastgltf::Material& material = model->_asset->materials[*primitive->materialIndex];
-            material_data.base_color_factor = glm::make_vec4(material.pbrData.baseColorFactor.value_ptr());
-            // Load base texture
-            if (material.pbrData.baseColorTexture.has_value()) {
-                fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.baseColorTexture.value().textureIndex];
-
-                // Load texcoords into vertices
-                std::vector<glm::vec2> texcoords = get_texcoords(material.pbrData.baseColorTexture.value().texCoordIndex);
-                for (std::size_t i = 0; i < tmp_vertices.size(); ++i) {
-                    tmp_vertices[i].tex_coord = texcoords[i];
-                }
-
-                // load sampler for texture
-                if (gltf_texture.samplerIndex.has_value()) {
-                    MemoryManager::memory_manager->global_image_infos["samplers"].push_back(
-                        model->_samplers[gltf_texture.samplerIndex.value()]->image_info());
-                    material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
-                } else {
-                    // FIXME:
-                    // Need a default sampler per mip-levels used
-                    material_data.sampler_index = 0;
-                }
-
-                // load texture
-                if (gltf_texture.imageIndex.has_value()) {
-                    // TODO:
-                    // not thread safe
-                    Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                    MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
-                    // FIXME:
-                    // update texture index when a texture is deleted
-                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
-                } else {
-                    throw std::runtime_error("unsupported texture without image index" + model->path() +
-                                             " image index: " + std::to_string(gltf_texture.imageIndex.value()));
-                }
-            } else {
-                material_data.base_texture_index = 0;
-            }
-
-            // Load normal map
-            if (material.normalTexture.has_value()) {
-                material_data.normal_scale = material.normalTexture.value().scale;
-                // FIXME:
-                // custom sampler
-                fastgltf::Texture& gltf_texture = model->_asset->textures[material.normalTexture.value().textureIndex];
-                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
-                material_data.normal_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
-            } else {
-                material_data.normal_index = 0;
-            }
-
-            // Load metallic roughness
-            material_data.metallic_factor = material.pbrData.metallicFactor;
-            material_data.roughness_factor = material.pbrData.roughnessFactor;
-            if (material.pbrData.metallicRoughnessTexture.has_value()) {
-                fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.metallicRoughnessTexture.value().textureIndex];
-                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
-                material_data.metallic_roughness_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
-            } else {
-                material_data.metallic_roughness_index = 0;
-            }
-
-            // Load ambient occlusion
-            if (material.occlusionTexture.has_value()) {
-                material_data.occlusion_strength = material.occlusionTexture.value().strength;
-                fastgltf::Texture& gltf_texture = model->_asset->textures[material.occlusionTexture.value().textureIndex];
-                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
-                material_data.ao_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
-            } else {
-                material_data.ao_index = 0;
-            }
-
-            // Upload material
-            material_alloc = draw_allocators.material_data->alloc();
-            model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
-            material_alloc->write(&material_data);
-        } else {
-            material_alloc = model->_material_allocs.at(primitive->materialIndex.value());
+        if (texcoords.size() > 0) {
+            tmp_vertices[i].tex_coord = texcoords[i];
         }
+        _aabb.update(tmp_vertices[i].pos);
     }
 
     if (primitive->indicesAccessor.has_value()) {
@@ -256,6 +261,7 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices.shrink_to_fit();
         _vertices.shrink_to_fit();
     }
+
     _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc, model->_invalid_draws);
 }
 

@@ -125,7 +125,6 @@ class Model {
     std::vector<fast_optional<Scene*>> _scenes;
     std::vector<fast_optional<Node*>> _nodes;
     std::vector<fast_optional<Mesh*>> _meshes;
-    std::unordered_map<uint32_t, SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
     safe_vector<Draw*>& _invalid_draws;
     NewAABB _aabb;
@@ -142,6 +141,9 @@ class Model {
     std::vector<Texture*> _textures;
     void load_samplers();
     std::vector<Sampler*> _samplers;
+    void load_materials(DrawAllocators& draw_allocators);
+    std::vector<SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
+    [[nodiscard]] size_t upload_texture(size_t texture_index);
 };
 
 #endif // MODEL_H_
