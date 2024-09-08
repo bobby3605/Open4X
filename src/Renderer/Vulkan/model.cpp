@@ -68,9 +68,7 @@ void Model::load_textures() {
 
 void Model::load_samplers() {
     for (size_t i = 0; i < _asset->samplers.size(); ++i) {
-        // FIXME:
-        // mip levels
-        _samplers.push_back(new Sampler(*_asset, i, 1));
+        _samplers.push_back(new Sampler(*_asset, i));
     }
 }
 
@@ -100,8 +98,6 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
                     _samplers[gltf_texture.samplerIndex.value()]->image_info());
                 material_data.sampler_index = MemoryManager::memory_manager->global_image_infos["samplers"].size() - 1;
             } else {
-                // FIXME:
-                // Need a default sampler per mip-levels used
                 material_data.sampler_index = 0;
             }
 

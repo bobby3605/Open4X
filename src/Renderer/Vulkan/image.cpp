@@ -273,7 +273,7 @@ Texture::~Texture() {
     }
 }
 
-Sampler::Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID, uint32_t mip_levels) {
+Sampler::Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID) {
 
     VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     if (asset.samplers[sampler_ID].magFilter.has_value()) {
@@ -302,14 +302,14 @@ Sampler::Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID, uint32_t mip
     sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     sampler_info.mipLodBias = 0.0f;
     sampler_info.minLod = 0.0f;
-    sampler_info.maxLod = static_cast<float>(mip_levels);
+    sampler_info.maxLod = VK_LOD_CLAMP_NONE;
 
     check_result(vkCreateSampler(Device::device->vk_device(), &sampler_info, nullptr, &_vk_sampler), "failed to create texture sampler!");
 
     _image_info.sampler = _vk_sampler;
 }
 
-Sampler::Sampler(uint32_t mip_levels) {
+Sampler::Sampler() {
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -330,7 +330,7 @@ Sampler::Sampler(uint32_t mip_levels) {
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(mip_levels);
+    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 
     check_result(vkCreateSampler(Device::device->vk_device(), &samplerInfo, nullptr, &_vk_sampler), "failed to create texture sampler!");
 

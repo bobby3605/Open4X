@@ -59,15 +59,15 @@ class Texture {
 
 class Sampler {
   public:
-    Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID, uint32_t mip_levels);
-    Sampler(uint32_t mip_levels);
+    Sampler(fastgltf::Asset const& asset, uint32_t sampler_ID);
+    Sampler();
     ~Sampler();
     VkSampler const& vk_sampler() { return _vk_sampler; }
     friend bool operator==(const Sampler& s1, const Sampler& s2);
     VkDescriptorImageInfo const& image_info() const { return _image_info; }
 
   private:
-    uint32_t _sampler_ID, _mip_levels;
+    uint32_t _sampler_ID;
     VkSampler _vk_sampler;
     VkDescriptorImageInfo _image_info{};
 };
