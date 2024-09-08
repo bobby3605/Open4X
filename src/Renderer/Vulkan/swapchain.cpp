@@ -128,9 +128,11 @@ void SwapChain::create_image_views() {
 }
 
 void SwapChain::create_color_resources() {
+    // TODO:
+    // force mip levels to 1
     _color_image = new Image(_surface_format.format, Device::device->msaa_samples(), VK_IMAGE_TILING_OPTIMAL,
                              VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT, _extent.width, _extent.height, 1);
+                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT, _extent.width, _extent.height);
 }
 
 VkFormat SwapChain::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -159,7 +161,7 @@ void SwapChain::create_depth_resources() {
 
     _depth_image =
         new Image(_depth_format, Device::device->msaa_samples(), VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, _extent.width, _extent.height, 1);
+                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, _extent.width, _extent.height);
 }
 
 void SwapChain::create_sync_objects() {

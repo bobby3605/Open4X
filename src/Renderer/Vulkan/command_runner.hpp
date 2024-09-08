@@ -24,6 +24,7 @@ class CommandRunner {
 
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>
     image_barrier(VkImageMemoryBarrier2& barrier);
+    void generate_mipmaps(VkImage image, VkFormat image_format, int32_t tex_width, int32_t tex_height, uint32_t mip_levels);
 
   private:
     static VkCommandPool _pool;

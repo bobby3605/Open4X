@@ -18,7 +18,7 @@ class Image {
     VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
     */
     Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling tiling, VkImageUsageFlags usage,
-          VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height, uint32_t mip_levels);
+          VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height);
     ~Image();
     void transition(VkImageLayout new_layout);
     void load_pixels(const void* src, VkImageLayout final_layout);

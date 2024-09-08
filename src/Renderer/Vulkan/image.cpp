@@ -62,15 +62,17 @@ VkSamplerMipmapMode switch_mipmap_filter(uint16_t filter) {
 // TODO:
 // set debug name for image, image view, and sampler
 Image::Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling tiling, VkImageUsageFlags usage,
-             VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height, uint32_t mip_levels)
-    : _width{width}, _height(height), _format(format), _mip_levels(mip_levels) {
+             VkMemoryPropertyFlags mem_props, VkImageAspectFlags image_aspect, uint32_t width, uint32_t height)
+    : _width{width}, _height(height), _format(format) {
+
+    _mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(_width, _height)))) + 1;
 
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     image_create_info.imageType = VK_IMAGE_TYPE_2D;
     image_create_info.extent.width = width;
     image_create_info.extent.height = height;
     image_create_info.extent.depth = 1;
-    image_create_info.mipLevels = mip_levels;
+    image_create_info.mipLevels = _mip_levels;
     image_create_info.arrayLayers = 1;
     image_create_info.format = format;
     image_create_info.tiling = tiling;
@@ -92,7 +94,7 @@ Image::Image(VkFormat format, VkSampleCountFlagBits num_samples, VkImageTiling t
     view_info.format = format;
     view_info.subresourceRange.aspectMask = image_aspect;
     view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = mip_levels;
+    view_info.subresourceRange.levelCount = _mip_levels;
     view_info.subresourceRange.baseArrayLayer = 0;
     view_info.subresourceRange.layerCount = 1;
 
@@ -117,6 +119,9 @@ void Image::transition(VkImageLayout new_layout) {
 }
 
 void Image::load_pixels(const void* src, VkImageLayout final_layout) {
+    // TODO:
+    // ensure that TRANSFER_DST and TRANSFER_SRC bit are used if generating mipmaps
+    // can't just | them into usage because the swapchain uses incompatible usage flags
 
     /*
     void* mapped;
@@ -134,13 +139,14 @@ void Image::load_pixels(const void* src, VkImageLayout final_layout) {
     CommandRunner process_image;
     process_image.transition_image(_image_info.imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _mip_levels, _vk_image);
     process_image.copy_buffer_to_image(staging_buffer.buffer(), _vk_image, _width, _height);
-    process_image.transition_image(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, final_layout, _mip_levels, _vk_image);
-    process_image.run();
-    /*
     // TODO
     // Save and load mipmaps from a file
-    //        .generateMipmaps(_image, _format, tex_width, _tex_height, _mip_levels)
-    */
+    process_image.generate_mipmaps(_vk_image, _format, _width, _height, _mip_levels);
+    // NOTE:
+    // generate_mipmaps puts the image into shader read only optimal before the fragment shader
+    // so a transition to shader optimal isn't needed here
+    process_image.run();
+
     _image_info.imageLayout = final_layout;
 }
 
@@ -246,12 +252,9 @@ Texture::Texture(std::string path) {
 
 void Texture::load_pixels() {
 
-    // mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(_tex_width, _tex_height)))) + 1;
-    uint32_t mip_levels = 1;
-
     _image = new Image(VK_FORMAT_R8G8B8A8_SRGB, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
-                       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                       VK_IMAGE_ASPECT_COLOR_BIT, width(), height(), mip_levels);
+                       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT, width(), height());
 
     // TODO:
     // Allow for different image formats and channel sizes
