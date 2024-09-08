@@ -178,10 +178,10 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                     // TODO:
                     // not thread safe
                     Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                    MemoryManager::memory_manager->global_image_infos["base_textures"].push_back(texture->image_info());
+                    MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
                     // FIXME:
                     // update texture index when a texture is deleted
-                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["base_textures"].size() - 1;
+                    material_data.base_texture_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
                 } else {
                     throw std::runtime_error("unsupported texture without image index" + model->path() +
                                              " image index: " + std::to_string(gltf_texture.imageIndex.value()));
@@ -197,8 +197,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 // custom sampler
                 fastgltf::Texture& gltf_texture = model->_asset->textures[material.normalTexture.value().textureIndex];
                 Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["normal_textures"].push_back(texture->image_info());
-                material_data.normal_index = MemoryManager::memory_manager->global_image_infos["normal_textures"].size() - 1;
+                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
+                material_data.normal_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
             } else {
                 material_data.normal_index = 0;
             }
@@ -209,9 +209,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             if (material.pbrData.metallicRoughnessTexture.has_value()) {
                 fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.metallicRoughnessTexture.value().textureIndex];
                 Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["metallic_roughness_textures"].push_back(texture->image_info());
-                material_data.metallic_roughness_index =
-                    MemoryManager::memory_manager->global_image_infos["metallic_roughness_textures"].size() - 1;
+                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
+                material_data.metallic_roughness_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
             } else {
                 material_data.metallic_roughness_index = 0;
             }
@@ -221,8 +220,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
                 material_data.occlusion_strength = material.occlusionTexture.value().strength;
                 fastgltf::Texture& gltf_texture = model->_asset->textures[material.occlusionTexture.value().textureIndex];
                 Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
-                MemoryManager::memory_manager->global_image_infos["ao_textures"].push_back(texture->image_info());
-                material_data.ao_index = MemoryManager::memory_manager->global_image_infos["ao_textures"].size() - 1;
+                MemoryManager::memory_manager->global_image_infos["textures"].push_back(texture->image_info());
+                material_data.ao_index = MemoryManager::memory_manager->global_image_infos["textures"].size() - 1;
             } else {
                 material_data.ao_index = 0;
             }

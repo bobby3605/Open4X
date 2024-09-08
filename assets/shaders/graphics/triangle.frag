@@ -16,10 +16,7 @@ layout(location = 11) in flat float metallic_factor;
 layout(location = 12) in flat float roughness_factor;
 layout(location = 13) in flat float occlusion_strength;
 layout(set = 2, binding = 0) uniform sampler samplers[];
-layout(set = 2, binding = 1) uniform texture2D base_textures[];
-layout(set = 2, binding = 2) uniform texture2D normal_textures[];
-layout(set = 2, binding = 3) uniform texture2D metallic_roughness_textures[];
-layout(set = 2, binding = 4) uniform texture2D ao_textures[];
+layout(set = 2, binding = 1) uniform texture2D textures[];
 
 layout(location = 0) out vec4 out_color;
 
@@ -33,7 +30,7 @@ vec3 get_normal_from_map() {
     } else {
         vec3 tangent_normal =
             (normal_scale *
-             texture(sampler2D(normal_textures[nonuniformEXT(normal_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord)
+             texture(sampler2D(textures[nonuniformEXT(normal_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord)
                  .rgb) *
                 2.0 -
             1.0;
@@ -102,19 +99,19 @@ void main(){
     // https://learnopengl.com/PBR/Lighting
     vec3 albedo =
         pow(vec3(base_color_factor) *
-                texture(sampler2D(base_textures[nonuniformEXT(base_texture_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord)
+                texture(sampler2D(textures[nonuniformEXT(base_texture_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord)
                     .rgb,
             vec3(2.2));
 
     vec4 metallic_roughness_texture = texture(
-        sampler2D(metallic_roughness_textures[nonuniformEXT(metallic_roughness_index)], samplers[nonuniformEXT(sampler_index)]),
+        sampler2D(textures[nonuniformEXT(metallic_roughness_index)], samplers[nonuniformEXT(sampler_index)]),
         frag_tex_coord);
 
     float metallic = metallic_factor * metallic_roughness_texture.b;
     float roughness = roughness_factor * metallic_roughness_texture.g;
 
     float ao = occlusion_strength *
-               texture(sampler2D(ao_textures[nonuniformEXT(ao_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord).r;
+               texture(sampler2D(textures[nonuniformEXT(ao_index)], samplers[nonuniformEXT(sampler_index)]), frag_tex_coord).r;
 
     vec3 N = get_normal_from_map();
     vec3 V = normalize(cam_pos - world_pos);
