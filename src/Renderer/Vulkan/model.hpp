@@ -147,6 +147,7 @@ class Model {
     std::vector<SubAllocation<FixedAllocator, GPUAllocation>*> _material_allocs;
     [[nodiscard]] size_t upload_texture(size_t texture_index);
     void load_meshes(DrawAllocators& draw_allocators);
+    std::optional<size_t> gltf_sampler_index;
 };
 
 #endif // MODEL_H_
