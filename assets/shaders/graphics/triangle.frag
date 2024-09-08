@@ -89,13 +89,15 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) { return F0 + (1.0 - F0) * pow(clam
 // ----------------------------------------------------------------------------
 
 void main(){
-    const uint light_count = 2;
+    const uint light_count = 3;
     vec3 light_positions[light_count];
     light_positions[0] = vec3(0.0, 1.0, -2.0);
     light_positions[1] = vec3(0.0, 1.0, 5.0);
+    light_positions[2] = vec3(-2.0, -2.0, 0.0);
     vec3 light_colors[light_count];
     light_colors[0] = 10 * vec3(1.0, 1.0, 1.0);
     light_colors[1] = vec3(1.0, 1.0, 1.0);
+    light_colors[2] = 10 * vec3(1.0, 1.0, 1.0);
     // PBR
     // https://learnopengl.com/PBR/Lighting
     vec3 albedo =
