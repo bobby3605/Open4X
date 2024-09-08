@@ -2,7 +2,6 @@
 #include "common.hpp"
 #include "draw.hpp"
 #include "memory_manager.hpp"
-#include <optional>
 #include <vulkan/vulkan_core.h>
 
 ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(draw_allocators) {
