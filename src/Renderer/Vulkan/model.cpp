@@ -202,6 +202,31 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
             } else {
                 material_data.normal_index = 0;
             }
+
+            // Load metallic roughness
+            material_data.metallic_factor = material.pbrData.metallicFactor;
+            material_data.roughness_factor = material.pbrData.roughnessFactor;
+            if (material.pbrData.metallicRoughnessTexture.has_value()) {
+                fastgltf::Texture& gltf_texture = model->_asset->textures[material.pbrData.metallicRoughnessTexture.value().textureIndex];
+                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
+                MemoryManager::memory_manager->global_image_infos["metallic_roughness_textures"].push_back(texture->image_info());
+                material_data.metallic_roughness_index =
+                    MemoryManager::memory_manager->global_image_infos["metallic_roughness_textures"].size() - 1;
+            } else {
+                material_data.metallic_roughness_index = 0;
+            }
+
+            // Load ambient occlusion
+            if (material.occlusionTexture.has_value()) {
+                material_data.occlusion_strength = material.occlusionTexture.value().strength;
+                fastgltf::Texture& gltf_texture = model->_asset->textures[material.occlusionTexture.value().textureIndex];
+                Texture const* texture = model->get_texture(gltf_texture.imageIndex.value());
+                MemoryManager::memory_manager->global_image_infos["ao_textures"].push_back(texture->image_info());
+                material_data.ao_index = MemoryManager::memory_manager->global_image_infos["ao_textures"].size() - 1;
+            } else {
+                material_data.ao_index = 0;
+            }
+
             // Upload material
             material_alloc = draw_allocators.material_data->alloc();
             model->_material_allocs.insert({primitive->materialIndex.value(), material_alloc});
