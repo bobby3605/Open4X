@@ -185,6 +185,10 @@ void Open4X::run() {
         size_t a_beautiful_game_id = _object_manager->add_object(a_beautiful_game_model);
         Object* a_beautiful_game_object = _object_manager->get_object(a_beautiful_game_id);
 
+        a_beautiful_game_object->position({-2, -2, -2});
+        a_beautiful_game_object->rotation_euler(180, 0, 0);
+        a_beautiful_game_object->scale({2, 2, 2});
+
         if (settings->showFPS) {
             std::stringstream title;
             title << "objects: " << _object_manager->object_count();
