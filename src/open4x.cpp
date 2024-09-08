@@ -169,12 +169,18 @@ void Open4X::run() {
         simple_texture_obj->rotation_euler(0, 180, 180);
 
         Model* water_bottle_model = _model_manager->get_model(assets_base_path + "WaterBottle.glb");
+
         size_t water_bottle_id = _object_manager->add_object(water_bottle_model);
         Object* water_bottle_obj = _object_manager->get_object(water_bottle_id);
 
         water_bottle_obj->position({0, -2, 0});
         water_bottle_obj->scale({5, 5, 5});
         water_bottle_obj->rotation_euler(0, 0, 180);
+
+        size_t water_bottle_light_id = _object_manager->add_object(water_bottle_model);
+        Object* water_bottle_light_obj = _object_manager->get_object(water_bottle_light_id);
+
+        water_bottle_light_obj->position({0, 2, 1});
 
         if (settings->showFPS) {
             std::stringstream title;
