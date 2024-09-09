@@ -3,7 +3,13 @@
 #include "common.hpp"
 #include "descriptors.hpp"
 #include "device.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
+#include "rapidjson/stream.h"
+#include "rapidjson/writer.h"
 #include "spirv.hpp"
+#include <filesystem>
+#include <fstream>
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/MachineIndependent/Versions.h>
 #include <glslang/MachineIndependent/localintermediate.h>
@@ -43,12 +49,74 @@ static inline VkPipelineBindPoint flag_to_bind_point(VkShaderStageFlagBits stage
     }
 }
 
+/*
+bool is_cached(std::filesystem::path file_path) {
+    std::vector<char> file_data;
+    if (!read_buffer(file_path, file_data)) {
+        throw std::runtime_error("failed to read file: " + file_path.string());
+    }
+    std::string_view file_data_view = std::string_view(file_data.data(), file_data.size());
+    // TODO:
+    // deal with hash collisions
+    size_t hash = std::hash<std::string_view>{}(file_data_view);
+    const std::string base_cache_path = "assets/cache/";
+
+    std::ifstream file(base_cache_path + "cache.json");
+    if (file.is_open()) {
+        rapidjson::IStreamWrapper fileStream(file);
+        rapidjson::Document d;
+        d.ParseStream(fileStream);
+        file.close();
+        struct Stream {
+            std::ofstream of;
+            typedef char Ch;
+            void Put(Ch ch) { of.put(ch); }
+            void Flush() {}
+        } stream;
+        stream.of = std::ofstream(base_cache_path + "cache.json");
+        rapidjson::Writer<Stream> writer(stream, &d.GetAllocator());
+
+        rapidjson::Value& cache_json = d["cache"];
+        assert(cache_json.IsArray());
+        auto const& cache_array = cache_json.GetArray();
+        for (size_t i = 0; i < cache_array.Size(); ++i) {
+            assert(cache_array[i].IsObject());
+            auto const& obj = cache_array[i].MemberBegin();
+            if (obj->name.GetString() == file_path) {
+                // TODO:
+                // faster comparison
+                if (obj->value.GetString() == std::to_string(hash)) {
+                    return true;
+                } else {
+                    cache_array[i].RemoveAllMembers();
+                    rapidjson::Value key(file_path.c_str(), d.GetAllocator());
+                    rapidjson::Value value(hash);
+                    cache_array[i].AddMember(key, value, d.GetAllocator());
+                    d.Accept(writer);
+                    return false;
+                }
+            }
+        }
+        rapidjson::Value obj;
+        obj.SetObject();
+        rapidjson::Value key(file_path.c_str(), d.GetAllocator());
+        rapidjson::Value value(hash);
+        obj.AddMember(key, value, d.GetAllocator());
+        cache_array.PushBack(obj, d.GetAllocator());
+        d.Accept(writer);
+        return false;
+
+    } else {
+        std::cout << "warning: failed to open cache.json" << std::endl;
+        return false;
+    }
+}
+*/
+
 Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout)
     : _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
     std::string base_cache_path = "assets/cache/shaders/";
     _cache_path = std::filesystem::path(base_cache_path + get_filename(file_path) + ".spv");
-    // TODO
-    // Compare against file hash
     if (std::filesystem::exists(_cache_path)) {
         if (!read_buffer(_cache_path, _spirv)) {
             throw std::runtime_error("failed to open cached shader: " + _cache_path.string());
