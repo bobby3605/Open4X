@@ -93,6 +93,7 @@ bool RenderGraph::render() {
         recreated = true;
     } else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to present swap chain image");
+        exit(1);
     }
     return recreated;
 }
