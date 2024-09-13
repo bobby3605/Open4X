@@ -102,7 +102,7 @@ template <typename T> [[nodiscard]] bool read_buffer(std::filesystem::path const
     return true;
 }
 
-template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path const& file_path, std::vector<T>& buffer) {
+template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path const& file_path, std::vector<T> const& buffer) {
     MMIO mmio = MMIO(file_path, O_RDWR | O_CREAT | O_TRUNC, buffer.size() * sizeof(T));
     if (!mmio.is_open()) {
         return false;

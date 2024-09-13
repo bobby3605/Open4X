@@ -6,6 +6,16 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
+class CompilerCache {
+    std::vector<char> _file_data;
+    bool _is_cached = false;
+
+  public:
+    CompilerCache(std::filesystem::path file_path);
+    std::vector<char> const& file_data() const { return _file_data; }
+    const bool is_cached() const { return _is_cached; }
+};
+
 class Shader {
   public:
     Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout);
@@ -17,6 +27,7 @@ class Shader {
     std::string const& push_constants_name() const { return _push_constants_name; };
 
   private:
+    CompilerCache _compiler_cache;
     std::filesystem::path _path;
     std::filesystem::path _cache_path;
     std::vector<uint32_t> _spirv;

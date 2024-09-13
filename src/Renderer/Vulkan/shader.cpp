@@ -49,75 +49,81 @@ static inline VkPipelineBindPoint flag_to_bind_point(VkShaderStageFlagBits stage
     }
 }
 
-/*
-bool is_cached(std::filesystem::path file_path) {
-    std::vector<char> file_data;
-    if (!read_buffer(file_path, file_data)) {
+CompilerCache::CompilerCache(std::filesystem::path file_path) {
+    if (!read_buffer(file_path, _file_data)) {
         throw std::runtime_error("failed to read file: " + file_path.string());
     }
-    std::string_view file_data_view = std::string_view(file_data.data(), file_data.size());
+    std::string_view file_data_view = std::string_view(_file_data.data(), _file_data.size());
     // TODO:
     // deal with hash collisions
     size_t hash = std::hash<std::string_view>{}(file_data_view);
     const std::string base_cache_path = "assets/cache/";
 
-    std::ifstream file(base_cache_path + "cache.json");
-    if (file.is_open()) {
-        rapidjson::IStreamWrapper fileStream(file);
-        rapidjson::Document d;
-        d.ParseStream(fileStream);
+    std::fstream file(base_cache_path + "cache.json", std::fstream::in);
+    if (!file.is_open()) {
+        std::cout << "warning: cache.json not found: creating file" << std::endl;
+        file.open(base_cache_path + "cache.json", std::fstream::out);
         file.close();
-        struct Stream {
-            std::ofstream of;
-            typedef char Ch;
-            void Put(Ch ch) { of.put(ch); }
-            void Flush() {}
-        } stream;
-        stream.of = std::ofstream(base_cache_path + "cache.json");
-        rapidjson::Writer<Stream> writer(stream, &d.GetAllocator());
+        file.open(base_cache_path + "cache.json", std::fstream::in);
+        if (!file.is_open()) {
+            std::cout << "warning: could not create cache.json" << std::endl;
+            return;
+        }
+    }
+    // NOTE:
+    // This could be made faster with StringStream
+    rapidjson::IStreamWrapper file_stream(file);
+    rapidjson::Document d;
+    d.ParseStream(file_stream);
+    file.close();
 
-        rapidjson::Value& cache_json = d["cache"];
-        assert(cache_json.IsArray());
-        auto const& cache_array = cache_json.GetArray();
-        for (size_t i = 0; i < cache_array.Size(); ++i) {
-            assert(cache_array[i].IsObject());
-            auto const& obj = cache_array[i].MemberBegin();
-            if (obj->name.GetString() == file_path) {
-                // TODO:
-                // faster comparison
-                if (obj->value.GetString() == std::to_string(hash)) {
-                    return true;
-                } else {
-                    cache_array[i].RemoveAllMembers();
-                    rapidjson::Value key(file_path.c_str(), d.GetAllocator());
-                    rapidjson::Value value(hash);
-                    cache_array[i].AddMember(key, value, d.GetAllocator());
-                    d.Accept(writer);
-                    return false;
-                }
+    auto write_cache = [&]() {
+        typedef rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>> StringBuffer;
+        StringBuffer buf(&d.GetAllocator());
+        rapidjson::Writer<StringBuffer> writer(buf);
+        std::ofstream json_output_stream(base_cache_path + "cache.json", std::ofstream::out | std::ofstream::trunc);
+        d.Accept(writer);
+        json_output_stream << std::string(buf.GetString(), buf.GetSize());
+        json_output_stream.close();
+    };
+
+    if (d.HasParseError() || !d.HasMember("cache")) {
+        d.Parse("{\"cache\": []}");
+    }
+
+    rapidjson::Value& cache_json = d["cache"];
+    auto const& cache_array = cache_json.GetArray();
+    for (size_t i = 0; i < cache_array.Size(); ++i) {
+        // assert(cache_array[i].IsObject());
+        auto const& obj = cache_array[i].MemberBegin();
+        if (obj->name.GetString() == file_path) {
+            if (obj->value.GetUint64() == hash) {
+                _is_cached = true;
+                return;
+            } else {
+                cache_array[i].RemoveAllMembers();
+                rapidjson::Value key(file_path.c_str(), d.GetAllocator());
+                rapidjson::Value value(hash);
+                cache_array[i].AddMember(key, value, d.GetAllocator());
+                write_cache();
+                return;
             }
         }
-        rapidjson::Value obj;
-        obj.SetObject();
-        rapidjson::Value key(file_path.c_str(), d.GetAllocator());
-        rapidjson::Value value(hash);
-        obj.AddMember(key, value, d.GetAllocator());
-        cache_array.PushBack(obj, d.GetAllocator());
-        d.Accept(writer);
-        return false;
-
-    } else {
-        std::cout << "warning: failed to open cache.json" << std::endl;
-        return false;
     }
+    rapidjson::Value obj;
+    obj.SetObject();
+    rapidjson::Value key(file_path.c_str(), d.GetAllocator());
+    rapidjson::Value value(hash);
+    obj.AddMember(key, value, d.GetAllocator());
+    cache_array.PushBack(obj, d.GetAllocator());
+    write_cache();
 }
-*/
 
 Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout)
-    : _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
+    : _compiler_cache(file_path), _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
     std::string base_cache_path = "assets/cache/shaders/";
     _cache_path = std::filesystem::path(base_cache_path + get_filename(file_path) + ".spv");
-    if (std::filesystem::exists(_cache_path)) {
+    if (_compiler_cache.is_cached()) {
         if (!read_buffer(_cache_path, _spirv)) {
             throw std::runtime_error("failed to open cached shader: " + _cache_path.string());
         }
@@ -163,10 +169,7 @@ void Shader::compile() {
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
-    std::vector<char> shader_code;
-    if (!read_buffer(_path, shader_code)) {
-        throw std::runtime_error("failed to open shader: " + _path.string());
-    }
+    std::vector<char> const& shader_code = _compiler_cache.file_data();
     const char* shader_string = shader_code.data();
     const int shader_length = shader_code.size();
     const char* shader_names = _path.c_str();
