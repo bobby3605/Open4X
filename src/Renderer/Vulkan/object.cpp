@@ -15,6 +15,8 @@ Object::Object(Model* model, safe_vector<Object*>& invalid_objects) : _model(mod
     register_invalid_matrices();
 }
 
+Object::~Object() { _model->remove_instance(_instances); }
+
 void Object::position(glm::vec3 const& new_position) {
     _position = new_position;
     _t_invalid = true;

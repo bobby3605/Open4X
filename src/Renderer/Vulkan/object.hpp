@@ -7,6 +7,7 @@ class Object {
   public:
     Object(safe_vector<Object*>& invalid_objects);
     Object(Model* model, safe_vector<Object*>& invalid_objects);
+    ~Object();
 
     glm::vec3 const& position() { return _position; }
     glm::quat const& rotation() { return _rotation; }

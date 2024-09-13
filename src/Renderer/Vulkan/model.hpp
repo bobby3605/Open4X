@@ -35,6 +35,7 @@ class Model {
     ~Model();
     void write_instance_data(glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances);
     void add_instance(std::vector<InstanceAllocPair>& instances);
+    void remove_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
     NewAABB& aabb() { return _aabb; }
     std::string const& path() { return _path; }
@@ -62,6 +63,7 @@ class Model {
 
       protected:
         void add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
+        void remove_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
         void preallocate(Model* model, size_t count);
         std::optional<size_t> _mesh_index;
         std::vector<size_t> _child_node_indices;

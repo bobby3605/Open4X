@@ -374,6 +374,41 @@ void Model::Node::add_instance(Model* model, std::vector<InstanceAllocPair>& ins
     }
 }
 
+void Model::remove_instance(std::vector<InstanceAllocPair>& instances) {
+    size_t instance_index = 0;
+    // NOTE:
+    // This needs to traverse the model in the same order that add_instance does
+    for (auto& root_node_index : _scenes[_default_scene].value()->_root_node_indices) {
+        if (_nodes[root_node_index].has_value()) {
+            _nodes[root_node_index].value()->remove_instance(this, instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_index) + " doesn't exist: " + path());
+        }
+    }
+}
+
+void Model::Node::remove_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index) {
+    if (_mesh_index.has_value()) {
+        if (model->_meshes[_mesh_index.value()].has_value()) {
+            std::vector<Model::Mesh::Primitive> const& primitives = model->_meshes[_mesh_index.value()].value()->_primitives;
+            for (uint32_t i = 0; i < primitives.size(); ++i) {
+                primitives[i]._draw->remove_instance(instances[instance_index++]);
+            }
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + _model->path());
+        }
+    }
+    for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
+        if (_model->_nodes[_child_node_indices[i]].has_value()) {
+            _model->_nodes[_child_node_indices[i]].value()->remove_instance(model, instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
+                                     " doesn't exist: " + _model->path());
+        }
+    }
+}
+
 void Model::preallocate(size_t count) {
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
