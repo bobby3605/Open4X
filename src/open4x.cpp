@@ -197,11 +197,6 @@ void Open4X::run() {
 
         std::optional<size_t> blue_box_id;
 
-        if (settings->showFPS) {
-            std::stringstream title;
-            title << "objects: " << _object_manager->object_count();
-            glfwSetWindowTitle(Window::window->glfw_window(), title.str().c_str());
-        }
         float vertical_fov = 45.0f;
         float near = 0.0001f;
         float far = 1000.0f;
@@ -230,9 +225,16 @@ void Open4X::run() {
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
                   << std::endl;
 
+        float title_frame_time = 0.0f;
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+            if (title_frame_time == 0.0f) {
+                title_frame_time = frame_time;
+            } else {
+                title_frame_time = title_frame_time * 0.98 + frame_time * 0.02;
+            }
             start_time = current_time;
             glfwPollEvents();
             if (glfwGetKey(Window::window->glfw_window(), GLFW_KEY_F2) == GLFW_PRESS) {
@@ -264,6 +266,14 @@ void Open4X::run() {
                 aspect_ratio = (float)extent.width / (float)extent.height;
                 // adjust perspective projection matrix
                 cam.update_projection(vertical_fov, aspect_ratio, near, far);
+            }
+            if (settings->showFPS) {
+                std::stringstream title;
+                title << "Objects: " << _object_manager->object_count() << " "
+                      << "Frametime: " << std::fixed << std::setprecision(2) << (title_frame_time * 1000) << "ms"
+                      << " "
+                      << "Framerate: " << 1.0 / title_frame_time;
+                glfwSetWindowTitle(Window::window->glfw_window(), title.str().c_str());
             }
         }
         vkDeviceWaitIdle(Device::device->vk_device());
