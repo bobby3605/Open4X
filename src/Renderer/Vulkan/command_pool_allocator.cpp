@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include "device.hpp"
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 // TODO Improve this
@@ -21,7 +22,7 @@ VkCommandPool Device::CommandPoolAllocator::get_pool() {
         // If the pool is not allocated
         if (!itr->second.first) {
             // mark pool as allocated and return it
-            itr->second.first = 1;
+            itr->second.first = true;
             return itr->first;
         }
     }
@@ -31,7 +32,7 @@ VkCommandPool Device::CommandPoolAllocator::get_pool() {
     // this would also mean adding support for transient pools
     VkCommandPool pool = device->create_command_pool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     std::unordered_map<VkCommandBuffer, bool> bufferMap;
-    pools.insert({pool, {1, bufferMap}});
+    pools.insert({pool, {true, bufferMap}});
     return pool;
 }
 
@@ -40,9 +41,9 @@ VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool, VkC
     std::lock_guard<std::mutex> lock(get_buffer_mutex);
     for (auto poolItr = pools.begin(); poolItr != pools.end(); ++poolItr) {
         if (poolItr->first == pool) {
-            for (auto bufferItr = poolItr->second.second.begin(); bufferItr != poolItr->second.second.begin(); ++bufferItr) {
-                if (!bufferItr->second) {
-                    bufferItr->second = 1;
+            for (auto bufferItr = poolItr->second.second.begin(); bufferItr != poolItr->second.second.end(); ++bufferItr) {
+                if (bufferItr->second == false) {
+                    bufferItr->second = true;
                     return bufferItr->first;
                 }
             }
@@ -55,7 +56,7 @@ VkCommandBuffer Device::CommandPoolAllocator::get_buffer(VkCommandPool pool, VkC
             VkCommandBuffer commandBuffer;
             check_result(vkAllocateCommandBuffers(Device::device->vk_device(), &allocInfo, &commandBuffer),
                          "failed to create command buffer!");
-            poolItr->second.second.insert({commandBuffer, 1});
+            poolItr->second.second.insert({commandBuffer, true});
             return commandBuffer;
         }
     }
@@ -69,19 +70,24 @@ VkCommandBuffer Device::CommandPoolAllocator::get_secondary(VkCommandPool pool) 
 
 void Device::CommandPoolAllocator::release_pool(VkCommandPool pool) {
     for (auto itr = pools.begin(); itr != pools.end(); ++itr) {
-        if (!itr->second.first) {
-            itr->second.first = 0;
+        if (itr->first == pool) {
+            itr->second.first = false;
+            return;
         }
     }
+    throw std::runtime_error("unknown command pool when releasing!");
 }
 void Device::CommandPoolAllocator::release_buffer(VkCommandPool pool, VkCommandBuffer buffer) {
+    std::lock_guard<std::mutex> lock(get_buffer_mutex);
     for (auto poolItr = pools.begin(); poolItr != pools.end(); ++poolItr) {
         if (poolItr->first == pool) {
-            for (auto bufferItr = poolItr->second.second.begin(); bufferItr != poolItr->second.second.begin(); ++bufferItr) {
-                if (!bufferItr->second) {
-                    bufferItr->second = 0;
+            for (auto bufferItr = poolItr->second.second.begin(); bufferItr != poolItr->second.second.end(); ++bufferItr) {
+                if (bufferItr->first == buffer) {
+                    bufferItr->second = false;
+                    return;
                 }
             }
         }
     }
+    throw std::runtime_error("error: unknown command buffer when releasing: " + std::to_string((size_t)buffer));
 }

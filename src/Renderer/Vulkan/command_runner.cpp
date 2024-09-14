@@ -9,6 +9,8 @@ CommandRunner::CommandRunner() {
         _pool = Device::device->command_pools()->get_pool();
     }
 
+    // NOTE:
+    // this isn't thread safe, because you can only submit one buffer from a pool at a time
     _command_buffer = Device::device->command_pools()->get_primary(_pool);
     begin_recording();
 }
