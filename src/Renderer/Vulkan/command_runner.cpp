@@ -52,6 +52,10 @@ void CommandRunner::copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBuffer
     vkCmdCopyBuffer(_command_buffer, src, dst, copy_infos.size(), copy_infos.data());
 }
 
+void CommandRunner::copy_buffer(VkBuffer dst, VkBuffer src, VkBufferCopy* data, uint32_t count) {
+    vkCmdCopyBuffer(_command_buffer, src, dst, count, data);
+}
+
 void CommandRunner::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
     VkBufferImageCopy region{};
     region.bufferOffset = 0;

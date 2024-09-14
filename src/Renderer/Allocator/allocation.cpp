@@ -2,6 +2,7 @@
 #include "../Vulkan/command_runner.hpp"
 #include "../Vulkan/common.hpp"
 #include "../Vulkan/descriptor_manager.hpp"
+#include <atomic>
 #include <cstring>
 #include <iostream>
 #include <vulkan/vulkan_core.h>
@@ -37,6 +38,8 @@ void CPUAllocation::write(size_t const& dst_offset, const void* src_data, size_t
 void CPUAllocation::copy(CPUAllocation* dst_allocation, size_t const& dst_offset, size_t const& src_offset, size_t const& byte_size) {
     std::memcpy(dst_allocation->_data + dst_offset, _data + src_offset, byte_size);
 }
+
+void CPUAllocation::flush_copies() {}
 
 void CPUAllocation::copy(CPUAllocation* dst_allocation) { std::memcpy(dst_allocation->_data, _data, _size); }
 
@@ -152,11 +155,83 @@ void GPUAllocation::copy(GPUAllocation* dst_allocation, size_t const& dst_offset
     buffer_copy.dstOffset = dst_offset;
     buffer_copy.srcOffset = src_offset;
     buffer_copy.size = byte_size;
+
+    /*
+    std::atomic<bool> is_copying = false;
+
     std::vector<VkBufferCopy> buffer_copies;
     buffer_copies.push_back(buffer_copy);
+
+    is_copying = true;
+    is_copying.notify_one();
+
+    is_copying.wait(false, std::memory_order_relaxed);
     CommandRunner command_runner;
     command_runner.copy_buffer(dst_allocation->_buffer, _buffer, buffer_copies);
     command_runner.run();
+    */
+
+    /*
+    std::array<std::vector<VkBufferCopy>, 2> buffer_copy_buffers;
+    std::atomic<uint32_t> curr_buffer_copy_buffer = 0;
+
+    buffer_copy_buffers[curr_buffer_copy_buffer].push_back(buffer_copy);
+
+    if (buffer_copy_buffers[curr_buffer_copy_buffer.load()].size() > 0) {
+        uint32_t buffer_id = curr_buffer_copy_buffer.fetch_add(1, std::memory_order::relaxed);
+        CommandRunner command_runner;
+        command_runner.copy_buffer(dst_allocation->_buffer, _buffer, buffer_copy_buffers[buffer_id]);
+        command_runner.run();
+        buffer_copy_buffers[buffer_id].clear();
+    }
+    */
+
+    std::unique_lock<std::mutex> lock(_buffer_copy_mutex);
+    //   _buffer_copies.push_back(buffer_copy);
+    //    _buffer_copies_buffers.push(dst_allocation->buffer);
+
+    unsigned char* dst = reinterpret_cast<unsigned char*>(dst_allocation->_mapped) + dst_offset;
+    unsigned char* src = reinterpret_cast<unsigned char*>(_mapped) + src_offset;
+    size_t size = byte_size;
+    copies.insert({dst, {src, size}});
+}
+
+void GPUAllocation::flush_copies() {
+    std::unique_lock<std::mutex> lock(_buffer_copy_mutex);
+    /*
+    std::cout << "processing copies: " << copies.size() << std::endl;
+    for (auto& copy : copies) {
+        std::cout << "dst: " << (size_t)copy.first << ", "
+                  << "src: " << (size_t)copy.second.first << ", "
+                  << "size: " << copy.second.second << std::endl;
+    }
+    for (auto& copy : copies) {
+        unsigned char* test_dst = copy.first + copy.second.second;
+        if (copies.contains(test_dst)) {
+            std::cout << "found matching test_dst: " << (size_t)test_dst << std::endl;
+            unsigned char* test_src = copy.second.first + copy.second.second;
+            auto const& tmp_src = copies[test_dst];
+            if (test_src == tmp_src.first) {
+                std::cout << "found contiguous copies" << std::endl;
+                copy.second.second += tmp_src.second;
+                copies.erase(test_dst);
+            }
+        }
+    }
+    std::cout << "running copies: " << copies.size() << std::endl;
+    */
+    for (auto const& copy : copies) {
+        memcpy(copy.first, copy.second.first, copy.second.second);
+    }
+    copies.clear();
+    /*
+if (_buffer_copies.size() > 0) {
+    CommandRunner command_runner;
+    // TODO:
+    // use dst_allocation
+    command_runner.copy_buffer(_buffer, _buffer, _buffer_copies);
+    command_runner.run();
+    */
 }
 
 void GPUAllocation::copy(GPUAllocation* dst_allocation) {
@@ -174,6 +249,7 @@ void GPUAllocation::realloc(size_t const& byte_size) {
     new_alloc.alloc(byte_size);
     // Only copy if current has been alloced
     if (_buffer != VK_NULL_HANDLE) {
+        flush_copies();
         copy(&new_alloc);
     }
     // free current allocation

@@ -10,6 +10,7 @@ class CommandRunner {
     ~CommandRunner();
     void run();
     void copy_buffer(VkBuffer dst, VkBuffer src, std::vector<VkBufferCopy>& copy_infos);
+    void copy_buffer(VkBuffer dst, VkBuffer src, VkBufferCopy* data, uint32_t count);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
     static std::pair<std::shared_ptr<VkImageMemoryBarrier2>, std::shared_ptr<VkDependencyInfo>>

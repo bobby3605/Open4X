@@ -1,5 +1,6 @@
 #ifndef ALLOCATION_H_
 #define ALLOCATION_H_
+#include "../../utils/utils.hpp"
 #include "../Vulkan/device.hpp"
 #include "vk_mem_alloc.h"
 #include <cstddef>
@@ -10,6 +11,7 @@ template <typename AllocationT> class Allocation {
     virtual ~Allocation(){};
     virtual size_t const& size() const = 0;
     virtual void realloc(size_t const& byte_size) = 0;
+    virtual void flush_copies();
 
   protected:
     virtual void get(void* dst, size_t const& src_offset, size_t const& byte_size) = 0;
@@ -32,6 +34,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
     void get(void* dst) { get(dst, 0, _size); }
     inline void write(const void* data) { write(0, data, _size); }
     void copy(SubAllocation<AllocatorT, ParentAllocationT>* dst_allocation) { copy(dst_allocation, 0, 0, _size); }
+    void flush_copies() { _parent->flush_copies(); }
     void realloc(size_t const& byte_size) {
         // NOTE:
         // _allocator must support sized reallocs
@@ -40,6 +43,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
         SubAllocation<AllocatorT, ParentAllocationT>* tmp_alloc = _allocator->alloc(byte_size);
         if (_size != 0) {
             copy(tmp_alloc);
+            flush_copies();
         }
         _offset = tmp_alloc->_offset;
         _size = tmp_alloc->_size;
@@ -93,6 +97,7 @@ class CPUAllocation : Allocation<CPUAllocation> {
     ~CPUAllocation();
     void realloc(size_t const& byte_size);
     size_t const& size() const;
+    void flush_copies();
 
   protected:
     friend class CPUAllocator;
@@ -121,6 +126,7 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VkDescriptorAddressInfoEXT const& addr_info() const { return _addr_info; }
     VkBuffer const& buffer() const { return _buffer; }
     void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size);
+    void flush_copies();
 
   protected:
     friend class GPUAllocator;
@@ -133,6 +139,9 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VkDescriptorAddressInfoEXT _addr_info{VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT};
     bool _is_mapped = false;
     void* _mapped;
+    std::vector<VkBufferCopy> _buffer_copies;
+    std::mutex _buffer_copy_mutex;
+    std::unordered_map<unsigned char*, std::pair<unsigned char*, size_t>> copies;
 
     void alloc(size_t const& byte_size);
     void free();
