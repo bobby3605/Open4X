@@ -4,6 +4,7 @@
 #include "allocation.hpp"
 #include <cstdint>
 #include <deque>
+#include <iostream>
 #include <stdexcept>
 
 template <typename ParentAllocationT> class VoidAllocator {
@@ -77,7 +78,7 @@ template <typename ParentAllocationT> class FixedAllocator {
     size_t const& block_size() const { return _block_size; }
     size_t const& block_count() const { return _block_count; }
     void reserve(size_t count) {
-//        _free_blocks.reserve(count);
+        //        _free_blocks.reserve(count);
         if (count > _block_count) {
             size_t base_size = _parent->size();
             _parent->realloc(base_size + _block_size * count);
@@ -157,6 +158,11 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
         // suppose allocation = 0
         // last_block = 1
         SubAllocation<ContiguousFixedAllocator, ParentAllocationT>* last_block = _alloced_blocks.pop_back();
+        // If removing last block
+        if (last_block->offset() == allocation->offset()) {
+            _free_blocks.push_back(allocation);
+            return;
+        }
         // _alloced_blocks = [0]
         // copy last block to allocation
         last_block->copy(allocation);
@@ -185,6 +191,8 @@ template <typename ParentAllocationT> class ContiguousFixedAllocator {
             _free_blocks.push_back(
                 new SubAllocation<ContiguousFixedAllocator, ParentAllocationT>(base_size + _block_size * i, _block_size, this, _parent));
             // _free_blocks = [0,1,2]
+            // NOTE:
+            // not thread safe
             ++_block_count;
         }
     }

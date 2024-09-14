@@ -1,6 +1,7 @@
 #include "draw.hpp"
 #include <cstdint>
 #include <glm/gtx/string_cast.hpp>
+#include <iostream>
 #include <mutex>
 #include <vulkan/vulkan_core.h>
 

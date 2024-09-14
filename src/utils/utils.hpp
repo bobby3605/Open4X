@@ -142,7 +142,7 @@ template <typename T> class safe_deque {
     }
     void push_front(T& item) {
         std::unique_lock<std::mutex> _mutex;
-        _deque.push_back(item);
+        _deque.push_front(item);
     }
     T pop_back() {
         std::unique_lock<std::mutex> _mutex;

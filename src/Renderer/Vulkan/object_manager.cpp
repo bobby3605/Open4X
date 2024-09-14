@@ -19,7 +19,12 @@ ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, new_settings-
     });
 }
 
-ObjectManager::~ObjectManager() { delete _invalid_objects_processor; }
+ObjectManager::~ObjectManager() {
+    delete _invalid_objects_processor;
+    for (auto object : _objects) {
+        delete object;
+    }
+}
 
 size_t ObjectManager::add_object(Model* model) {
     _objects.emplace_back(new Object(model, _invalid_objects));
