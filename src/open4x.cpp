@@ -195,7 +195,6 @@ void Open4X::run() {
         a_beautiful_game_object->rotation_euler(180, 0, 0);
         a_beautiful_game_object->scale({2, 2, 2});
 
-        Model* blue_box_model = _model_manager->get_model(assets_base_path + "BlueBox.gltf");
         std::optional<size_t> blue_box_id;
 
         if (settings->showFPS) {
@@ -238,13 +237,14 @@ void Open4X::run() {
             glfwPollEvents();
             if (glfwGetKey(Window::window->glfw_window(), GLFW_KEY_F2) == GLFW_PRESS) {
                 if (!blue_box_id.has_value()) {
-                    blue_box_id = _object_manager->add_object(blue_box_model);
+                    blue_box_id = _object_manager->add_object(_model_manager->get_model(assets_base_path + "BlueBox.gltf"));
                     _object_manager->get_object(blue_box_id.value())->position({1, 1, 1});
                 }
             }
             if (glfwGetKey(Window::window->glfw_window(), GLFW_KEY_F3) == GLFW_PRESS) {
                 if (blue_box_id.has_value()) {
                     _object_manager->remove_object(blue_box_id.value());
+                    _model_manager->remove_model(assets_base_path + "BlueBox.gltf");
                     blue_box_id.reset();
                 }
             }

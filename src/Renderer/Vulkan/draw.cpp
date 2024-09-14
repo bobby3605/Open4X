@@ -31,7 +31,8 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
 
     // Increase indirect draw count
     // TODO:
-    // thread safety
+    // thread safety,
+    // maybe turn the gpu pointer into an atomic?
     uint32_t new_size;
     _allocators.indirect_count_alloc->get(&new_size);
     ++new_size;
@@ -44,11 +45,20 @@ Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& 
 }
 
 Draw::~Draw() {
+    _allocators.vertex->free(_vertex_alloc);
+    _allocators.index->free(_index_alloc);
     _allocators.indirect_commands->pop_and_swap(_indirect_commands_alloc);
     _allocators.material_indices->pop_and_swap(_material_index_alloc);
+
+    uint32_t new_size;
+    _allocators.indirect_count_alloc->get(&new_size);
+    if (new_size != 0) {
+        --new_size;
+        _allocators.indirect_count_alloc->write(&new_size);
+    } else {
+        std::cout << "warning: tried to go below 0 draws, shouldn't be here" << std::endl;
+    }
     delete instance_indices_allocator;
-    // TODO
-    // Free instance data
 }
 
 void Draw::preallocate(uint32_t count) {

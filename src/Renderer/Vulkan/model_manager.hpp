@@ -9,6 +9,7 @@ class ModelManager {
     ModelManager(DrawAllocators& draw_allocators);
     ~ModelManager();
     Model* get_model(std::filesystem::path model_path);
+    void remove_model(std::filesystem::path model_path);
     void preallocate(std::filesystem::path model_path, uint32_t count);
     void refresh_invalid_draws();
 

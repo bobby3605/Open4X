@@ -83,6 +83,7 @@ class Model {
         class Primitive {
           public:
             Primitive(Model* _model, fastgltf::Primitive* primitive, DrawAllocators const& draw_allocators);
+            ~Primitive();
             Draw* _draw;
 
           protected:

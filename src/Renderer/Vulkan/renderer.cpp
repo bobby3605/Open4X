@@ -55,6 +55,8 @@ void Renderer::create_data_buffers() {
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "indirect_count"));
 
     draw_allocators.indirect_count_alloc = draw_allocators.indirect_count->alloc();
+    uint32_t zero = 0;
+    draw_allocators.indirect_count_alloc->write(&zero);
 
     draw_allocators.instance_indices = new LinearAllocator(
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

@@ -39,6 +39,15 @@ Model* ModelManager::get_model(std::filesystem::path model_path) {
     }
 }
 
+void ModelManager::remove_model(std::filesystem::path model_path) {
+    if (_models.count(model_path) == 0) {
+        std::cout << "warning: trying to remove nonexistent model: " << model_path << std::endl;
+    } else {
+        delete _models.at(model_path);
+        _models.erase(model_path);
+    }
+}
+
 void ModelManager::preallocate(std::filesystem::path model_path, uint32_t count) { get_model(model_path)->preallocate(count); }
 
 void ModelManager::refresh_invalid_draws() {

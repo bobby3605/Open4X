@@ -75,6 +75,9 @@ Model::~Model() {
     for (auto sampler : _samplers) {
         delete sampler;
     }
+    // TODO:
+    // cleanup fastgltf asset
+    //  delete _asset;
 }
 
 void Model::load_textures() {
@@ -103,7 +106,7 @@ size_t Model::upload_texture(size_t texture_index) {
 };
 
 void Model::load_materials(DrawAllocators& draw_allocators) {
-    _material_allocs.reserve(_asset->materials.size());
+    _material_allocs.resize(_asset->materials.size());
     for (size_t material_index = 0; material_index < _asset->materials.size(); ++material_index) {
         // NOTE:
         // texture indices all default to 0
@@ -161,7 +164,7 @@ void Model::load_materials(DrawAllocators& draw_allocators) {
 }
 
 void Model::load_meshes(DrawAllocators& draw_allocators) {
-    _meshes.reserve(_asset->meshes.size());
+    _meshes.resize(_asset->meshes.size());
     for (size_t i = 0; i < _asset->meshes.size(); ++i) {
         _meshes[i] = new Mesh(this, &_asset->meshes[i], draw_allocators);
     }
@@ -281,6 +284,8 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
 
     _draw = new Draw(draw_allocators, _vertices, _indices, material_alloc, model->_invalid_draws);
 }
+
+Model::Mesh::Primitive::~Primitive() { delete _draw; }
 
 std::vector<glm::vec3> Model::Mesh::Primitive::get_positions() {
     return load_accessor<glm::vec3>(_model->_asset, _primitive->findAttribute("POSITION")->second);
