@@ -19,6 +19,12 @@ Object::~Object() {
     if (_model != nullptr) {
         _model->remove_instance(_instances);
     }
+    for (size_t i = 0; i < _invalid_objects.size(); ++i) {
+        if (_invalid_objects.at(i) == this) {
+            _invalid_objects.erase(i);
+            break;
+        }
+    }
 }
 
 void Object::position(glm::vec3 const& new_position) {

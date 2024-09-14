@@ -16,6 +16,7 @@
 #include "utils/utils.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -153,6 +154,7 @@ void Open4X::run() {
     if (NEW_RENDERER) {
         std::string assets_base_path = std::filesystem::current_path().string() + "/assets/glTF/";
 
+        /*
         Model* box_model = _model_manager->get_model(assets_base_path + "Box.gltf");
         _object_manager->create_n_objects(box_model, new_settings->extra_object_count);
 
@@ -162,12 +164,14 @@ void Open4X::run() {
 
         engine_obj->scale({0.01, 0.01, 0.01});
         engine_obj->position({5, 0, 0});
+        */
 
         Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
         size_t simple_texture_id = _object_manager->add_object(simple_texture_model);
         Object* simple_texture_obj = _object_manager->get_object(simple_texture_id);
         simple_texture_obj->rotation_euler(0, 180, 180);
 
+        /*
         Model* water_bottle_model = _model_manager->get_model(assets_base_path + "WaterBottle.glb");
         size_t water_bottle_id = _object_manager->add_object(water_bottle_model);
         Object* water_bottle_obj = _object_manager->get_object(water_bottle_id);
@@ -188,6 +192,10 @@ void Open4X::run() {
         a_beautiful_game_object->position({-2, -2, -2});
         a_beautiful_game_object->rotation_euler(180, 0, 0);
         a_beautiful_game_object->scale({2, 2, 2});
+        */
+
+        Model* blue_box_model = _model_manager->get_model(assets_base_path + "BlueBox.gltf");
+        std::optional<size_t> blue_box_id;
 
         if (settings->showFPS) {
             std::stringstream title;
@@ -221,11 +229,25 @@ void Open4X::run() {
         std::cout << "Total load time: "
                   << std::chrono::duration<float, std::chrono::milliseconds::period>(start_time - creationTime).count() << "ms"
                   << std::endl;
+
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
             start_time = current_time;
             glfwPollEvents();
+            if (glfwGetKey(Window::window->glfw_window(), GLFW_KEY_F2) == GLFW_PRESS) {
+                if (!blue_box_id.has_value()) {
+                    blue_box_id = _object_manager->add_object(blue_box_model);
+                    _object_manager->get_object(blue_box_id.value())->position({1, 1, 1});
+                }
+            }
+            if (glfwGetKey(Window::window->glfw_window(), GLFW_KEY_F3) == GLFW_PRESS) {
+                if (blue_box_id.has_value()) {
+                    _object_manager->remove_object(blue_box_id.value());
+                    blue_box_id.reset();
+                }
+            }
+
             _object_manager->refresh_invalid_objects();
             _model_manager->refresh_invalid_draws();
             cam.update_transform(frame_time);

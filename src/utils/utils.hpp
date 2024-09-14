@@ -90,6 +90,11 @@ template <typename T> class safe_vector {
         std::unique_lock<std::shared_mutex> _mutex;
         _vec.clear();
     }
+    void erase(size_t const& index) {
+        std::unique_lock<std::shared_mutex> _mutex;
+        _vec.erase(_vec.begin() + index);
+        //_vec[index] = _vec.back();
+    }
     // NOTE:
     // This isn't thread safe
     inline T& operator[](size_t const& index) { return _vec[index]; }

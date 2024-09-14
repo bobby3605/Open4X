@@ -104,4 +104,5 @@ void Draw::write_indirect_command() {
     // Update firstInstance in case instance_indices_allocator->alloc() caused _allocators.instance_indices to realloc
     _indirect_command.firstInstance = instance_indices_allocator->parent()->offset() / sizeof(uint32_t);
     _indirect_commands_alloc->write(&_indirect_command);
+    _registered = false;
 }

@@ -27,11 +27,14 @@ ObjectManager::~ObjectManager() {
 }
 
 size_t ObjectManager::add_object(Model* model) {
-    _objects.emplace_back(new Object(model, _invalid_objects));
+    _objects.push_back(new Object(model, _invalid_objects));
     return _objects.size() - 1;
 }
 
-void ObjectManager::remove_object(size_t const& object_id) { _objects.erase(_objects.begin() + object_id); }
+void ObjectManager::remove_object(size_t const& object_id) {
+    delete _objects[object_id];
+    _objects.erase(_objects.begin() + object_id);
+}
 
 Object* ObjectManager::get_object(size_t const& object_id) {
     if (object_id < _objects.size()) {
