@@ -154,7 +154,11 @@ void Open4X::run() {
     if (NEW_RENDERER) {
         std::string assets_base_path = std::filesystem::current_path().string() + "/assets/glTF/";
 
-        /*
+        // NOTE:
+        // GPU buffers don't exist until you allocate from them,
+        // so the engine runs without any models/objects allocated,
+        // then there are validation errors for missing buffers
+
         Model* box_model = _model_manager->get_model(assets_base_path + "Box.gltf");
         _object_manager->create_n_objects(box_model, new_settings->extra_object_count);
 
@@ -164,14 +168,12 @@ void Open4X::run() {
 
         engine_obj->scale({0.01, 0.01, 0.01});
         engine_obj->position({5, 0, 0});
-        */
 
         Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
         size_t simple_texture_id = _object_manager->add_object(simple_texture_model);
         Object* simple_texture_obj = _object_manager->get_object(simple_texture_id);
         simple_texture_obj->rotation_euler(0, 180, 180);
 
-        /*
         Model* water_bottle_model = _model_manager->get_model(assets_base_path + "WaterBottle.glb");
         size_t water_bottle_id = _object_manager->add_object(water_bottle_model);
         Object* water_bottle_obj = _object_manager->get_object(water_bottle_id);
@@ -192,7 +194,6 @@ void Open4X::run() {
         a_beautiful_game_object->position({-2, -2, -2});
         a_beautiful_game_object->rotation_euler(180, 0, 0);
         a_beautiful_game_object->scale({2, 2, 2});
-        */
 
         Model* blue_box_model = _model_manager->get_model(assets_base_path + "BlueBox.gltf");
         std::optional<size_t> blue_box_id;
