@@ -510,6 +510,8 @@ void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix
         fast_trs_matrix(_animation_translation, _animation_rotation, _animation_scale, _animation_matrix);
         fast_mat4_mul(parent_animation_matrix, _animation_matrix, _animation_matrix);
         fast_mat4_mul(_instance_data.model_matrix, _animation_matrix, animated_transform);
+        // TODO:
+        // update AABB by animation matrix
     } else {
         _animation_matrix = parent_animation_matrix;
     }
@@ -531,7 +533,7 @@ void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
         if (_model->_nodes[_child_node_indices[i]].has_value()) {
-            _model->_nodes[_child_node_indices[i]].value()->write_instance_data(model, _animation_matrix, instances, instance_index);
+            _model->_nodes[_child_node_indices[i]].value()->animate(model, _animation_matrix, instances, instance_index);
         } else {
             throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
                                      " doesn't exist: " + _model->path());

@@ -198,13 +198,14 @@ void Open4X::run() {
         Model* simple_animation = _model_manager->get_model(assets_base_path + "simple_animation.gltf");
         size_t simple_animation_id = _object_manager->add_object(simple_animation);
         Object* simple_animation_object = _object_manager->get_object(simple_animation_id);
-        simple_animation_object->position({2, 10, 4});
+        simple_animation_object->position({2, 5, -4});
+        simple_animation_object->rotation_euler(0, 180, 0);
 
         Model* box_animated = _model_manager->get_model(assets_base_path + "BoxAnimated.glb");
         size_t box_animated_id = _object_manager->add_object(box_animated);
         Object* box_animated_object = _object_manager->get_object(box_animated_id);
 
-        box_animated_object->position({2, 10, 2});
+        box_animated_object->position({2, 5, 2});
 
         std::vector<Light*> lights;
         lights.resize(3);
