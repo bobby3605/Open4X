@@ -151,6 +151,7 @@ class Model {
     [[nodiscard]] size_t upload_texture(size_t texture_index);
     void load_meshes(DrawAllocators& draw_allocators);
     std::optional<size_t> gltf_sampler_index;
+    DrawAllocators* _draw_allocators;
 };
 
 #endif // MODEL_H_

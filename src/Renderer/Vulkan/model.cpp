@@ -19,7 +19,7 @@
 
 Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAllocation<FixedAllocator, GPUAllocation>* default_material,
              safe_vector<Draw*>& invalid_draws)
-    : _default_material(default_material), _invalid_draws(invalid_draws), _path(path) {
+    : _default_material(default_material), _invalid_draws(invalid_draws), _path(path), _draw_allocators(&draw_allocators) {
     fastgltf::Expected<fastgltf::MappedGltfFile> maybe_data = fastgltf::MappedGltfFile::FromPath(path);
     if (maybe_data.error() == fastgltf::Error::None) {
         _data = maybe_data.get_if();
@@ -74,6 +74,28 @@ Model::~Model() {
     }
     for (auto sampler : _samplers) {
         delete sampler;
+    }
+    for (auto material_alloc : _material_allocs) {
+        NewMaterialData material_data{};
+        material_alloc->get(&material_data);
+        std::vector<VkDescriptorImageInfo>& textures = MemoryManager::memory_manager->global_image_infos["textures"];
+        std::vector<VkDescriptorImageInfo>& samplers = MemoryManager::memory_manager->global_image_infos["samplers"];
+        if (material_data.base_texture_index != 0) {
+            textures.erase(textures.begin() + material_data.base_texture_index);
+        }
+        if (material_data.normal_index != 0) {
+            textures.erase(textures.begin() + material_data.normal_index);
+        }
+        if (material_data.metallic_roughness_index != 0) {
+            textures.erase(textures.begin() + material_data.metallic_roughness_index);
+        }
+        if (material_data.ao_index != 0) {
+            textures.erase(textures.begin() + material_data.ao_index);
+        }
+        if (material_data.sampler_index != 0) {
+            samplers.erase(samplers.begin() + material_data.sampler_index);
+        }
+        _draw_allocators->material_data->free(material_alloc);
     }
     // TODO:
     // cleanup fastgltf asset
