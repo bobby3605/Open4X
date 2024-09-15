@@ -19,7 +19,32 @@ layout(set = 0, binding = 4) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 5) buffer MaterialIndices { uint materialIndices[]; };
 layout(set = 0, binding = 6) buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
 
+/*
+instances = [2,4,5,3,6,...]
+[0,1,1,0,1,1,1,0,0,0,1] = isVisible(instance)
+[0,1,2,2,3,4,5,5,5,5,6] = prefixSum
+drawCommand1.firstInstance = 2
+drawCommand1.instanceCount = 3
+    [2,2,3]
+drawCommand0 = drawCommands[draw_index - 1]
+drawCommand0.firstInstance = 0
+drawCommand0.instanceCount = 2
+    [0, 1]
+
+tmp = prefixSum[drawCommand0.firstInstance + drawCommand0.instanceCount]
+tmp2 = prefixSum[drawCommand1.firstInstance + drawCommand1.instanceCount]
+drawCommand1.instanceCount = tmp2 - tmp;
+drawCommand1.instanceCount = 2;
+
+prefixSum[drawCommand1.firstInstance + drawCommand1.instanceCount] - prefixSum[drawCommand1.firstInstance] + 1
+*/
+
+
+
 uint visibleInstances(uint di) {
+        DrawCommand draw_cmd = drawCommands[di];
+        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount] - prefixSum[draw_cmd.firstInstance] + 1;
+    /*
     if (di != 0) {
         // prefixSum has an entry for each instance and is kept in order
         // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
@@ -36,6 +61,7 @@ uint visibleInstances(uint di) {
         // This probably doesn't need to be offset by firstInstance
         return prefixSum[drawCommands[di].firstInstance + drawCommands[di].instanceCount - 1];
     }
+    */
 }
 
 void main() {
