@@ -47,7 +47,7 @@ void DescriptorManager::update(std::shared_ptr<Pipeline> pipeline) {
                                                           binding_layout.second.mem_props | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                                                           descriptor_name);
                                                           */
-                    throw std::runtime_error("creating buffers in descriptor update is unsupported");
+                    throw std::runtime_error("creating buffers in descriptor update is unsupported: " + descriptor_name);
                 }
                 if (Device::device->use_descriptor_buffers()) {
                     pipeline->descriptor_layout().set_descriptor_buffer(set_layout.first, binding_layout.first, buffer->descriptor_data());

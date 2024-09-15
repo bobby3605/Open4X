@@ -2,7 +2,6 @@
 #include "../Allocator/base_allocator.hpp"
 #include "command_runner.hpp"
 #include "common.hpp"
-#include "descriptor_manager.hpp"
 #include "device.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
@@ -222,9 +221,9 @@ void RenderGraph::end_rendering() {
         vkCmdPipelineBarrier2, dependency_info.get());
 }
 
-void RenderGraph::graphics_pass(std::string const& vert_path, std::string const& frag_path,
+void RenderGraph::graphics_pass(std::filesystem::path const& vert_path, std::filesystem::path const& frag_path,
                                 LinearAllocator<GPUAllocation>* vertex_buffer_allocator,
-                                LinearAllocator<GPUAllocation>* index_buffer_allocator) {
+                                LinearAllocator<GPUAllocation>* index_buffer_allocator, void* vert_spec_data, void* frag_spec_data) {
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     pipeline_rendering_info.colorAttachmentCount = 1;
@@ -233,63 +232,14 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
 
     std::shared_ptr<GraphicsPipeline> pipeline;
     if (Device::device->use_descriptor_buffers()) {
-        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path,
-                                                      _descriptor_buffer_allocator);
+        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path, vert_spec_data,
+                                                      frag_spec_data, _descriptor_buffer_allocator);
     } else {
-        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path);
+        pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path, vert_spec_data,
+                                                      frag_spec_data);
     }
 
-    if (!Device::device->use_descriptor_buffers()) {
-        auto vk_set_layouts = std::make_shared<std::vector<VkDescriptorSet>>(pipeline->descriptor_layout().vk_sets());
-        add_node({pipeline, vk_set_layouts}, void_update, vkCmdBindDescriptorSets, pipeline->bind_point(), pipeline->vk_pipeline_layout(),
-                 0, vk_set_layouts->size(), vk_set_layouts->data(), 0, nullptr);
-    }
-
-    add_node(
-        {pipeline},
-        [&, pipeline]() {
-            // TODO
-            // Only update needed sets
-            // Example:
-            // global set at 0
-            // vertex and fragment at 1 and 2
-            // So only 1 and 2 need to be updated
-            DescriptorManager::descriptor_manager->update(pipeline);
-        },
-        vkCmdBindPipeline, pipeline->bind_point(), pipeline->vk_pipeline());
-
-    if (Device::device->use_descriptor_buffers()) {
-        // Set descriptor offsets
-        auto descriptor_buffer_offsets = std::make_shared<VkSetDescriptorBufferOffsetsInfoEXT>();
-        descriptor_buffer_offsets->sType = VK_STRUCTURE_TYPE_SET_DESCRIPTOR_BUFFER_OFFSETS_INFO_EXT;
-        descriptor_buffer_offsets->stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        descriptor_buffer_offsets->layout = pipeline->vk_pipeline_layout();
-        descriptor_buffer_offsets->firstSet = 0;
-        auto set_offsets = std::make_shared<std::vector<VkDeviceSize>>(pipeline->descriptor_layout().set_offsets());
-        descriptor_buffer_offsets->setCount = set_offsets->size();
-        auto buffer_indices = std::make_shared<std::vector<uint32_t>>(descriptor_buffer_offsets->setCount, 0);
-        descriptor_buffer_offsets->pOffsets = set_offsets->data();
-        descriptor_buffer_offsets->pBufferIndices = buffer_indices->data();
-
-        add_node({descriptor_buffer_offsets, set_offsets, buffer_indices}, void_update, vkCmdSetDescriptorBufferOffsets2EXT_,
-                 descriptor_buffer_offsets.get());
-    }
-
-    // push constants
-    for (const auto& shader_pair : pipeline->shaders()) {
-        const Shader& shader = shader_pair.second;
-        if (shader.has_push_constants()) {
-            // if the memory for the push constants isn't allocated,
-            // allocate it
-            if (_push_constants.count(shader.push_constants_name()) == 0) {
-                _push_constants[shader.push_constants_name()] = std::shared_ptr<char[]>(new char[shader.push_constant_range().size]);
-            }
-            // set the push constants from the shader and get the pointer from the global map
-            add_node({}, void_update, vkCmdPushConstants, pipeline->vk_pipeline_layout(), shader.stage_info().stage,
-                     shader.push_constant_range().offset, shader.push_constant_range().size,
-                     _push_constants[shader.push_constants_name()].get());
-        }
-    }
+    add_pipeline(pipeline);
 
     // set vertex and index buffers
     auto offsets = std::make_shared<std::vector<VkDeviceSize>>(1, 0);
@@ -304,3 +254,40 @@ void RenderGraph::graphics_pass(std::string const& vert_path, std::string const&
         };
     });
 }
+
+void RenderGraph::compute_pass(std::filesystem::path const& compute_path, void* compute_spec_data) {
+    std::shared_ptr<ComputePipeline> pipeline;
+    if (Device::device->use_descriptor_buffers()) {
+        pipeline = std::make_shared<ComputePipeline>(compute_path, compute_spec_data, _descriptor_buffer_allocator);
+    } else {
+        pipeline = std::make_shared<ComputePipeline>(compute_path, compute_spec_data);
+    }
+    add_pipeline(pipeline);
+}
+
+void RenderGraph::memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 dst_access_mask,
+                                 VkPipelineStageFlags2 dst_stage_mask) {
+    auto memory_barrier = std::make_shared<VkMemoryBarrier2>();
+    memory_barrier->sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    memory_barrier->pNext = VK_NULL_HANDLE;
+    memory_barrier->srcAccessMask = src_access_mask;
+    memory_barrier->srcStageMask = src_stage_mask;
+    memory_barrier->dstAccessMask = dst_access_mask;
+    memory_barrier->dstStageMask = dst_stage_mask;
+
+    auto dependency_info = std::make_shared<VkDependencyInfo>();
+    dependency_info->sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency_info->dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    dependency_info->memoryBarrierCount = 1;
+    dependency_info->pMemoryBarriers = memory_barrier.get();
+
+    add_node({memory_barrier, dependency_info}, void_update, vkCmdPipelineBarrier2, dependency_info.get());
+}
+
+/*
+void RenderGraph::fill_buffer(std::string buffer_name, VkDeviceSize offset, VkDeviceSize size, uint32_t value) {
+    return [=](VkCommandBuffer command_buffer) {
+        vkCmdFillBuffer(command_buffer, MemoryManager::memory_manager->get_buffer(buffer_name)->vk_buffer(), offset, size, value);
+    };
+}
+*/

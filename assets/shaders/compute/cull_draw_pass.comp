@@ -1,0 +1,64 @@
+#version 460
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+layout(set = 0, binding = 0) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
+layout(set = 0, binding = 1) readonly buffer indirect_count { uint indirectDrawCount; };
+layout(set = 0, binding = 2) coherent buffer CulledDrawIndirectCount { uint culledDrawIndirectCount; };
+layout(set = 0, binding = 3) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
+layout(set = 0, binding = 4) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 5) buffer MaterialIndices { uint materialIndices[]; };
+layout(set = 0, binding = 6) buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
+
+uint visibleInstances(uint di) {
+    if (di != 0) {
+        // prefixSum has an entry for each instance and is kept in order
+        // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
+        // prefixSum[drawCommands[di - 1].instanceCount - 1] is the sum of all visible instances of the previous draw, inclusive
+        // their difference is the number of visible instances of drawCommands[di]
+        // NOTE:
+        // draws must be sorted in ascending order by firstInstance
+        DrawCommand currDraw = drawCommands[di];
+        DrawCommand prevDraw = drawCommands[di - 1];
+        return prefixSum[currDraw.firstInstance + currDraw.instanceCount - 1] -
+               prefixSum[prevDraw.firstInstance + prevDraw.instanceCount - 1];
+    } else {
+        // NOTE:
+        // This probably doesn't need to be offset by firstInstance
+        return prefixSum[drawCommands[di].firstInstance + drawCommands[di].instanceCount - 1];
+    }
+}
+
+void main() {
+    uint drawIndex = gl_GlobalInvocationID.x;
+    if (drawIndex >= indirectDrawCount) {
+        return;
+    }
+    uint visibleInstanceCount = visibleInstances(drawIndex);
+    if (visibleInstanceCount > 0) {
+        DrawCommand drawCommand = drawCommands[drawIndex];
+        drawCommand.instanceCount = visibleInstanceCount;
+        // NOTE:
+        // convert to buffer index with - 1
+        if (drawCommand.firstInstance != 0) {
+            uint newIndex = prefixSum[drawCommand.firstInstance - 1];
+            culledMaterialIndices[newIndex] = materialIndices[drawCommand.firstInstance];
+            drawCommand.firstInstance = newIndex;
+        } else {
+            culledMaterialIndices[0] = materialIndices[0];
+        }
+
+        // FIXME:
+        // use compact instead of atomicAdd
+        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
+    }
+}

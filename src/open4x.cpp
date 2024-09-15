@@ -116,6 +116,30 @@ void setComputePushConstantsCamera(ComputePushConstants& computePushConstants, V
     computePushConstants.Y = glm::normalize(camera->rotation() * VulkanObject::upVector);
 }
 
+void setFrustumConsts(float const& vertical_fov, float const& aspect_ratio, float const& near_clip, float const& far_clip,
+                      RenderGraph* rg) {
+    PtrWriter writer(rg->get_push_constant("frustum_consts") + sizeof(uint));
+    writer.write(near_clip);
+    writer.write(far_clip);
+    writer.write(aspect_ratio);
+
+    float vfov_rad = vertical_fov * (glm::pi<double>() / 360.0);
+    float tang = glm::tan(vfov_rad);
+
+    float angle_X = glm::atan(tang * aspect_ratio);
+    writer.write(1.0f / glm::cos(angle_X));
+    writer.write(1.0f / glm::cos(vfov_rad));
+    writer.write(tang);
+}
+
+void setFrustumCamConsts(Camera* cam, RenderGraph* rg) {
+    PtrWriter writer(rg->get_push_constant("frustum_consts") + sizeof(uint) + 6 * sizeof(float));
+    writer.write(glm::normalize(cam->rotation() * VulkanObject::rightVector));
+    writer.write(glm::normalize(cam->rotation() * VulkanObject::upVector));
+    writer.write(glm::normalize(cam->rotation() * VulkanObject::forwardVector));
+    writer.write(cam->position());
+}
+
 void Open4X::loadSettings() {
     settings = std::make_shared<Settings>();
     std::ifstream file("assets/settings.json");
@@ -229,6 +253,8 @@ void Open4X::run() {
         float aspect_ratio = (float)extent.width / (float)extent.height;
 
         Camera cam(vertical_fov, aspect_ratio, near, far);
+        setFrustumConsts(vertical_fov, aspect_ratio, near, far, renderer->rg);
+
         FixedAllocator<GPUAllocation>* shader_globals_allocator = new FixedAllocator(
             sizeof(ShaderGlobals),
             gpu_allocator->create_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -283,6 +309,7 @@ void Open4X::run() {
             _object_manager->refresh_animated_objects();
             _model_manager->refresh_invalid_draws();
             cam.update_transform(frame_time);
+            setFrustumCamConsts(&cam, renderer->rg);
             // TODO
             // cache camera matrix
             shader_globals.proj_view = cam.proj_view();
@@ -296,6 +323,7 @@ void Open4X::run() {
                 aspect_ratio = (float)extent.width / (float)extent.height;
                 // adjust perspective projection matrix
                 cam.update_projection(vertical_fov, aspect_ratio, near, far);
+                setFrustumConsts(vertical_fov, aspect_ratio, near, far, renderer->rg);
             }
             if (settings->showFPS) {
                 std::stringstream title;

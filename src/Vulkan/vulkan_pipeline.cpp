@@ -12,9 +12,10 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-GraphicsPipeline::GraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain,
-                                   VkPipelineShaderStageCreateInfo vertInfo, VkPipelineShaderStageCreateInfo fragInfo,
-                                   std::vector<VkDescriptorSetLayout>& descriptorLayouts, std::vector<VkPushConstantRange>& pushConstants)
+OldGraphicsPipeline::OldGraphicsPipeline(std::shared_ptr<VulkanDevice> device, VulkanSwapChain* swapChain,
+                                         VkPipelineShaderStageCreateInfo vertInfo, VkPipelineShaderStageCreateInfo fragInfo,
+                                         std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                                         std::vector<VkPushConstantRange>& pushConstants)
     : VulkanPipeline(device) {
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -227,8 +228,8 @@ void VulkanPipeline::createPipelineLayout(std::vector<VkDescriptorSetLayout>& de
                 "failed to create pipeline layout");
 }
 
-ComputePipeline::ComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                                 std::vector<VkPushConstantRange>& pushConstants, VkPipelineShaderStageCreateInfo stageInfo)
+OldComputePipeline::OldComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                                       std::vector<VkPushConstantRange>& pushConstants, VkPipelineShaderStageCreateInfo stageInfo)
     : VulkanPipeline(device) {
 
     createPipelineLayout(descriptorLayouts, pushConstants);

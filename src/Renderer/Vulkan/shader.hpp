@@ -18,7 +18,7 @@ class CompilerCache {
 
 class Shader {
   public:
-    Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout);
+    Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout, void* specialization_data = nullptr);
     ~Shader();
     VkPipelineBindPoint bind_point() const { return _bind_point; }
     VkPipelineShaderStageCreateInfo stage_info() const { return _stage_info; }
@@ -43,6 +43,8 @@ class Shader {
     std::optional<VkPushConstantRange> _push_constant_range;
     std::string _push_constants_name;
     std::mutex _glslang_mutex;
+    std::vector<VkSpecializationMapEntry> _spec_entries;
+    VkSpecializationInfo _spec_info{};
 };
 
 #endif // SHADER_H_

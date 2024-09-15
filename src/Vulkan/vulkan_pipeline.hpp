@@ -51,10 +51,10 @@ class OldGraphicsPipeline : public VulkanPipeline {
     //   void bind();
 };
 
-class ComputePipeline : public VulkanPipeline {
+class OldComputePipeline : public VulkanPipeline {
   public:
-    ComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
-                    std::vector<VkPushConstantRange>& pushConstants, VkPipelineShaderStageCreateInfo stageInfo);
+    OldComputePipeline(std::shared_ptr<VulkanDevice> device, std::vector<VkDescriptorSetLayout>& descriptorLayouts,
+                       std::vector<VkPushConstantRange>& pushConstants, VkPipelineShaderStageCreateInfo stageInfo);
     //  void bind();
 };
 

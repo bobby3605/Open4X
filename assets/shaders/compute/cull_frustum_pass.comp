@@ -1,0 +1,133 @@
+#version 460
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct InstanceData {
+    mat4 model_matrix;
+};
+
+layout(push_constant) uniform frustum_consts {
+    uint totalInstanceCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    vec3 X;
+    vec3 Y;
+    vec3 Z;
+    vec3 camPos;
+};
+
+layout(std140, set = 0, binding = 0) readonly buffer Instances { InstanceData instances[]; };
+layout(set = 0, binding = 1) readonly buffer InstanceIndices { uint instance_indices[]; };
+layout(set = 0, binding = 2) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 3) buffer PartialSums { uint partialSums[]; };
+layout(set = 0, binding = 4) writeonly buffer ActiveLanes { uint activeLanes[]; };
+
+// radar frustum culling implementation from
+// http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-implementation-ii/
+bool sphereInFrustum(vec3 p, float radius) {
+
+    float d;
+    float az, ax, ay;
+    bool result = true;
+
+    vec3 v = p - camPos;
+
+    az = dot(v, -Z);
+    if (az > farD + radius || az < nearD - radius)
+        return false;
+
+    if (az > farD - radius || az < nearD + radius)
+        result = true;
+
+    ay = dot(v, Y);
+    d = sphereFactorY * radius;
+    az *= tang;
+    if (ay > az + d || ay < -az - d)
+        return false;
+
+    if (ay > az - d || ay < -az + d)
+        result = true;
+
+    ax = dot(v, X);
+    az *= ratio;
+    d = sphereFactorX * radius;
+    if (ax > az + d || ax < -az - d)
+        return false;
+
+    if (ax > az - d || ax < -az + d)
+        result = true;
+
+    return (result);
+}
+
+bool isVisible(uint index) {
+    InstanceData instance = instances[instance_indices[index]];
+    // might not work for radius because objects have different scaling
+    // some models might have a much larger or smaller scale than others in order to be reasonably sized
+    // this would make the radius too large or too small
+    // need to convert scale from model space to world space?
+//    float radius = max(object.scale.x, max(object.scale.y, object.scale.z)) * 0.5;
+    float radius = 1;
+    return sphereInFrustum(instance.model_matrix[3].xyz, radius);
+}
+
+// Prefix sum implementation from
+// https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
+shared uint sdata[SUBGROUP_SIZE];
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    bool laneActive = index < totalInstanceCount && isVisible(index);
+    uvec4 ballot = subgroupBallot(laneActive);
+    // {x,y,z,w}
+    // {x,y,.,.}
+    // x = 0b0101111111...
+    // y = 0b111010000... 32 bits long
+    uint sum = subgroupBallotInclusiveBitCount(ballot);
+    // NOTE:
+    // subgroup size needs to be >= 32
+    if (((gl_SubgroupInvocationID + 1) % 32) == 0) {
+        activeLanes[index / 32] = ballot[gl_SubgroupInvocationID / 32];
+        // activeLanes[0] = x
+        // activeLanes[1] = y
+    }
+
+    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) {
+        sdata[gl_SubgroupID] = sum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_SubgroupID == 0) {
+        uint warpSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+        warpSum = subgroupInclusiveAdd(warpSum);
+        sdata[gl_SubgroupInvocationID] = warpSum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    uint blockSum = 0;
+    if (gl_SubgroupID > 0) {
+        blockSum = sdata[gl_SubgroupID - 1];
+    }
+
+    sum += blockSum;
+
+    if (gl_GlobalInvocationID.x < totalInstanceCount) {
+        prefixSum[gl_GlobalInvocationID.x] = sum;
+    }
+
+    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+        partialSums[gl_WorkGroupID.x] = sum;
+    }
+}

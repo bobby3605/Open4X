@@ -119,13 +119,15 @@ CompilerCache::CompilerCache(std::filesystem::path file_path) {
     write_cache();
 }
 
-Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout)
+Shader::Shader(std::filesystem::path file_path, DescriptorLayout* pipeline_descriptor_layout, void* specialization_data)
     : _compiler_cache(file_path), _path{file_path}, _pipeline_descriptor_layout(pipeline_descriptor_layout) {
+    _spec_info.pData = specialization_data;
     std::string base_cache_path = "assets/cache/shaders/";
     _cache_path = std::filesystem::path(base_cache_path + get_filename(file_path) + ".spv");
     if (_compiler_cache.is_cached()) {
         if (!read_buffer(_cache_path, _spirv)) {
-            throw std::runtime_error("failed to open cached shader: " + _cache_path.string());
+            std::cout << "warning: failed to open cached shader: " + _cache_path.string() << std::endl;
+            compile();
         }
         _stage_info.stage = std::get<VkShaderStageFlagBits>(get_stage(_path));
     } else {
@@ -325,11 +327,9 @@ void Shader::reflect() {
         std::string name = resource.name;
         _pipeline_descriptor_layout->add_image(set, binding, stage_info().stage, name);
     }
-    /*
     std::set<uint32_t> uniqueConstantIds;
     uint32_t offset = 0;
     for (const spirv_cross::SpecializationConstant& constant : comp.get_specialization_constants()) {
-        hasSpecConstants = true;
         const spirv_cross::SPIRConstant& value = comp.get_constant(constant.id);
         // Only add unique entries
         // Sometimes the constant ids are repeated, for example if it's used as a local size
@@ -342,18 +342,14 @@ void Shader::reflect() {
             entry.size = size;
             entry.offset = offset;
             offset += entry.size;
-            specEntries.push_back(entry);
+            _spec_entries.push_back(entry);
         }
     }
-    if (hasSpecConstants) {
-        stageInfo.pSpecializationInfo = &specInfo;
-        specInfo.mapEntryCount = specEntries.size();
-        specInfo.pMapEntries = specEntries.data();
+    if (_spec_entries.size() > 0) {
+        _stage_info.pSpecializationInfo = &_spec_info;
+        _spec_info.mapEntryCount = _spec_entries.size();
+        _spec_info.pMapEntries = _spec_entries.data();
         // offset should be the total size of the spec constants by the end of the loop
-        specInfo.dataSize = offset;
+        _spec_info.dataSize = offset;
     }
-
-    descriptor->allocateSets();
-    descriptor->update();
-    */
 }

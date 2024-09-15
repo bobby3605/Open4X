@@ -52,16 +52,15 @@ void Renderer::create_data_buffers() {
 
     draw_allocators.indirect_count = new FixedAllocator(
         sizeof(uint32_t),
-        gpu_allocator->create_buffer(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "indirect_count"));
 
     draw_allocators.indirect_count_alloc = draw_allocators.indirect_count->alloc();
     uint32_t zero = 0;
     draw_allocators.indirect_count_alloc->write(&zero);
 
-    draw_allocators.instance_indices = new LinearAllocator(
-        gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledInstanceIndices"));
+    draw_allocators.instance_indices = new LinearAllocator(gpu_allocator->create_buffer(
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "InstanceIndices"));
 
     draw_allocators.material_data = new FixedAllocator(
         sizeof(NewMaterialData),
@@ -71,11 +70,44 @@ void Renderer::create_data_buffers() {
     draw_allocators.material_indices = new ContiguousFixedAllocator(
         sizeof(uint32_t),
         gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledMaterialIndices"));
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "MaterialIndices"));
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledInstanceIndices");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledMaterialIndices");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledIndirectCount");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "PrefixSum");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "PartialSums");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "ActiveLanes");
 }
 
 bool Renderer::render() {
     //    gpu_allocator->get_buffer("CulledInstanceIndices")->flush_copies();
+    auto match_size = [&](std::string const& read_buffer, std::string const& write_buffer) {
+        size_t size = gpu_allocator->get_buffer(read_buffer)->size();
+        GPUAllocation* tmp = gpu_allocator->get_buffer(write_buffer);
+        if (tmp->size() < size) {
+            tmp->realloc(size);
+        }
+    };
+    match_size("InstanceIndices", "CulledInstanceIndices");
+    match_size("MaterialIndices", "CulledMaterialIndices");
+    match_size("indirect_count", "CulledIndirectCount");
+    PtrWriter writer(rg->get_push_constant("frustum_consts"));
+    match_size("InstanceIndices", "PrefixSum");
+    match_size("InstanceIndices", "PartialSums");
+    match_size("InstanceIndices", "ActiveLanes");
+    writer.write(gpu_allocator->get_buffer("InstanceIndices")->size());
     return rg->render();
 }
 
@@ -85,12 +117,6 @@ RenderOp pushConstants(std::shared_ptr<VulkanShader> shader, void* data) {
     return [=](VkCommand_buffer command_buffer) {
         vkCmdPushConstants(command_buffer, pipelines[getFilenameNoExt(shader->name)]->pipelineLayout(), shader->stageFlags,
                            shader->pushConstantRange.offset, shader->pushConstantRange.size, data);
-    };
-}
-
-RenderOp fill_buffer(std::string buffer_name, VkDeviceSize offset, VkDeviceSize size, uint32_t value) {
-    return [=](VkCommandBuffer command_buffer) {
-        vkCmdFillBuffer(command_buffer, MemoryManager::memory_manager->get_buffer(buffer_name)->vk_buffer(), offset, size, value);
     };
 }
 
@@ -107,32 +133,82 @@ RenderOp reset_query_pool(VkQueryPool query_pool, uint32_t first_query, uint32_t
 }
 
 
-RenderOp memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 dst_access_mask,
-                        VkPipelineStageFlags2 dst_stage_mask) {
-    return [=](VkCommandBuffer command_buffer) {
-        VkMemoryBarrier2 memory_barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER_2};
-        memory_barrier.pNext = VK_NULL_HANDLE;
-        memory_barrier.srcAccessMask = src_access_mask;
-        memory_barrier.srcStageMask = src_stage_mask;
-        memory_barrier.dstAccessMask = dst_access_mask;
-        memory_barrier.dstStageMask = dst_stage_mask;
-
-        VkDependencyInfo dependency_info{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-        dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-        dependency_info.memoryBarrierCount = 1;
-        dependency_info.pMemoryBarriers = &memory_barrier;
-
-        vkCmdPipelineBarrier2(command_buffer, &dependency_info);
-    };
-}
 */
-
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
 
     rg->begin_rendering();
+    std::string baseShaderPath = "assets/shaders/compute/";
 
-    std::string baseShaderPath = "assets/shaders/graphics/";
+    struct spec_data {
+        uint32_t local_size_x;
+        uint32_t subgroup_size;
+    } specData;
+    specData.local_size_x = Device::device->max_compute_workgroup_invocations();
+    specData.subgroup_size = Device::device->max_subgroup_size();
+
+    // TODO:
+    // synchronization
+    rg->compute_pass(baseShaderPath + "cull_frustum_pass.comp", &specData);
+    // TODO:
+    // Put this into compute_pass
+    rg->add_dynamic_node({}, [&](RenderNode& node) {
+        node.op = [&](VkCommandBuffer cmd_buffer) {
+            vkCmdDispatch(
+                cmd_buffer,
+                get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size(), Device::device->max_compute_workgroup_invocations()),
+                1, 1);
+        };
+    });
+
+    // wait until the frustum culling is done
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+    rg->compute_pass(baseShaderPath + "reduce_prefix_sum.comp", &specData);
+
+    rg->add_dynamic_node({}, [&](RenderNode& node) {
+        node.op = [&](VkCommandBuffer cmd_buffer) {
+            vkCmdDispatch(
+                cmd_buffer,
+                get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size(), Device::device->max_compute_workgroup_invocations()),
+                1, 1);
+        };
+    });
+
+    // wait until finished
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+    // ensure previous frame vertex read completed before zeroing out buffer
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                       VK_PIPELINE_STAGE_2_COPY_BIT);
+
+    //    rg->set_buffer("CulledDrawIndirectCount", 0);
+
+    rg->add_node(vkCmdFillBuffer, gpu_allocator->get_buffer("CulledIndirectCount")->buffer(), 0, VK_WHOLE_SIZE, 0);
+
+    // barrier until the CulledDrawIndirectCount buffer has been cleared
+    rg->memory_barrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
+                       VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+    rg->compute_pass(baseShaderPath + "cull_draw_pass.comp", &specData);
+    rg->add_dynamic_node({}, [&](RenderNode& node) {
+        node.op = [&](VkCommandBuffer cmd_buffer) {
+            vkCmdDispatch(cmd_buffer,
+                          get_group_count(gpu_allocator->get_buffer("indirect_commands")->size(),
+                                          Device::device->max_compute_workgroup_invocations()),
+                          1, 1);
+        };
+    });
+
+    // wait until culling is completed
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                       VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT);
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
+    baseShaderPath = "assets/shaders/graphics/";
     std::string baseShaderName = "triangle";
 
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
@@ -142,9 +218,10 @@ void Renderer::create_rendergraph() {
 
     rg->add_dynamic_node({}, [&](RenderNode& node) {
         node.op = [&](VkCommandBuffer cmd_buffer) {
-            vkCmdDrawIndexedIndirectCount(
-                cmd_buffer, draw_allocators.indirect_commands->parent()->buffer(), 0, draw_allocators.indirect_count->parent()->buffer(), 0,
-                draw_allocators.indirect_commands->block_count(), draw_allocators.indirect_commands->block_size());
+            vkCmdDrawIndexedIndirectCount(cmd_buffer, draw_allocators.indirect_commands->parent()->buffer(), 0,
+                                          gpu_allocator->get_buffer("CulledIndirectCount")->buffer(), 0,
+                                          draw_allocators.indirect_commands->block_count(),
+                                          draw_allocators.indirect_commands->block_size());
         };
     });
 

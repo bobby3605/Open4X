@@ -46,6 +46,8 @@ class Device {
     VkQueue present_queue() { return _present_queue; }
     VmaAllocator const& vma_allocator() const { return _vma_allocator; }
     const bool use_descriptor_buffers() const { return _use_descriptor_buffers; }
+    uint32_t const& max_subgroup_size() const { return _max_subgroup_size; }
+    uint32_t const& max_compute_workgroup_invocations() const { return _max_compute_work_group_invocations; }
 
 #ifdef NDEBUG
     static const bool enable_validation_layers = false;

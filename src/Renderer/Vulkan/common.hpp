@@ -61,6 +61,8 @@ std::string get_filename_no_ext(std::string file_path);
 // align to a power of 2
 inline std::size_t align(std::size_t offset, std::size_t alignment) { return (offset + (alignment - 1)) & -alignment; }
 
+inline uint32_t get_group_count(uint32_t threadCount, uint32_t localSize) { return (threadCount + localSize - 1) / localSize; }
+
 const std::unordered_map<VkBufferUsageFlags, VkDescriptorType> usage_to_types = {
     {VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER},
     {VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER},
@@ -110,5 +112,14 @@ template <typename T> [[nodiscard]] bool write_buffer(std::filesystem::path cons
     memcpy(mmio.mapping(), buffer.data(), buffer.size() * sizeof(T));
     return true;
 }
+
+struct PtrWriter {
+    PtrWriter(void* dst) : dst(dst) {}
+    void* dst;
+    template <typename T> void write(T data) {
+        *reinterpret_cast<T*>(dst) = data;
+        dst = reinterpret_cast<char*>(dst) + sizeof(T);
+    }
+};
 
 #endif // NEWCOMMON_H_
