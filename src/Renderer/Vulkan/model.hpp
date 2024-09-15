@@ -85,6 +85,7 @@ class Model {
         std::vector<glm::vec3> _translation_outputs;
         std::vector<glm::quat> _rotation_outputs;
         std::vector<glm::vec3> _scale_outputs;
+        InstanceData _instance_data{};
 
       private:
         Model* _model;

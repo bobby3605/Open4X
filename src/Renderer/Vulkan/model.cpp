@@ -349,12 +349,11 @@ void Model::write_instance_data(glm::mat4 const& object_matrix, std::vector<Inst
 
 void Model::Node::write_instance_data(Model* model, glm::mat4 const& object_matrix, std::vector<InstanceAllocPair> const& instances,
                                       size_t& id_index) {
-    InstanceData instance_data{};
     if (_mesh_index.has_value()) {
         if (model->_meshes[_mesh_index.value()].has_value()) {
             for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
-                fast_mat4_mul(object_matrix, _transform, instance_data.model_matrix);
-                instances[id_index++].data->write(&instance_data);
+                fast_mat4_mul(object_matrix, _transform, _instance_data.model_matrix);
+                instances[id_index++].data->write(&_instance_data);
             }
         } else {
             throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
