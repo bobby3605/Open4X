@@ -509,7 +509,7 @@ void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix
     if (_has_animation) {
         fast_trs_matrix(_animation_translation, _animation_rotation, _animation_scale, _animation_matrix);
         fast_mat4_mul(parent_animation_matrix, _animation_matrix, _animation_matrix);
-        fast_mat4_mul(_animation_matrix, _transform, animated_transform);
+        fast_mat4_mul(_instance_data.model_matrix, _animation_matrix, animated_transform);
     } else {
         _animation_matrix = parent_animation_matrix;
     }
