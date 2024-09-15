@@ -14,13 +14,13 @@ class Renderer {
     // Return true if swapchain was recreated
     bool render();
     DrawAllocators draw_allocators;
+    RenderGraph* rg;
 
   private:
     NewSettings* _settings;
     VkCommandPool _command_pool;
 
     void create_rendergraph();
-    RenderGraph* rg;
 };
 
 #endif // RENDERER_H_

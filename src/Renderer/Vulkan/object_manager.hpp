@@ -2,6 +2,8 @@
 #define OBJECT_MANAGER_H_
 
 #include "../../utils/utils.hpp"
+#include "../Allocator/base_allocator.hpp"
+#include "light.hpp"
 #include "object.hpp"
 #include <cstddef>
 #include <glm/fwd.hpp>
@@ -23,14 +25,19 @@ class ObjectManager {
     void refresh_invalid_objects();
     void preallocate(size_t const& count);
     void create_n_objects(Model* model, size_t const& count);
+    size_t add_light(Model* model);
+    Light* get_light(size_t const& light_id);
+    size_t light_count() { return _lights.size(); }
 
   private:
     std::vector<Object*> _objects;
+    std::vector<Light*> _lights;
     std::unordered_map<std::string, size_t> _object_names;
     safe_vector<Object*> _invalid_objects;
     ChunkProcessor<Object*, safe_vector>* _invalid_objects_processor;
     ChunkProcessor<Object*>* _bulk_objects_processor;
     Model* _bulk_add_model;
+    ContiguousFixedAllocator<GPUAllocation>* _light_allocator;
 
     std::mt19937 _mt;
     std::uniform_real_distribution<float> _distribution;

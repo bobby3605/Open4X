@@ -4,6 +4,7 @@
 #include "device.hpp"
 #include "draw.hpp"
 #include "globals.hpp"
+#include "light.hpp"
 #include "memory_manager.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>

@@ -17,6 +17,11 @@ ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, new_settings-
         // because objects can have varying sizes (ex: _instances gets alloced after the constructor)
         _objects[i] = new Object(_bulk_add_model, _invalid_objects);
     });
+
+    _light_allocator = new ContiguousFixedAllocator(
+        sizeof(Light::GPULight),
+        gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "Lights"));
 }
 
 ObjectManager::~ObjectManager() {
@@ -92,4 +97,16 @@ void ObjectManager::create_n_objects(Model* model, size_t const& count) {
                                                                                  object_creation_start_time)
                      .count()
               << "ms" << std::endl;
+}
+
+size_t ObjectManager::add_light(Model* model) {
+    _lights.push_back(new Light(_light_allocator, model, _invalid_objects));
+    return _lights.size() - 1;
+}
+Light* ObjectManager::get_light(size_t const& light_id) {
+    if (light_id < _lights.size()) {
+        return _lights[light_id];
+    } else {
+        throw std::runtime_error("error light: " + std::to_string(light_id) + " doesn't exist!");
+    }
 }

@@ -1,6 +1,13 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
 
+struct Light {
+    vec3 position;
+    vec3 color;
+};
+
+layout(push_constant) uniform triangle_frag { uint light_count; };
+
 layout(location = 0) in flat vec4 base_color_factor;
 layout(location = 1) in vec2 frag_tex_coord;
 layout(location = 2) in flat uint sampler_index;
@@ -15,8 +22,9 @@ layout(location = 10) in flat float normal_scale;
 layout(location = 11) in flat float metallic_factor;
 layout(location = 12) in flat float roughness_factor;
 layout(location = 13) in flat float occlusion_strength;
-layout(set = 2, binding = 0) uniform sampler samplers[];
-layout(set = 2, binding = 1) uniform texture2D textures[];
+layout(set = 2, binding = 0) readonly buffer Lights { Light lights[]; };
+layout(set = 2, binding = 1) uniform sampler samplers[];
+layout(set = 2, binding = 2) uniform texture2D textures[];
 
 layout(location = 0) out vec4 out_color;
 
@@ -86,15 +94,6 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) { return F0 + (1.0 - F0) * pow(clam
 // ----------------------------------------------------------------------------
 
 void main(){
-    const uint light_count = 3;
-    vec3 light_positions[light_count];
-    light_positions[0] = vec3(0.0, 1.0, -2.0);
-    light_positions[1] = vec3(0.0, 1.0, 5.0);
-    light_positions[2] = vec3(-2.0, -3.0, -2.0);
-    vec3 light_colors[light_count];
-    light_colors[0] = 10 * vec3(1.0, 1.0, 1.0);
-    light_colors[1] = vec3(1.0, 1.0, 1.0);
-    light_colors[2] = 10 * vec3(1.0, 1.0, 1.0);
     // PBR
     // https://learnopengl.com/PBR/Lighting
     vec3 albedo =
@@ -124,12 +123,13 @@ void main(){
     // reflectance equation
     vec3 Lo = vec3(0.0);
     for (int i = 0; i < light_count; ++i) {
+        Light light = lights[i];
         // calculate per-light radiance
-        vec3 L = normalize(light_positions[i] - world_pos);
+        vec3 L = normalize(light.position - world_pos);
         vec3 H = normalize(V + L);
-        float distance = length(light_positions[i] - world_pos);
+        float distance = length(light.position - world_pos);
         float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = light_colors[i] * attenuation;
+        vec3 radiance = light.color * attenuation;
 
         // Cook-Torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);

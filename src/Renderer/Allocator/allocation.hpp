@@ -11,7 +11,7 @@ template <typename AllocationT> class Allocation {
     virtual ~Allocation(){};
     virtual size_t const& size() const = 0;
     virtual void realloc(size_t const& byte_size) = 0;
-    virtual void flush_copies();
+    virtual void flush_copies() = 0;
 
   protected:
     virtual void get(void* dst, size_t const& src_offset, size_t const& byte_size) = 0;

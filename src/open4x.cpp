@@ -195,6 +195,19 @@ void Open4X::run() {
         a_beautiful_game_object->rotation_euler(180, 0, 0);
         a_beautiful_game_object->scale({2, 2, 2});
 
+        std::vector<Light*> lights;
+        lights.resize(3);
+        Model* duck_model = _model_manager->get_model(assets_base_path + "Duck.glb");
+        for (size_t i = 0; i < lights.size(); ++i) {
+            lights[i] = _object_manager->get_light(_object_manager->add_light(duck_model));
+            lights[i]->rotation_euler(180, 0, 0);
+        }
+        lights[0]->position({0.0, 1.0, -2.0});
+        lights[1]->position({0.0, 1.0, 5.0});
+        lights[2]->position({-2.0, -3.0, -2.0});
+        lights[0]->color(10.0f * lights[0]->color());
+        lights[1]->color(10.0f * lights[1]->color());
+
         std::optional<size_t> blue_box_id;
 
         float vertical_fov = 45.0f;
@@ -259,6 +272,7 @@ void Open4X::run() {
             shader_globals.proj_view = cam.proj_view();
             shader_globals.cam_pos = cam.position();
             globals_alloc->write(&shader_globals);
+            renderer->rg->set_push_constant("triangle_frag", _object_manager->light_count());
 
             // returns true when swapchain was resized
             if (renderer->render()) {

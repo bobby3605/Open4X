@@ -2,6 +2,7 @@
 #include "../Vulkan/command_runner.hpp"
 #include "../Vulkan/common.hpp"
 #include "../Vulkan/descriptor_manager.hpp"
+#include "base_allocator.hpp"
 #include <atomic>
 #include <cstring>
 #include <iostream>
