@@ -75,8 +75,10 @@ bool isVisible(uint index) {
     // some models might have a much larger or smaller scale than others in order to be reasonably sized
     // this would make the radius too large or too small
     // need to convert scale from model space to world space?
-//    float radius = max(object.scale.x, max(object.scale.y, object.scale.z)) * 0.5;
-    float radius = 1;
+    float scalex = length(instance.model_matrix[0]);
+    float scaley = length(instance.model_matrix[1]);
+    float scalez = length(instance.model_matrix[2]);
+    float radius = max(scalex, max(scaley, scalez)) * 0.5;
     return sphereInFrustum(instance.model_matrix[3].xyz, radius);
 }
 

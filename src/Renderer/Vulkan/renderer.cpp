@@ -89,6 +89,9 @@ void Renderer::create_data_buffers() {
 
     gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "ActiveLanes");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledDrawCommands");
 }
 
 bool Renderer::render() {
@@ -102,11 +105,12 @@ bool Renderer::render() {
     };
     match_size("InstanceIndices", "CulledInstanceIndices");
     match_size("MaterialIndices", "CulledMaterialIndices");
-    match_size("indirect_count", "CulledIndirectCount");
+    // match_size("indirect_count", "CulledIndirectCount");
     PtrWriter writer(rg->get_push_constant("frustum_consts"));
     match_size("InstanceIndices", "PrefixSum");
     match_size("InstanceIndices", "PartialSums");
     match_size("InstanceIndices", "ActiveLanes");
+    match_size("indirect_commands", "CulledDrawCommands");
     writer.write(gpu_allocator->get_buffer("InstanceIndices")->size());
     return rg->render();
 }
@@ -137,7 +141,6 @@ RenderOp reset_query_pool(VkQueryPool query_pool, uint32_t first_query, uint32_t
 void Renderer::create_rendergraph() {
     rg = new RenderGraph(_command_pool);
 
-    rg->begin_rendering();
     std::string baseShaderPath = "assets/shaders/compute/";
 
     struct spec_data {
@@ -147,8 +150,9 @@ void Renderer::create_rendergraph() {
     specData.local_size_x = Device::device->max_compute_workgroup_invocations();
     specData.subgroup_size = Device::device->max_subgroup_size();
 
-    // TODO:
-    // synchronization
+    // ensure previous frame vertex read completed before writing
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     rg->compute_pass(baseShaderPath + "cull_frustum_pass.comp", &specData);
     // TODO:
     // Put this into compute_pass
@@ -185,7 +189,7 @@ void Renderer::create_rendergraph() {
                        VK_PIPELINE_STAGE_2_COPY_BIT);
 
     //    rg->set_buffer("CulledDrawIndirectCount", 0);
-
+    gpu_allocator->get_buffer("CulledIndirectCount")->realloc(sizeof(uint32_t));
     rg->add_node(vkCmdFillBuffer, gpu_allocator->get_buffer("CulledIndirectCount")->buffer(), 0, VK_WHOLE_SIZE, 0);
 
     // barrier until the CulledDrawIndirectCount buffer has been cleared
@@ -213,6 +217,8 @@ void Renderer::create_rendergraph() {
 
     std::string vert_shader_path = baseShaderPath + baseShaderName + ".vert";
     std::string frag_shader_path = baseShaderPath + baseShaderName + ".frag";
+
+    rg->begin_rendering();
 
     rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index);
 

@@ -11,9 +11,9 @@ struct DrawCommand {
     uint firstInstance;
 };
 
-layout(set = 0, binding = 0) readonly buffer DrawCommands { DrawCommand drawCommands[]; };
+layout(set = 0, binding = 0) readonly buffer indirect_commands { DrawCommand drawCommands[]; };
 layout(set = 0, binding = 1) readonly buffer indirect_count { uint indirectDrawCount; };
-layout(set = 0, binding = 2) coherent buffer CulledDrawIndirectCount { uint culledDrawIndirectCount; };
+layout(set = 0, binding = 2) coherent buffer CulledIndirectCount { uint culledDrawIndirectCount; };
 layout(set = 0, binding = 3) buffer CulledDrawCommands { DrawCommand culledDrawCommands[]; };
 layout(set = 0, binding = 4) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 5) buffer MaterialIndices { uint materialIndices[]; };
