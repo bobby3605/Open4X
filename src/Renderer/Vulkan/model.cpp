@@ -517,10 +517,12 @@ void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix
     if (_mesh_index.has_value()) {
         if (model->_meshes[_mesh_index.value()].has_value()) {
             for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
+                // FIXME:
+                // An animated node's children won't get the animation
                 if (_has_animation) {
                     instances[instance_index++].data->write(&animated_transform);
                 } else {
-                    instance_index++;
+                    ++instance_index;
                 }
             }
         } else {
@@ -618,13 +620,13 @@ void Model::update_animations(uint64_t const& animation_time_ms) {
         if (node->_has_translation_animation) {
             node->_animation_translation =
                 lerp(node->_translation_outputs[start_keyframe], node->_translation_outputs[end_keyframe], interpolation_time);
-        } else if (node->_has_rotation_animation) {
+        }
+        if (node->_has_rotation_animation) {
             node->_animation_rotation =
                 glm::slerp(node->_rotation_outputs[start_keyframe], node->_rotation_outputs[end_keyframe], interpolation_time);
-        } else if (node->_has_scale_animation) {
+        }
+        if (node->_has_scale_animation) {
             node->_animation_scale = lerp(node->_scale_outputs[start_keyframe], node->_scale_outputs[end_keyframe], interpolation_time);
-        } else {
-            std::cout << "warning: unsupported animation path" << std::endl;
         }
     }
 }
