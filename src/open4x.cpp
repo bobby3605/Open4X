@@ -204,8 +204,8 @@ void Open4X::run() {
         Model* box_animated = _model_manager->get_model(assets_base_path + "BoxAnimated.glb");
         size_t box_animated_id = _object_manager->add_object(box_animated);
         Object* box_animated_object = _object_manager->get_object(box_animated_id);
-
         box_animated_object->position({2, 5, 2});
+        box_animated_object->rotation_euler(180, 0, 0);
 
         std::vector<Light*> lights;
         lights.resize(3);
