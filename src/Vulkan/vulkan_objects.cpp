@@ -131,6 +131,9 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
         if (filePath == (baseDir + "WaterBottle.glb")) {
             objects.back()->z(-3.0f);
         }
+        if (filePath == (baseDir + "BoxAnimated.glb")) {
+            objects.back()->y(-10.0f);
+        }
     }
 
     futureObjects.clear();
@@ -330,8 +333,8 @@ VulkanObjects::VulkanObjects(std::shared_ptr<VulkanDevice> device, VulkanRenderG
     drawCount = indirectDraws.size();
     shaderOptions.pushConstantData = &drawCount;
     // barrier until the CulledDrawIndirectCount buffer has been cleared
-    rg->memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+    rg->memoryBarrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     rg->shader("cull_draw_pass.comp", getGroupCount(drawCount, device->maxComputeWorkGroupInvocations()), 1, 1, shaderOptions);
     rg->timestamp(VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, queryPool, 1);
