@@ -492,11 +492,12 @@ void Model::Node::preallocate(Model* model, size_t count) {
 
 void Model::animate(std::vector<InstanceAllocPair>& instances) {
     size_t instance_index = 0;
+    alignas(32) glm::mat4 identity(1.0f);
     // NOTE:
     // This needs to traverse the model in the same order that write_instance_data does
     for (auto& root_node_index : _scenes[_default_scene].value()->_root_node_indices) {
         if (_nodes[root_node_index].has_value()) {
-            _nodes[root_node_index].value()->animate(this, glm::mat4(1.0f), instances, instance_index);
+            _nodes[root_node_index].value()->animate(this, identity, instances, instance_index);
         } else {
             throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_index) + " doesn't exist: " + path());
         }
@@ -505,23 +506,27 @@ void Model::animate(std::vector<InstanceAllocPair>& instances) {
 
 void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix, std::vector<InstanceAllocPair>& instances,
                           size_t& instance_index) {
+    alignas(32) glm::mat4 animated_transform;
     if (_has_animation) {
-        alignas(32) glm::mat4 animated_transform;
         fast_trs_matrix(_animation_translation, _animation_rotation, _animation_scale, _animation_matrix);
         fast_mat4_mul(parent_animation_matrix, _animation_matrix, _animation_matrix);
         fast_mat4_mul(_animation_matrix, _transform, animated_transform);
-        if (_mesh_index.has_value()) {
-            if (model->_meshes[_mesh_index.value()].has_value()) {
-                for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
-                    instances[instance_index++].data->write(&animated_transform);
-                }
-            } else {
-                throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
-                                         " doesn't exist: " + _model->path());
-            }
-        }
     } else {
         _animation_matrix = parent_animation_matrix;
+    }
+    if (_mesh_index.has_value()) {
+        if (model->_meshes[_mesh_index.value()].has_value()) {
+            for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
+                if (_has_animation) {
+                    instances[instance_index++].data->write(&animated_transform);
+                } else {
+                    instance_index++;
+                }
+            }
+        } else {
+            throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                     " doesn't exist: " + _model->path());
+        }
     }
     for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
         if (_model->_nodes[_child_node_indices[i]].has_value()) {

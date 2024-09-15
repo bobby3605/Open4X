@@ -198,7 +198,7 @@ void Open4X::run() {
         Model* simple_animation = _model_manager->get_model(assets_base_path + "simple_animation.gltf");
         size_t simple_animation_id = _object_manager->add_object(simple_animation);
         Object* simple_animation_object = _object_manager->get_object(simple_animation_id);
-        simple_animation_object->position({2, 2, 2});
+        simple_animation_object->position({2, 10, 4});
 
         Model* box_animated = _model_manager->get_model(assets_base_path + "BoxAnimated.glb");
         size_t box_animated_id = _object_manager->add_object(box_animated);
