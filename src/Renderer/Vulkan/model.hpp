@@ -40,6 +40,9 @@ class Model {
     NewAABB& aabb() { return _aabb; }
     std::string const& path() { return _path; }
     Texture const* get_texture(size_t image_index) { return _textures[image_index]; }
+    void update_animations(uint64_t const& animation_time_ms);
+    void animate(std::vector<InstanceAllocPair>& instances);
+    bool const& has_animations() const { return _has_animations; }
 
     class Scene {
       public:
@@ -65,9 +68,23 @@ class Model {
         void add_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
         void remove_instance(Model* model, std::vector<InstanceAllocPair>& instances, size_t& instance_index);
         void preallocate(Model* model, size_t count);
+        void animate(Model* model, glm::mat4 const& parent_animation_matrix, std::vector<InstanceAllocPair>& instances,
+                     size_t& instance_index);
         std::optional<size_t> _mesh_index;
         std::vector<size_t> _child_node_indices;
         alignas(32) glm::mat4 _transform;
+        alignas(32) glm::mat4 _animation_matrix;
+        glm::vec3 _animation_translation{0.0f, 0.0f, 0.0f};
+        glm::quat _animation_rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        glm::vec3 _animation_scale{1.0f, 1.0f, 1.0f};
+        bool _has_animation = false;
+        bool _has_translation_animation = false;
+        bool _has_rotation_animation = false;
+        bool _has_scale_animation = false;
+        std::vector<float> _animation_times;
+        std::vector<glm::vec3> _translation_outputs;
+        std::vector<glm::quat> _rotation_outputs;
+        std::vector<glm::vec3> _scale_outputs;
 
       private:
         Model* _model;
@@ -152,6 +169,9 @@ class Model {
     void load_meshes(DrawAllocators& draw_allocators);
     std::optional<size_t> gltf_sampler_index;
     DrawAllocators* _draw_allocators;
+    void load_animations();
+    bool _has_animations = false;
+    std::vector<Node*> _animated_nodes;
 };
 
 #endif // MODEL_H_

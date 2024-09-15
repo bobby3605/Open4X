@@ -11,6 +11,7 @@ class ModelManager {
     Model* get_model(std::filesystem::path model_path);
     void remove_model(std::filesystem::path model_path);
     void preallocate(std::filesystem::path model_path, uint32_t count);
+    void refresh_animations(uint64_t const& animation_time_ms);
     void refresh_invalid_draws();
 
   private:

@@ -19,6 +19,7 @@ class Object {
     void scale(glm::vec3 const& new_scale);
     void register_invalid_matrices();
     void refresh_instance_data();
+    void refresh_animations();
 
   protected:
     Model* _model = nullptr;

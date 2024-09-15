@@ -50,6 +50,13 @@ void ModelManager::remove_model(std::filesystem::path model_path) {
 
 void ModelManager::preallocate(std::filesystem::path model_path, uint32_t count) { get_model(model_path)->preallocate(count); }
 
+void ModelManager::refresh_animations(uint64_t const& animation_time_ms) {
+    for (auto model_pair : _models) {
+        Model* model = model_pair.second;
+        model->update_animations(animation_time_ms);
+    }
+}
+
 void ModelManager::refresh_invalid_draws() {
     _invalid_draws_processor->run({.offset = 0, .size = _invalid_draws.size()});
     _invalid_draws.clear();

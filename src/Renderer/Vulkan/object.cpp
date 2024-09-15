@@ -70,6 +70,8 @@ void Object::refresh_instance_data() {
     }
 }
 
+void Object::refresh_animations() { _model->animate(_instances); }
+
 void Object::register_invalid_matrices() {
     // Only register invalid once per update_instance_data call
     if (_instance_data_invalid == false) {

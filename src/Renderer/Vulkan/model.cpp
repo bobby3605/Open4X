@@ -29,6 +29,8 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     }
 
     fastgltf::Options options = fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
+    // NOTE:
+    // asset and _asset are deallocated once the constructor returns
     auto asset = _parser.loadGltf(*_data, path.parent_path(), options);
     if (auto error = asset.error(); error != fastgltf::Error::None) {
         throw std::runtime_error("error " + std::string(fastgltf::getErrorMessage(error)) + " when loading gltf: " + path.string());
@@ -51,6 +53,13 @@ Model::Model(std::filesystem::path path, DrawAllocators& draw_allocators, SubAll
     for (size_t i = 0; i < _asset->scenes.size(); ++i) {
         _scenes[i] = new Scene(this, &_asset->scenes[i], draw_allocators);
     }
+    if (_asset->animations.size() > 0) {
+        _has_animations = true;
+    }
+    // NOTE:
+    // This must happen after Scene is created,
+    // because it needs the nodes to exist
+    load_animations();
 }
 
 Model::~Model() {
@@ -477,6 +486,140 @@ void Model::Node::preallocate(Model* model, size_t count) {
 
             throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
                                      " doesn't exist: " + _model->path());
+        }
+    }
+}
+
+void Model::animate(std::vector<InstanceAllocPair>& instances) {
+    size_t instance_index = 0;
+    // NOTE:
+    // This needs to traverse the model in the same order that write_instance_data does
+    for (auto& root_node_index : _scenes[_default_scene].value()->_root_node_indices) {
+        if (_nodes[root_node_index].has_value()) {
+            _nodes[root_node_index].value()->animate(this, glm::mat4(1.0f), instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(root_node_index) + " doesn't exist: " + path());
+        }
+    }
+}
+
+void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix, std::vector<InstanceAllocPair>& instances,
+                          size_t& instance_index) {
+    if (_has_animation) {
+        alignas(32) glm::mat4 animated_transform;
+        fast_trs_matrix(_animation_translation, _animation_rotation, _animation_scale, _animation_matrix);
+        fast_mat4_mul(parent_animation_matrix, _animation_matrix, _animation_matrix);
+        fast_mat4_mul(_animation_matrix, _transform, animated_transform);
+        if (_mesh_index.has_value()) {
+            if (model->_meshes[_mesh_index.value()].has_value()) {
+                for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
+                    instances[instance_index++].data->write(&animated_transform);
+                }
+            } else {
+                throw std::runtime_error("error: malformed gltf: mesh id: " + std::to_string(_mesh_index.value()) +
+                                         " doesn't exist: " + _model->path());
+            }
+        }
+    } else {
+        _animation_matrix = parent_animation_matrix;
+    }
+    for (uint32_t i = 0; i < _child_node_indices.size(); ++i) {
+        if (_model->_nodes[_child_node_indices[i]].has_value()) {
+            _model->_nodes[_child_node_indices[i]].value()->write_instance_data(model, _animation_matrix, instances, instance_index);
+        } else {
+            throw std::runtime_error("error: malformed gltf: node id: " + std::to_string(_child_node_indices[i]) +
+                                     " doesn't exist: " + _model->path());
+        }
+    }
+}
+
+template <typename T> T lerp(T const& a, T const& b, float time) { return a + time * (b - a); }
+
+void Model::load_animations() {
+    for (fastgltf::Animation const& animation : _asset->animations) {
+        for (fastgltf::AnimationChannel const& channel : animation.channels) {
+            if (channel.nodeIndex.has_value()) {
+                Node* node = _nodes[channel.nodeIndex.value()].value();
+                if (node->_has_animation) {
+                    std::cout << "warning: node id: " << channel.nodeIndex.value() << " has multiple animations on file: " << _path
+                              << std::endl;
+                } else {
+                    _animated_nodes.push_back(node);
+                }
+                node->_has_animation = true;
+                fastgltf::AnimationSampler const& sampler = animation.samplers[channel.samplerIndex];
+                if (sampler.interpolation != fastgltf::AnimationInterpolation::Linear) {
+                    std::cout << "warning: unsupported sampler interpolation" << std::endl;
+                }
+                // Load keyframe times from asset
+                node->_animation_times = load_accessor<float>(_asset, sampler.inputAccessor);
+
+                if (channel.path == fastgltf::AnimationPath::Translation) {
+                    node->_translation_outputs = load_accessor<glm::vec3>(_asset, sampler.outputAccessor);
+                    node->_has_translation_animation = true;
+                } else if (channel.path == fastgltf::AnimationPath::Rotation) {
+                    // NOTE:
+                    // fastgltf requires vec4, and not quat,
+                    // so the values need to be processed into quat
+                    for (auto const& rot : load_accessor<glm::vec4>(_asset, sampler.outputAccessor)) {
+                        node->_rotation_outputs.push_back(glm::make_quat(glm::value_ptr(rot)));
+                    }
+                    node->_has_rotation_animation = true;
+                } else if (channel.path == fastgltf::AnimationPath::Scale) {
+                    node->_scale_outputs = load_accessor<glm::vec3>(_asset, sampler.outputAccessor);
+                    node->_has_scale_animation = true;
+                } else {
+                    std::cout << "warning: unsupported animation path" << std::endl;
+                }
+            }
+        }
+    }
+}
+
+// animation_current_time = now();
+// animation_time_ms = animation_current_time - animation_base_time;
+void Model::update_animations(uint64_t const& animation_time_ms) {
+    for (Node*& node : _animated_nodes) {
+        // Get the maximum keyframe time,
+        // and put the animation time within the keyframe time
+        uint64_t max_time_ms = 1000 * node->_animation_times.back();
+        uint64_t keyframe_time_ms = animation_time_ms % max_time_ms;
+
+        // calculate the keyframe indices
+        size_t start_keyframe = 0;
+        size_t end_keyframe = 0;
+        for (size_t i = 0; i < node->_animation_times.size(); ++i) {
+            uint64_t possible_keyframe_time_ms = 1000 * node->_animation_times[i];
+            if (possible_keyframe_time_ms <= keyframe_time_ms) {
+                start_keyframe = i;
+            } else {
+                end_keyframe = i;
+                break;
+            }
+        }
+
+        // calculate the time between the keyframes
+        float interpolation_time = 1;
+        float start_keyframe_time_ms = 1000 * node->_animation_times[start_keyframe];
+        float end_keyframe_time_ms = 1000 * node->_animation_times[end_keyframe];
+        if (start_keyframe != end_keyframe) {
+            interpolation_time = (keyframe_time_ms - start_keyframe_time_ms) / (end_keyframe_time_ms - start_keyframe_time_ms);
+        }
+
+        // TODO:
+        // support non-lerp interpolation
+        // fastgltf::AnimationInterpolation const& interpolation = animation.samplers[channel.samplerIndex].interpolation;
+
+        if (node->_has_translation_animation) {
+            node->_animation_translation =
+                lerp(node->_translation_outputs[start_keyframe], node->_translation_outputs[end_keyframe], interpolation_time);
+        } else if (node->_has_rotation_animation) {
+            node->_animation_rotation =
+                glm::slerp(node->_rotation_outputs[start_keyframe], node->_rotation_outputs[end_keyframe], interpolation_time);
+        } else if (node->_has_scale_animation) {
+            node->_animation_scale = lerp(node->_scale_outputs[start_keyframe], node->_scale_outputs[end_keyframe], interpolation_time);
+        } else {
+            std::cout << "warning: unsupported animation path" << std::endl;
         }
     }
 }

@@ -33,6 +33,9 @@ ObjectManager::~ObjectManager() {
 
 size_t ObjectManager::add_object(Model* model) {
     _objects.push_back(new Object(model, _invalid_objects));
+    if (model->has_animations()) {
+        _animated_objects.push_back(_objects.back());
+    }
     return _objects.size() - 1;
 }
 
@@ -60,6 +63,12 @@ void ObjectManager::refresh_invalid_objects() {
     // mutex to block object from modifying invalid_objects
     _invalid_objects_processor->run({.offset = 0, .size = _invalid_objects.size()});
     _invalid_objects.clear();
+}
+
+void ObjectManager::refresh_animated_objects() {
+    for (Object* object : _animated_objects) {
+        object->refresh_animations();
+    }
 }
 
 void ObjectManager::preallocate(size_t const& count) {

@@ -195,6 +195,17 @@ void Open4X::run() {
         a_beautiful_game_object->rotation_euler(180, 0, 0);
         a_beautiful_game_object->scale({2, 2, 2});
 
+        Model* simple_animation = _model_manager->get_model(assets_base_path + "simple_animation.gltf");
+        size_t simple_animation_id = _object_manager->add_object(simple_animation);
+        Object* simple_animation_object = _object_manager->get_object(simple_animation_id);
+        simple_animation_object->position({2, 2, 2});
+
+        Model* box_animated = _model_manager->get_model(assets_base_path + "BoxAnimated.glb");
+        size_t box_animated_id = _object_manager->add_object(box_animated);
+        Object* box_animated_object = _object_manager->get_object(box_animated_id);
+
+        box_animated_object->position({2, 10, 2});
+
         std::vector<Light*> lights;
         lights.resize(3);
         Model* duck_model = _model_manager->get_model(assets_base_path + "Duck.glb");
@@ -239,6 +250,7 @@ void Open4X::run() {
                   << std::endl;
 
         float title_frame_time = 0.0f;
+        std::chrono::time_point<std::chrono::system_clock> animation_base_time = std::chrono::high_resolution_clock::now();
         while (!glfwWindowShouldClose(Window::window->glfw_window())) {
             auto current_time = std::chrono::high_resolution_clock::now();
             float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
@@ -264,7 +276,10 @@ void Open4X::run() {
                 }
             }
 
+            uint64_t animation_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - animation_base_time).count();
+            _model_manager->refresh_animations(animation_time_ms);
             _object_manager->refresh_invalid_objects();
+            _object_manager->refresh_animated_objects();
             _model_manager->refresh_invalid_draws();
             cam.update_transform(frame_time);
             // TODO

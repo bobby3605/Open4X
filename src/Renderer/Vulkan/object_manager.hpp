@@ -23,6 +23,7 @@ class ObjectManager {
     size_t object_count();
     void set_name(size_t const& object_id, std::string const& name);
     void refresh_invalid_objects();
+    void refresh_animated_objects();
     void preallocate(size_t const& count);
     void create_n_objects(Model* model, size_t const& count);
     size_t add_light(Model* model);
@@ -31,6 +32,7 @@ class ObjectManager {
 
   private:
     std::vector<Object*> _objects;
+    std::vector<Object*> _animated_objects;
     std::vector<Light*> _lights;
     std::unordered_map<std::string, size_t> _object_names;
     safe_vector<Object*> _invalid_objects;
