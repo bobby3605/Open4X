@@ -6,6 +6,7 @@
 #include "fastgltf/math.hpp"
 #include "fastgltf/types.hpp"
 #include "memory_manager.hpp"
+#include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
@@ -561,6 +562,7 @@ void Model::load_animations() {
                 }
                 // Load keyframe times from asset
                 node->_animation_times = load_accessor<float>(_asset, sampler.inputAccessor);
+                _max_animation_time_ms = std::max(_max_animation_time_ms, (uint64_t)(1000 * node->_animation_times.back()));
 
                 if (channel.path == fastgltf::AnimationPath::Translation) {
                     node->_translation_outputs = load_accessor<glm::vec3>(_asset, sampler.outputAccessor);
@@ -590,12 +592,11 @@ void Model::update_animations(uint64_t const& animation_time_ms) {
     for (Node*& node : _animated_nodes) {
         // Get the maximum keyframe time,
         // and put the animation time within the keyframe time
-        uint64_t max_time_ms = 1000 * node->_animation_times.back();
-        uint64_t keyframe_time_ms = animation_time_ms % max_time_ms;
+        uint64_t keyframe_time_ms = animation_time_ms % _max_animation_time_ms;
 
         // calculate the keyframe indices
         size_t start_keyframe = 0;
-        size_t end_keyframe = 0;
+        size_t end_keyframe = node->_animation_times.size() - 1;
         for (size_t i = 0; i < node->_animation_times.size(); ++i) {
             uint64_t possible_keyframe_time_ms = 1000 * node->_animation_times[i];
             if (possible_keyframe_time_ms <= keyframe_time_ms) {

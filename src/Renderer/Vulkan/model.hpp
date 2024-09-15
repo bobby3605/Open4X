@@ -173,6 +173,7 @@ class Model {
     void load_animations();
     bool _has_animations = false;
     std::vector<Node*> _animated_nodes;
+    uint64_t _max_animation_time_ms = 1;
 };
 
 #endif // MODEL_H_
