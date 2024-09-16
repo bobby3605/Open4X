@@ -4,7 +4,7 @@
 #extension GL_KHR_shader_subgroup_ballot : require
 
 layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
-layout(constant_id = 1) const uint SUBGROUP_SIZE = 16;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 32;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform frustum_consts {
