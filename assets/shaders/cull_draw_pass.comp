@@ -26,22 +26,8 @@ layout(set = 0, binding = 4) buffer MaterialIndices { uint materialIndices[]; };
 layout(set = 0, binding = 5) buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
 
 uint visibleInstances(uint di) {
-    if (di != 0) {
-        // prefixSum has an entry for each instance and is kept in order
-        // prefixSum[drawCommands[di].instanceCount - 1] is the sum of all visible instances inclusive
-        // prefixSum[drawCommands[di - 1].instanceCount - 1] is the sum of all visible instances of the previous draw, inclusive
-        // their difference is the number of visible instances of drawCommands[di]
-        // NOTE:
-        // draws must be sorted in ascending order by firstInstance
-        DrawCommand currDraw = drawCommands[di];
-        DrawCommand prevDraw = drawCommands[di - 1];
-        return prefixSum[currDraw.firstInstance + currDraw.instanceCount - 1] -
-               prefixSum[prevDraw.firstInstance + prevDraw.instanceCount - 1];
-    } else {
-        // NOTE:
-        // This probably doesn't need to be offset by firstInstance
-        return prefixSum[drawCommands[di].firstInstance + drawCommands[di].instanceCount - 1];
-    }
+    DrawCommand draw_cmd = drawCommands[di];
+    return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount] - prefixSum[draw_cmd.firstInstance];
 }
 
 void main() {
