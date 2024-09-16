@@ -106,11 +106,11 @@ bool Renderer::render() {
     match_size("InstanceIndices", "CulledInstanceIndices");
     match_size("MaterialIndices", "CulledMaterialIndices");
     // match_size("indirect_count", "CulledIndirectCount");
-    PtrWriter writer(rg->get_push_constant("frustum_consts"));
     match_size("InstanceIndices", "PrefixSum");
     match_size("InstanceIndices", "PartialSums");
     match_size("InstanceIndices", "ActiveLanes");
     match_size("indirect_commands", "CulledDrawCommands");
+    PtrWriter writer(rg->get_push_constant("frustum_consts"));
     writer.write(gpu_allocator->get_buffer("InstanceIndices")->size());
     return rg->render();
 }

@@ -96,6 +96,20 @@ Open4X::~Open4X() {
     }
 }
 
+/*
+    uint totalInstanceCount;
+    float nearD;
+    float farD;
+    float ratio;
+    float sphereFactorX;
+    float sphereFactorY;
+    float tang;
+    vec3 X;
+    vec3 Y;
+    vec3 Z;
+    vec3 camPos;
+  */
+
 void fillComputePushConstants(ComputePushConstants& computePushConstants, float vFov, float aspectRatio, float nearClip, float farClip) {
     computePushConstants.nearD = nearClip;
     computePushConstants.farD = farClip;
