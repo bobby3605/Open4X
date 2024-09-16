@@ -3,6 +3,10 @@
 layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
+layout(push_constant) uniform frustum_consts {
+    uint totalInstanceCount;
+};
+
 struct DrawCommand {
     uint indexCount;
     uint instanceCount;
@@ -38,10 +42,18 @@ uint visibleInstances(uint di) {
     drawCommand1.instanceCount = 2;
 
     prefixSum[drawCommand1.firstInstance + drawCommand1.instanceCount] - prefixSum[drawCommand1.firstInstance] + 1
+
+    don't need + 1 because prefixSum starts at 1
     */
 
     DrawCommand draw_cmd = drawCommands[di];
-    return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount] - prefixSum[draw_cmd.firstInstance];
+    if(draw_cmd.firstInstance + draw_cmd.instanceCount >= totalInstanceCount){
+        // FIXME:
+        // Maybe not always add 1, because the last instance might be invisible
+        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount - 1] - prefixSum[draw_cmd.firstInstance] + 1;
+    } else {
+        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount] - prefixSum[draw_cmd.firstInstance];
+    }
 }
 
 void main() {

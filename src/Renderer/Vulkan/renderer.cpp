@@ -90,7 +90,7 @@ void Renderer::create_data_buffers() {
     gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "ActiveLanes");
 
-    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledDrawCommands");
 }
 
@@ -111,7 +111,7 @@ bool Renderer::render() {
     match_size("InstanceIndices", "ActiveLanes");
     match_size("indirect_commands", "CulledDrawCommands");
     PtrWriter writer(rg->get_push_constant("frustum_consts"));
-    writer.write(gpu_allocator->get_buffer("InstanceIndices")->size());
+    writer.write(gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t));
     return rg->render();
 }
 
@@ -224,7 +224,7 @@ void Renderer::create_rendergraph() {
 
     rg->add_dynamic_node({}, [&](RenderNode& node) {
         node.op = [&](VkCommandBuffer cmd_buffer) {
-            vkCmdDrawIndexedIndirectCount(cmd_buffer, draw_allocators.indirect_commands->parent()->buffer(), 0,
+            vkCmdDrawIndexedIndirectCount(cmd_buffer, gpu_allocator->get_buffer("CulledDrawCommands")->buffer(), 0,
                                           gpu_allocator->get_buffer("CulledIndirectCount")->buffer(), 0,
                                           draw_allocators.indirect_commands->block_count(),
                                           draw_allocators.indirect_commands->block_size());
