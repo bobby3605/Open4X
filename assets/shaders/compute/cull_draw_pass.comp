@@ -53,18 +53,16 @@ void main() {
     if (visibleInstanceCount > 0) {
         DrawCommand drawCommand = drawCommands[drawIndex];
         drawCommand.instanceCount = visibleInstanceCount;
+        uint new_draw_index = atomicAdd(culledDrawIndirectCount, 1);
+        culledMaterialIndices[new_draw_index] = materialIndices[drawIndex];
+
         // NOTE:
         // convert to buffer index with - 1
         if (drawCommand.firstInstance != 0) {
-            uint newIndex = prefixSum[drawCommand.firstInstance - 1];
-            culledMaterialIndices[newIndex] = materialIndices[drawCommand.firstInstance];
-            drawCommand.firstInstance = newIndex;
-        } else {
-            culledMaterialIndices[0] = materialIndices[0];
+            drawCommand.firstInstance = prefixSum[drawCommand.firstInstance - 1];
         }
-
         // FIXME:
         // use compact instead of atomicAdd
-        culledDrawCommands[atomicAdd(culledDrawIndirectCount, 1)] = drawCommand;
+        culledDrawCommands[new_draw_index] = drawCommand;
     }
 }
