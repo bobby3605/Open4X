@@ -23,7 +23,6 @@ layout(set = 0, binding = 4) buffer PrefixSum { uint prefixSum[]; };
 layout(set = 0, binding = 5) buffer MaterialIndices { uint materialIndices[]; };
 layout(set = 0, binding = 6) buffer CulledMaterialIndices { uint culledMaterialIndices[]; };
 
-uint visibleInstances(uint di) {
     /*
     instances = [2,4,5,3,6,...]
     [0,1,1,0,1,1,1,0,0,0,1] = isVisible(instance)
@@ -46,13 +45,15 @@ uint visibleInstances(uint di) {
     don't need + 1 because prefixSum starts at 1
     */
 
+uint visibleInstances(uint di) {
     DrawCommand draw_cmd = drawCommands[di];
-    if(draw_cmd.firstInstance + draw_cmd.instanceCount >= totalInstanceCount){
-        // FIXME:
-        // Maybe not always add 1, because the last instance might be invisible
-        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount - 1] - prefixSum[draw_cmd.firstInstance] + 1;
+    if(draw_cmd.instanceCount == 0){
+        return 0;
+    }
+    if(draw_cmd.firstInstance != 0){
+        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount - 1] - prefixSum[draw_cmd.firstInstance - 1];
     } else {
-        return prefixSum[draw_cmd.firstInstance + draw_cmd.instanceCount] - prefixSum[draw_cmd.firstInstance];
+        return prefixSum[draw_cmd.instanceCount - 1];
     }
 }
 
