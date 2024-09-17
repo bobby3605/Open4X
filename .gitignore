@@ -6,3 +6,4 @@ assets/cache
 .cache
 callgrind.out.*
 perf.data*
+result

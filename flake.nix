@@ -12,16 +12,17 @@
       pkgs = import nixpkgs {
         inherit system;
       };
+      glslang-shared = pkgs.callPackage /home/bobby/Projects/Open4X/glslang-shared.nix {};
     in pkgs.mkShell {
-      nativeBuildInputs = with pkgs; [
-	glm
-	vulkan-headers
-	vulkan-loader
-	vulkan-validation-layers
-	glfw
-	glslang
-	spirv-cross
-	shaderc
+      packages = with pkgs; [
+        glm
+        vulkan-headers
+        vulkan-loader
+        vulkan-validation-layers
+        glfw
+        spirv-cross
+        spirv-tools
+        glslang-shared
       ];
       shellHook = ''
         exec zsh
