@@ -13,7 +13,7 @@
         inherit system;
       };
     in pkgs.mkShell {
-      packages = with pkgs; [
+      nativeBuildInputs = with pkgs; [
 	glm
 	vulkan-headers
 	vulkan-loader

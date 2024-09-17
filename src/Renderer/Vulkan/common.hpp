@@ -2,6 +2,7 @@
 #define NEWCOMMON_H_
 
 #include <cstdint>
+#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <unordered_map>

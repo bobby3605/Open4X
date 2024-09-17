@@ -17,10 +17,6 @@ project("${PROJECT_NAME}")
 file(GLOB SOURCES
   src/*.hpp
   src/*.cpp
-#  src/Vulkan/*.hpp
-#  src/Vulkan/*.cpp
-  src/glTF/*.hpp
-  src/glTF/*.cpp
   src/Renderer/Vulkan/*.hpp
   src/Renderer/Vulkan/*.cpp
   src/Renderer/Allocator/*.hpp
@@ -31,27 +27,14 @@ file(GLOB SOURCES
 
 add_executable("${PROJECT_NAME}" ${SOURCES})
 
-set(ALLOW_EXTERNAL_SPIRV_TOOLS ON)
-add_subdirectory(external/glslang/glslang/)
-add_subdirectory(external/SPIRV-Cross/SPIRV-Cross/)
 add_subdirectory(external/VulkanMemoryAllocator/VulkanMemoryAllocator/)
 add_subdirectory(external/fastgltf/fastgltf/)
 
 target_include_directories("${PROJECT_NAME}" PUBLIC
   external/rapidjson/rapidjson/include
   external/stb
-  external/glslang/glslang/glslang
-  external/glslang/glslang/SPIRV
-  external/SPIRV-Cross/
   external/VulkanMemoryAllocator
   external/fastgltf
 )
 
-# glslang libraries
-# TODO
-# static build, don't use system libraries
-# include static spirv-tools
-target_link_libraries("${PROJECT_NAME}" PUBLIC glslang glslang-default-resource-limits SPIRV spirv-cross-cpp GPUOpen::VulkanMemoryAllocator fastgltf)
-
-set(LIBRARY_FLAGS "-lglfw -lvulkan -ldl -lpthread")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LIBRARY_FLAGS}")
+target_link_libraries("${PROJECT_NAME}" PUBLIC vulkan glfw glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt spirv-cross-glsl spirv-cross-core GPUOpen::VulkanMemoryAllocator fastgltf)

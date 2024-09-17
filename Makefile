@@ -16,7 +16,7 @@ shaders:
 	cmake --build build/ --target shaders
 
 clean:
-	rm -r build
+	rm -rf build
 
 clean_cache:
 	rm -r assets/cache/*

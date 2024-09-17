@@ -1,5 +1,4 @@
 #include "shader.hpp"
-#include "SPIRV-Cross/spirv_cross.hpp"
 #include "common.hpp"
 #include "descriptors.hpp"
 #include "device.hpp"
@@ -7,17 +6,16 @@
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/stream.h"
 #include "rapidjson/writer.h"
-#include "spirv.hpp"
 #include <filesystem>
 #include <fstream>
-#include <glslang/Include/ResourceLimits.h>
-#include <glslang/MachineIndependent/Versions.h>
-#include <glslang/MachineIndependent/localintermediate.h>
 #include <glslang/Public/ResourceLimits.h>
+#include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
+#include <set>
 #include <spirv-tools/libspirv.h>
 #include <spirv-tools/libspirv.hpp>
 #include <spirv-tools/optimizer.hpp>
+#include <spirv_cross/spirv_cross.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
