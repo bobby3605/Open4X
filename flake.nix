@@ -21,6 +21,7 @@
 	glfw
 	glslang
 	spirv-cross
+	shaderc
       ];
       shellHook = ''
         exec zsh
