@@ -4,12 +4,11 @@
 #include "device.hpp"
 #include "draw.hpp"
 #include "globals.hpp"
-#include "light.hpp"
 #include "memory_manager.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 
-Renderer::Renderer(NewSettings* settings) : _settings(settings) {
+Renderer::Renderer(Settings* settings) : _settings(settings) {
     new Device();
     globals.device = Device::device;
     new MemoryManager();

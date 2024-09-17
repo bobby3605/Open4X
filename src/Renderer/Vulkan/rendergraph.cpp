@@ -58,7 +58,7 @@ void RenderGraph::record_buffer(VkCommandBuffer command_buffer, VkCommandBufferU
 
 void RenderGraph::recreate_swap_chain() {
     // pause on minimization
-    if (new_settings->pause_on_minimization) {
+    if (settings->pause_on_minimization) {
         int width = 0, height = 0;
         while (width == 0 || height == 0) {
             glfwGetFramebufferSize(Window::window->glfw_window(), &width, &height);

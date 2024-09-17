@@ -10,6 +10,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../Allocator/allocation.hpp"
 #include "stb/stb_image.h"
+#include <iostream>
 
 VkSamplerAddressMode switch_wrap(uint32_t wrap) {
     switch (wrap) {

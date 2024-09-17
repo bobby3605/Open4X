@@ -9,7 +9,7 @@ ModelManager::ModelManager(DrawAllocators& draw_allocators) : _draw_allocators(d
     _default_material_alloc = draw_allocators.material_data->alloc();
     NewMaterialData default_material{};
     _default_material_alloc->write(&default_material);
-    _invalid_draws_processor = new ChunkProcessor<Draw*, safe_vector>(_invalid_draws, new_settings->invalid_draws_refresh_threads,
+    _invalid_draws_processor = new ChunkProcessor<Draw*, safe_vector>(_invalid_draws, settings->invalid_draws_refresh_threads,
                                                                       [&](size_t i) { _invalid_draws[i]->write_indirect_command(); });
 
     _default_samplers[0] = new Sampler();

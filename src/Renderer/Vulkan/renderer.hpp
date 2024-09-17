@@ -8,7 +8,7 @@
 
 class Renderer {
   public:
-    Renderer(NewSettings* settings);
+    Renderer(Settings* settings);
     ~Renderer();
     void create_data_buffers();
     // Return true if swapchain was recreated
@@ -17,7 +17,7 @@ class Renderer {
     RenderGraph* rg;
 
   private:
-    NewSettings* _settings;
+    Settings* _settings;
     VkCommandPool _command_pool;
 
     void create_rendergraph();

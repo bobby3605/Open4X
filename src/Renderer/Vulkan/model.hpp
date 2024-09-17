@@ -9,7 +9,6 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
 

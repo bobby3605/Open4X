@@ -1,14 +1,9 @@
 #ifndef NEWCOMMON_H_
 #define NEWCOMMON_H_
 
-#include "../../utils/math.hpp"
 #include <cstdint>
 #include <fcntl.h>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan.h>
@@ -39,7 +34,7 @@ def_vk_ext_hpp(vkCmdSetDescriptorBufferOffsets2EXT);
 #define load_instance_addr(f_name, instance) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetInstanceProcAddr(instance, #f_name))
 #define load_device_addr(f_name, device) f_name##_ = reinterpret_cast<PFN_##f_name>(vkGetDeviceProcAddr(device, #f_name))
 
-struct NewSettings {
+struct Settings {
     uint32_t extra_object_count = 10000;
     uint32_t rand_limit = 100;
     bool show_fps = true;
@@ -49,7 +44,7 @@ struct NewSettings {
     uint32_t invalid_draws_refresh_threads = 0;
 };
 
-inline NewSettings* new_settings;
+inline Settings* settings;
 
 std::string get_file_extension(std::string file_path);
 

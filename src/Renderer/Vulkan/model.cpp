@@ -1,6 +1,5 @@
 #include "model.hpp"
 #include "../../utils/math.hpp"
-#include "common.hpp"
 #include "draw.hpp"
 #include "fastgltf/core.hpp"
 #include "fastgltf/math.hpp"

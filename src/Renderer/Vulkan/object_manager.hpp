@@ -2,7 +2,6 @@
 #define OBJECT_MANAGER_H_
 
 #include "../../utils/utils.hpp"
-#include "../Allocator/base_allocator.hpp"
 #include "light.hpp"
 #include "object.hpp"
 #include <cstddef>

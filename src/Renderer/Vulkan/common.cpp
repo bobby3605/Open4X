@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/mman.h>
