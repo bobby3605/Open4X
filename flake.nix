@@ -12,7 +12,8 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-      glslang-shared = pkgs.callPackage /home/bobby/Projects/Open4X/glslang-shared.nix {};
+      PROJECT_ROOT = builtins.toString ./.;
+      glslang-shared = pkgs.callPackage "${PROJECT_ROOT}/glslang-shared.nix" {};
     in pkgs.mkShell {
       packages = with pkgs; [
         glm
