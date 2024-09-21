@@ -261,7 +261,7 @@ Model::Mesh::Mesh(Model* model, fastgltf::Mesh* mesh, DrawAllocators const& draw
 
 Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, DrawAllocators const& draw_allocators)
     : _model(model), _primitive(primitive) {
-    std::vector<NewVertex> tmp_vertices;
+    std::vector<Vertex> tmp_vertices;
     std::vector<glm::vec3> positions = get_positions();
     std::vector<glm::vec3> normals = get_normals();
     tmp_vertices.resize(positions.size());
@@ -296,12 +296,12 @@ Model::Mesh::Primitive::Primitive(Model* model, fastgltf::Primitive* primitive, 
         _indices = load_accessor<uint32_t>(_model->_asset, *primitive->indicesAccessor);
     } else {
         // Generate indices if none exist
-        std::unordered_map<NewVertex, uint32_t> unique_vertices;
+        std::unordered_map<Vertex, uint32_t> unique_vertices;
         // Preallocate
         unique_vertices.reserve(tmp_vertices.size());
         _indices.reserve(tmp_vertices.size());
         _vertices.reserve(tmp_vertices.size());
-        for (NewVertex& vertex : tmp_vertices) {
+        for (Vertex& vertex : tmp_vertices) {
             if (unique_vertices.count(vertex) == 0) {
                 unique_vertices[vertex] = static_cast<uint32_t>(_vertices.size());
                 _vertices.push_back(vertex);

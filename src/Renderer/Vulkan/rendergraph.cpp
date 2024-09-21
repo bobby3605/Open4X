@@ -223,7 +223,8 @@ void RenderGraph::end_rendering() {
 
 void RenderGraph::graphics_pass(std::filesystem::path const& vert_path, std::filesystem::path const& frag_path,
                                 LinearAllocator<GPUAllocation>* vertex_buffer_allocator,
-                                LinearAllocator<GPUAllocation>* index_buffer_allocator, void* vert_spec_data, void* frag_spec_data) {
+                                LinearAllocator<GPUAllocation>* index_buffer_allocator, void* vert_spec_data, void* frag_spec_data,
+                                VkPrimitiveTopology const& topology) {
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     pipeline_rendering_info.colorAttachmentCount = 1;
@@ -233,10 +234,10 @@ void RenderGraph::graphics_pass(std::filesystem::path const& vert_path, std::fil
     std::shared_ptr<GraphicsPipeline> pipeline;
     if (Device::device->use_descriptor_buffers()) {
         pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path, vert_spec_data,
-                                                      frag_spec_data, _descriptor_buffer_allocator);
+                                                      frag_spec_data, topology, _descriptor_buffer_allocator);
     } else {
         pipeline = std::make_shared<GraphicsPipeline>(pipeline_rendering_info, _swap_chain->extent(), vert_path, frag_path, vert_spec_data,
-                                                      frag_spec_data);
+                                                      frag_spec_data, topology);
     }
 
     add_pipeline(pipeline);

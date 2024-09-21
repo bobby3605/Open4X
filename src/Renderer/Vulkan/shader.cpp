@@ -15,6 +15,7 @@
 #include <spirv-tools/libspirv.h>
 #include <spirv-tools/libspirv.hpp>
 #include <spirv-tools/optimizer.hpp>
+#include <spirv_cross/spirv.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan.h>
@@ -146,6 +147,7 @@ void Shader::create_module() {
     create_info.pCode = _spirv.data();
 
     check_result(vkCreateShaderModule(Device::device->vk_device(), &create_info, nullptr, &_module), "failed to create shader module");
+    Device::device->set_debug_name(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)_module, _path);
 
     _stage_info.module = _module;
     _stage_info.pName = _entry_point.c_str();
@@ -349,5 +351,35 @@ void Shader::reflect() {
         _spec_info.pMapEntries = _spec_entries.data();
         // offset should be the total size of the spec constants by the end of the loop
         _spec_info.dataSize = offset;
+    }
+
+    auto size_to_format = [](size_t vec_size) {
+        switch (vec_size) {
+        case 2:
+            return VK_FORMAT_R32G32_SFLOAT;
+        case 3:
+            return VK_FORMAT_R32G32B32_SFLOAT;
+        default:
+            std::runtime_error("unsupported vertex attribute size: " + std::to_string(vec_size));
+        }
+    };
+
+    if (_stage_info.stage == VK_SHADER_STAGE_VERTEX_BIT) {
+        size_t offset = 0;
+        // TODO:
+        // handle non-zero binding numbers
+        for (const spirv_cross::Resource& resource : res.stage_inputs) {
+            const spirv_cross::SPIRType& type = comp.get_type(resource.type_id);
+            VkVertexInputAttributeDescription description{};
+            description.binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+            description.location = comp.get_decoration(resource.id, spv::DecorationLocation);
+            description.format = size_to_format(type.vecsize);
+            description.offset = offset;
+            offset += type.vecsize * sizeof(float);
+            _attribute_descriptions.push_back(description);
+        }
+        _binding_description.binding = 0;
+        _binding_description.stride = offset;
+        _binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     }
 }

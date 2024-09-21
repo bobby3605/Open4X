@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vulkan/vulkan_core.h>
 
 typedef std::function<void(VkCommandBuffer)> RenderOp;
 // Needs to be shared and not unique for type erasure
@@ -76,7 +77,8 @@ class RenderGraph {
     // Remove the SwapChain dependency
     void graphics_pass(std::filesystem::path const& vert_path, std::filesystem::path const& frag_path,
                        LinearAllocator<GPUAllocation>* vertex_buffer_allocator, LinearAllocator<GPUAllocation>* index_buffer_allocator,
-                       void* vert_spec_data = nullptr, void* frag_spec_data = nullptr);
+                       void* vert_spec_data = nullptr, void* frag_spec_data = nullptr,
+                       VkPrimitiveTopology const& topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     void compute_pass(std::filesystem::path const& compute_path, void* compute_spec_data = nullptr);
     void buffer(std::string name, VkDeviceSize size);
     template <typename T> void set_push_constant(std::string const& name, T data) {

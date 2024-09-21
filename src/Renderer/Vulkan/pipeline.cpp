@@ -62,25 +62,26 @@ GraphicsPipeline::~GraphicsPipeline() {
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent,
                                    std::filesystem::path const& vert_path, std::filesystem::path const& frag_path, void* vert_spec_data,
-                                   void* frag_spec_data) {
-    create(pipeline_rendering_info, extent, vert_path, frag_path, vert_spec_data, frag_spec_data);
+                                   void* frag_spec_data, VkPrimitiveTopology const& topology) {
+    create(pipeline_rendering_info, extent, vert_path, frag_path, vert_spec_data, frag_spec_data, topology);
 }
 
 GraphicsPipeline::GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent,
                                    std::filesystem::path const& vert_path, std::filesystem::path const& frag_path, void* vert_spec_data,
-                                   void* frag_spec_data, LinearAllocator<GPUAllocation>* descriptor_buffer_allocator)
+                                   void* frag_spec_data, VkPrimitiveTopology const& topology,
+                                   LinearAllocator<GPUAllocation>* descriptor_buffer_allocator)
     : Pipeline(descriptor_buffer_allocator) {
-    create(pipeline_rendering_info, extent, vert_path, frag_path, vert_spec_data, frag_spec_data);
+    create(pipeline_rendering_info, extent, vert_path, frag_path, vert_spec_data, frag_spec_data, topology);
 }
 
 void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent,
                               std::filesystem::path const& vert_path, std::filesystem::path const& frag_path, void* vert_spec_data,
-                              void* frag_spec_data) {
+                              void* frag_spec_data, VkPrimitiveTopology const& topology) {
     _bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
     _pipeline_name = get_filename_no_ext(vert_path);
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly.topology = topology;
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport{};
@@ -190,16 +191,11 @@ void GraphicsPipeline::create(VkPipelineRenderingCreateInfo& pipeline_rendering_
 
     load_shaders({vert_path, frag_path}, {vert_spec_data, frag_spec_data});
 
-    // FIXME:
-    // Get this from the vertex shader
-    auto binding_description = NewVertex::binding_description();
-    auto attribute_descriptions = NewVertex::attribute_descriptions();
-
     VkPipelineVertexInputStateCreateInfo vertex_input_info{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertex_input_info.vertexBindingDescriptionCount = 1;
-    vertex_input_info.pVertexBindingDescriptions = &binding_description;
-    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
-    vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data();
+    vertex_input_info.pVertexBindingDescriptions = &_shaders[0]->binding_description();
+    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(_shaders[0]->attribute_descriptions().size());
+    vertex_input_info.pVertexAttributeDescriptions = _shaders[0]->attribute_descriptions().data();
 
     pipeline_info.stageCount = _shader_stages.size();
     pipeline_info.pStages = _shader_stages.data();

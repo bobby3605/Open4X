@@ -40,45 +40,16 @@ struct NewMaterialData {
     // It didn't need any before the rewrite...
 };
 
-struct NewVertex {
+struct Vertex {
     glm::vec3 pos = {0, 0, 0};
     glm::vec2 tex_coord = {0, 0};
     glm::vec3 normal = {0, 0, 1};
-    bool operator==(const NewVertex& other) const { return pos == other.pos && tex_coord == other.tex_coord && normal == other.normal; }
-
-    static VkVertexInputBindingDescription binding_description() {
-        VkVertexInputBindingDescription binding_description{};
-        binding_description.binding = 0;
-        binding_description.stride = sizeof(NewVertex);
-        binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return binding_description;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions() {
-        std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions;
-        attribute_descriptions[0].binding = 0;
-        attribute_descriptions[0].location = 0;
-        attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[0].offset = offsetof(NewVertex, pos);
-
-        attribute_descriptions[1].binding = 0;
-        attribute_descriptions[1].location = 1;
-        attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attribute_descriptions[1].offset = offsetof(NewVertex, tex_coord);
-
-        attribute_descriptions[2].binding = 0;
-        attribute_descriptions[2].location = 2;
-        attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[2].offset = offsetof(NewVertex, normal);
-
-        return attribute_descriptions;
-    }
+    bool operator==(const Vertex& other) const { return pos == other.pos && tex_coord == other.tex_coord && normal == other.normal; }
 };
 
 namespace std {
-template <> struct hash<NewVertex> {
-    size_t operator()(NewVertex const& vertex) const {
+template <> struct hash<Vertex> {
+    size_t operator()(Vertex const& vertex) const {
         return (hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec2>()(vertex.tex_coord))) ^ (hash<glm::vec2>()(vertex.normal));
     }
 };
@@ -94,7 +65,7 @@ struct InstanceAllocPair {
 
 class Draw {
   public:
-    Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
+    Draw(DrawAllocators const& draw_allocators, std::vector<Vertex> const& vertices, std::vector<uint32_t> const& indices,
          SubAllocation<FixedAllocator, GPUAllocation>* material_alloc, safe_vector<Draw*>& invalid_draws);
     ~Draw();
     void preallocate(uint32_t count);

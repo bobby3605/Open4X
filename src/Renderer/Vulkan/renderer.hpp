@@ -19,6 +19,8 @@ class Renderer {
   private:
     Settings* _settings;
     VkCommandPool _command_pool;
+    ContiguousFixedAllocator<GPUAllocation>* _obb_commands;
+    SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _obb_command;
 
     void create_rendergraph();
 };

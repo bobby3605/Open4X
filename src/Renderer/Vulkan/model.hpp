@@ -108,12 +108,12 @@ class Model {
             // TODO
             // vertices should be generic
             // char* and a byte size
-            std::vector<NewVertex> _vertices;
+            std::vector<Vertex> _vertices;
             std::vector<uint32_t> _indices;
             AABB _aabb;
 
           public:
-            std::vector<NewVertex> const& vertices() const { return _vertices; }
+            std::vector<Vertex> const& vertices() const { return _vertices; }
             std::vector<uint32_t> const& indices() const { return _indices; }
 
           private:

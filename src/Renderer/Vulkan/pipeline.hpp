@@ -33,15 +33,16 @@ class Pipeline {
 class GraphicsPipeline : public Pipeline {
   public:
     GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::filesystem::path const& vert_path,
-                     std::filesystem::path const& frag_path, void* vert_spec_data, void* frag_spec_data);
+                     std::filesystem::path const& frag_path, void* vert_spec_data, void* frag_spec_data,
+                     VkPrimitiveTopology const& topology);
     GraphicsPipeline(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::filesystem::path const& vert_path,
                      std::filesystem::path const& frag_path, void* vert_spec_data, void* frag_spec_data,
-                     LinearAllocator<GPUAllocation>* descriptor_buffer_allocator);
+                     VkPrimitiveTopology const& topology, LinearAllocator<GPUAllocation>* descriptor_buffer_allocator);
     ~GraphicsPipeline();
 
   private:
     void create(VkPipelineRenderingCreateInfo& pipeline_rendering_info, VkExtent2D extent, std::filesystem::path const& vert_path,
-                std::filesystem::path const& frag_path, void* vert_spec_data, void* frag_spec_data);
+                std::filesystem::path const& frag_path, void* vert_spec_data, void* frag_spec_data, VkPrimitiveTopology const& topology);
 };
 class ComputePipeline : public Pipeline {
   public:

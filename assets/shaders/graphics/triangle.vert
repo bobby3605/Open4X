@@ -30,7 +30,7 @@ layout(set = 1, binding = 3) readonly buffer CulledMaterialIndices { uint culled
 layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec2 tex_coord;
 layout(location = 2) in vec3 normal;
-layout(location = 3) in vec4 tangent;
+//layout(location = 3) in vec4 tangent;
 
 layout(location = 0) out vec4 base_color_factor;
 layout(location = 1) out vec2 frag_texcoord;

@@ -5,7 +5,7 @@
 #include <mutex>
 #include <vulkan/vulkan_core.h>
 
-Draw::Draw(DrawAllocators const& draw_allocators, std::vector<NewVertex> const& vertices, std::vector<uint32_t> const& indices,
+Draw::Draw(DrawAllocators const& draw_allocators, std::vector<Vertex> const& vertices, std::vector<uint32_t> const& indices,
            SubAllocation<FixedAllocator, GPUAllocation>* material_alloc, safe_vector<Draw*>& invalid_draws)
     : _allocators(draw_allocators), _invalid_draws(invalid_draws) {
 
