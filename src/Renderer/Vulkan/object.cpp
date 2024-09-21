@@ -20,7 +20,7 @@ Object::Object(Model* model, safe_vector<Object*>& invalid_objects, LinearAlloca
     instance_offsets.reserve(_instances.capacity());
     for (size_t i = 0; i < _instances.capacity(); ++i) {
         InstanceAllocPair const& instance_alloc = _instances[i];
-        size_t index_offset = instance_alloc.index->offset() / instance_alloc.index->size();
+        size_t index_offset = instance_alloc.index->offset() / sizeof(uint32_t);
         // add firstInstance to the offset to make it global
         index_offset += instance_alloc.index->parent()->offset() / sizeof(uint32_t);
         instance_offsets.push_back(index_offset);
