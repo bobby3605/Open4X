@@ -161,6 +161,9 @@ void Open4X::run() {
     std::vector<Light*> lights;
     lights.resize(3);
     Model* duck_model = _model_manager->get_model(assets_base_path + "Duck.glb");
+    // FIXME:
+    // model has to be preallocated otherwise fragmentation issues cause the model to get culled
+    duck_model->preallocate(lights.size());
     for (size_t i = 0; i < lights.size(); ++i) {
         lights[i] = _object_manager->get_light(_object_manager->add_light(duck_model));
         lights[i]->rotation_euler(180, 0, 0);
