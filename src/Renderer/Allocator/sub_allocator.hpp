@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <deque>
 #include <iostream>
+#include <mutex>
 #include <stdexcept>
 
 template <typename ParentAllocationT> class VoidAllocator {
@@ -19,6 +20,7 @@ template <typename ParentAllocationT> class LinearAllocator {
     // TODO:
     // safe_vector
     std::vector<SubAllocation<LinearAllocator, ParentAllocationT>*> _free_blocks;
+    std::mutex mutex;
 
   public:
     // TODO
@@ -27,19 +29,22 @@ template <typename ParentAllocationT> class LinearAllocator {
     const ParentAllocationT* parent() { return _parent; }
     // Delay allocation, but still get a SubAlloction for this Allocator
     SubAllocation<LinearAllocator, ParentAllocationT>* alloc_0() {
+        std::unique_lock<std::mutex> lock(mutex);
         return new SubAllocation<LinearAllocator, ParentAllocationT>(0, 0, this, _parent);
     }
 
     SubAllocation<LinearAllocator, ParentAllocationT>* alloc(size_t const& byte_size) {
+        std::unique_lock<std::mutex> lock(mutex);
         for (size_t i = 0; i < _free_blocks.size(); ++i) {
             auto free_block = _free_blocks[i];
             // If block has enough size,
             // shrink it
             // return the sub allocation
             if (free_block->_size > byte_size) {
+                auto block = new SubAllocation<LinearAllocator, ParentAllocationT>(free_block->offset(), byte_size, this, _parent);
                 free_block->_offset += byte_size;
                 free_block->_size -= byte_size;
-                return new SubAllocation<LinearAllocator, ParentAllocationT>(free_block->_offset, byte_size, this, _parent);
+                return block;
             }
             // If blocks are equal,
             // remove the block from the free blocks
@@ -60,12 +65,14 @@ template <typename ParentAllocationT> class LinearAllocator {
     }
 
     void free(SubAllocation<LinearAllocator, ParentAllocationT>* alloc) {
+        std::unique_lock<std::mutex> lock(mutex);
         // TODO
         // Auto sort and combine free blocks
         _free_blocks.push_back(alloc);
     }
 
     void preallocate(size_t const& byte_size) {
+        std::unique_lock<std::mutex> lock(mutex);
         SubAllocation<LinearAllocator, ParentAllocationT>* block =
             new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
         _free_blocks.push_back(block);
