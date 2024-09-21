@@ -63,7 +63,7 @@ Object* ObjectManager::get_object(size_t const& object_id) {
     }
 }
 
-size_t ObjectManager::object_count() { return _objects.size(); }
+size_t ObjectManager::object_count() { return _objects.size() + _lights.size(); }
 
 void ObjectManager::set_name(size_t const& object_id, std::string const& name) { _object_names[name] = object_id; }
 
