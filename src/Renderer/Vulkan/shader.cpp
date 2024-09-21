@@ -313,6 +313,9 @@ void Shader::reflect() {
         // Name of the type for the push constants
         _push_constants_name = comp.get_name(resource.base_type_id);
         _push_constant_range = {.stageFlags = stage_info().stage, .offset = 0, .size = (uint32_t)size};
+        for (uint32_t i = 0; i < type.member_types.size(); ++i) {
+            _push_constant_offsets[comp.get_member_name(type.self, i)] = comp.type_struct_member_offset(type, i);
+        }
     }
     for (const spirv_cross::Resource& resource : res.separate_samplers) {
         uint32_t set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
@@ -360,7 +363,7 @@ void Shader::reflect() {
         case 3:
             return VK_FORMAT_R32G32B32_SFLOAT;
         default:
-            std::runtime_error("unsupported vertex attribute size: " + std::to_string(vec_size));
+            throw std::runtime_error("unsupported vertex attribute size: " + std::to_string(vec_size));
         }
     };
 

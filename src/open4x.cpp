@@ -74,14 +74,6 @@ Open4X::~Open4X() {
     delete Window::window;
 }
 
-void set_frustum_cam_consts(Camera* cam, RenderGraph* rg) {
-    PtrWriter writer(rg->get_push_constant("frustum_consts") + sizeof(uint) + 6 * sizeof(float));
-    writer.write(glm::normalize(cam->rotation() * right_vector));
-    writer.write(glm::normalize(cam->rotation() * up_vector));
-    writer.write(glm::normalize(cam->rotation() * forward_vector));
-    writer.write(cam->position());
-}
-
 void Open4X::load_settings() {
     std::ifstream file("assets/settings.json");
     if (file.is_open()) {
@@ -247,12 +239,11 @@ void Open4X::run() {
         shader_globals.proj_view = cam.proj_view();
         shader_globals.cam_pos = cam.position();
         globals_alloc->write(&shader_globals);
-        renderer->rg->set_push_constant("triangle_frag", _object_manager->light_count());
+        renderer->rg->set_push_constant("triangle_frag", "light_count", _object_manager->light_count());
         // TODO:
         // set push constant data by variable name inside the push constant
-        PtrWriter frustum_data(renderer->rg->get_push_constant("frustum_data"));
-        frustum_data.write(cam.frustum());
-        frustum_data.write((uint32_t)_object_manager->object_count());
+        renderer->rg->set_push_constant("frustum_data", "frustum", cam.frustum());
+        renderer->rg->set_push_constant("frustum_data", "totalObjectCount", (uint32_t)_object_manager->object_count());
 
         // returns true when swapchain was resized
         if (renderer->render()) {

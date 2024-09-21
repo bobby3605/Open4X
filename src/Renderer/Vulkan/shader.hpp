@@ -25,6 +25,7 @@ class Shader {
     bool has_push_constants() const { return _push_constant_range.has_value(); }
     VkPushConstantRange const& push_constant_range() const { return _push_constant_range.value(); };
     std::string const& push_constants_name() const { return _push_constants_name; };
+    std::unordered_map<std::string, size_t> const& push_constant_offsets() const { return _push_constant_offsets; }
     VkVertexInputBindingDescription const& binding_description() const { return _binding_description; }
     std::vector<VkVertexInputAttributeDescription> const& attribute_descriptions() const { return _attribute_descriptions; }
 
@@ -44,6 +45,7 @@ class Shader {
     DescriptorLayout* _pipeline_descriptor_layout;
     std::optional<VkPushConstantRange> _push_constant_range;
     std::string _push_constants_name;
+    std::unordered_map<std::string, size_t> _push_constant_offsets;
     std::mutex _glslang_mutex;
     std::vector<VkSpecializationMapEntry> _spec_entries;
     VkSpecializationInfo _spec_info{};

@@ -113,8 +113,7 @@ bool Renderer::render() {
     match_size("InstanceIndices", "PartialSums");
     match_size("InstanceIndices", "ActiveLanes");
     match_size("indirect_commands", "CulledDrawCommands");
-    PtrWriter writer(rg->get_push_constant("instance_count"));
-    writer.write(gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t));
+    rg->set_push_constant("instance_count", "totalInstanceCount", gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t));
     return rg->render();
 }
 

@@ -81,10 +81,14 @@ class RenderGraph {
                        VkPrimitiveTopology const& topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     void compute_pass(std::filesystem::path const& compute_path, void* compute_spec_data = nullptr);
     void buffer(std::string name, VkDeviceSize size);
-    template <typename T> void set_push_constant(std::string const& name, T data) {
-        *reinterpret_cast<T*>(_push_constants[name].get()) = data;
+    template <typename T> void set_push_constant(std::string const& buffer_name, std::string const& constant_name, T data) {
+        auto constants = _push_constants[buffer_name];
+        if (constants.second.count(constant_name) == 1) {
+            *(reinterpret_cast<T*>(reinterpret_cast<char*>(constants.first.get()) + constants.second[constant_name])) = data;
+        } else {
+            std::cout << "warning: push constant: " << buffer_name << "." << constant_name << " doesn't exist, skipping!" << std::endl;
+        }
     };
-    char* get_push_constant(std::string const& name) { return _push_constants[name].get(); };
 
     void memory_barrier(VkAccessFlags2 src_access_mask, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 dst_access_mask,
                         VkPipelineStageFlags2 dst_stage_mask);
@@ -99,7 +103,7 @@ class RenderGraph {
     SwapChain* _swap_chain;
     VkResult submit();
     void recreate_swap_chain();
-    std::unordered_map<std::string, std::shared_ptr<char[]>> _push_constants;
+    std::unordered_map<std::string, std::pair<std::shared_ptr<char[]>, std::unordered_map<std::string, size_t>>> _push_constants;
 
     template <typename T>
         requires std::is_base_of_v<Pipeline, T>
@@ -146,12 +150,13 @@ class RenderGraph {
                 // if the memory for the push constants isn't allocated,
                 // allocate it
                 if (_push_constants.count(shader->push_constants_name()) == 0) {
-                    _push_constants[shader->push_constants_name()] = std::shared_ptr<char[]>(new char[shader->push_constant_range().size]);
+                    _push_constants[shader->push_constants_name()] = {std::shared_ptr<char[]>(new char[shader->push_constant_range().size]),
+                                                                      shader->push_constant_offsets()};
                 }
                 // set the push constants from the shader and get the pointer from the global map
                 add_node({}, void_update, vkCmdPushConstants, pipeline->vk_pipeline_layout(), shader->stage_info().stage,
                          shader->push_constant_range().offset, shader->push_constant_range().size,
-                         _push_constants[shader->push_constants_name()].get());
+                         _push_constants[shader->push_constants_name()].first.get());
             }
         }
     }
