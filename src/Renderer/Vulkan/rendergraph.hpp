@@ -85,8 +85,9 @@ class RenderGraph {
         auto constants = _push_constants[buffer_name];
         if (constants.second.count(constant_name) == 1) {
             *(reinterpret_cast<T*>(reinterpret_cast<char*>(constants.first.get()) + constants.second[constant_name])) = data;
-        } else {
+        } else if (_printed_push_constant_warnings.count(constant_name) == 0) {
             std::cout << "warning: push constant: " << buffer_name << "." << constant_name << " doesn't exist, skipping!" << std::endl;
+            _printed_push_constant_warnings.insert(constant_name);
         }
     };
 
@@ -104,6 +105,7 @@ class RenderGraph {
     VkResult submit();
     void recreate_swap_chain();
     std::unordered_map<std::string, std::pair<std::shared_ptr<char[]>, std::unordered_map<std::string, size_t>>> _push_constants;
+    std::set<std::string> _printed_push_constant_warnings;
 
     template <typename T>
         requires std::is_base_of_v<Pipeline, T>
