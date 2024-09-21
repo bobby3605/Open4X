@@ -77,7 +77,7 @@ void Object::refresh_culling_data() {
     // Support animations
     data.obb = _model->aabb().toOBB(rotation(), scale());
     glm::vec3 position_offset = _model->aabb().centerpoint() * scale();
-    data.obb.center += position() - position_offset;
+    data.obb.center = position() - position_offset;
 
     data.instance_count = _instances.capacity();
     // FIXME:
