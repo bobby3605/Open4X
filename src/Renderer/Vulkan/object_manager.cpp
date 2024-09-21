@@ -91,7 +91,7 @@ void ObjectManager::preallocate(size_t const& count) {
 void ObjectManager::create_n_objects(Model* model, size_t const& count) {
     auto prealloc_start_time = std::chrono::high_resolution_clock::now();
     model->preallocate(count);
-    _object_instance_ids_allocator->preallocate(model->total_instance_count() * sizeof(uint32_t));
+    _object_instance_ids_allocator->preallocate(model->total_instance_count() * sizeof(uint32_t) * count);
     // NOTE:
     // _objects must be prealloced before bulk slicer add
     // resize must be used because insert/emplace are not thread safe,

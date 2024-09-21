@@ -68,7 +68,7 @@ template <typename ParentAllocationT> class LinearAllocator {
     void preallocate(size_t const& byte_size) {
         SubAllocation<LinearAllocator, ParentAllocationT>* block =
             new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
-        free(block);
+        _free_blocks.push_back(block);
         _parent->realloc(_parent->size() + byte_size);
     }
 };
