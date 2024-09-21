@@ -119,17 +119,6 @@ bool Renderer::render() {
 
 /*
 
-RenderOp pushConstants(std::shared_ptr<VulkanShader> shader, void* data) {
-    return [=](VkCommand_buffer command_buffer) {
-        vkCmdPushConstants(command_buffer, pipelines[getFilenameNoExt(shader->name)]->pipelineLayout(), shader->stageFlags,
-                           shader->pushConstantRange.offset, shader->pushConstantRange.size, data);
-    };
-}
-
-RenderOp dispatch(uint32_t group_count_X, uint32_t group_count_Y, uint32_t group_count_Z) {
-    return [=](VkCommandBuffer command_buffer) { vkCmdDispatch(command_buffer, group_count_X, group_count_Y, group_count_Z); };
-}
-
 RenderOp write_timestamp(VkPipelineStageFlags2 stage_flags, VkQueryPool query_pool, uint32_t query) {
     return [=](VkCommandBuffer command_buffer) { vkCmdWriteTimestamp2(command_buffer, stage_flags, query_pool, query); };
 }
