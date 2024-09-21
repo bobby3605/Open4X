@@ -49,11 +49,12 @@ glm::vec3 AABB::centerpoint() {
 }
 
 OBB AABB::toOBB(glm::quat const& rotation, glm::vec3 const& scale) {
+    glm::mat3 rot_matrix = glm::toMat3(rotation);
     OBB obb;
     obb.center = ((max() + min()) * 0.5f) * scale;
     obb.half_extents = ((max() - min()) * 0.5f) * scale;
-    obb.directionU = rotation * right_vector;
-    obb.directionV = rotation * up_vector;
+    obb.directionU = rot_matrix * right_vector;
+    obb.directionV = rot_matrix * up_vector;
     // FIXME:
     // Get rid of the * -1
     // upVector is in -y space
@@ -61,7 +62,6 @@ OBB AABB::toOBB(glm::quat const& rotation, glm::vec3 const& scale) {
     // this converts directionV to +y space,
     // which is used for frustum culling calculations (I think)
     // Ideally, the rotation quaternion would be directly passed to frustum culling
-    //    obb.directionV *= -1;
-    obb.directionW = rotation * forward_vector;
+    obb.directionW = rot_matrix * forward_vector;
     return obb;
 }
