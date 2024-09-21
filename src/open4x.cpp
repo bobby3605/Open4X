@@ -96,6 +96,7 @@ void Open4X::load_settings() {
         settings->object_refresh_threads = miscJSON["object_refresh_threads"].GetInt();
         settings->object_bulk_create_threads = miscJSON["object_bulk_create_threads"].GetInt();
         settings->invalid_draws_refresh_threads = miscJSON["invalid_draws_refresh_threads"].GetInt();
+        settings->draw_bounding_boxes = miscJSON["draw_bounding_boxes"].GetBool();
 
     } else {
         std::cout << "Failed to open settings file, using defaults" << std::endl;

@@ -237,49 +237,51 @@ void Renderer::create_rendergraph() {
         };
     });
 
-    const std::vector<glm::vec3> box_vertices = {{0.5, 0.5, 0.5},  {0.5, 0.5, -0.5},  {0.5, -0.5, 0.5},  {0.5, -0.5, -0.5},
-                                                 {-0.5, 0.5, 0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}};
+    if (settings->draw_bounding_boxes) {
+        const std::vector<glm::vec3> box_vertices = {{0.5, 0.5, 0.5},  {0.5, 0.5, -0.5},  {0.5, -0.5, 0.5},  {0.5, -0.5, -0.5},
+                                                     {-0.5, 0.5, 0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}};
 
-    const std::vector<glm::vec<2, uint32_t>> box_lines = {{0, 1}, {0, 2}, {0, 4}, {1, 5}, {1, 3}, {2, 3},
-                                                          {3, 7}, {2, 6}, {4, 5}, {4, 6}, {5, 7}, {7, 6}};
+        const std::vector<glm::vec<2, uint32_t>> box_lines = {{0, 1}, {0, 2}, {0, 4}, {1, 5}, {1, 3}, {2, 3},
+                                                              {3, 7}, {2, 6}, {4, 5}, {4, 6}, {5, 7}, {7, 6}};
 
-    auto _vertex_alloc = draw_allocators.vertex->alloc(box_vertices.size() * sizeof(box_vertices[0]));
-    _vertex_alloc->write(box_vertices.data());
+        auto _vertex_alloc = draw_allocators.vertex->alloc(box_vertices.size() * sizeof(box_vertices[0]));
+        _vertex_alloc->write(box_vertices.data());
 
-    auto _index_alloc = draw_allocators.index->alloc(box_lines.size() * 2 * sizeof(uint32_t));
-    _index_alloc->write(box_lines.data());
+        auto _index_alloc = draw_allocators.index->alloc(box_lines.size() * 2 * sizeof(uint32_t));
+        _index_alloc->write(box_lines.data());
 
-    baseShaderName = "box";
-    vert_shader_path = baseShaderPath + baseShaderName + ".vert";
-    frag_shader_path = baseShaderPath + baseShaderName + ".frag";
-    rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index, nullptr, nullptr,
-                      VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+        baseShaderName = "box";
+        vert_shader_path = baseShaderPath + baseShaderName + ".vert";
+        frag_shader_path = baseShaderPath + baseShaderName + ".frag";
+        rg->graphics_pass(vert_shader_path, frag_shader_path, draw_allocators.vertex, draw_allocators.index, nullptr, nullptr,
+                          VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
 
-    _obb_commands = new ContiguousFixedAllocator(
-        sizeof(VkDrawIndexedIndirectCommand),
-        gpu_allocator->create_buffer(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "OBBCommands"));
+        _obb_commands = new ContiguousFixedAllocator(
+            sizeof(VkDrawIndexedIndirectCommand),
+            gpu_allocator->create_buffer(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "OBBCommands"));
 
-    _obb_command = _obb_commands->alloc();
-    VkDrawIndexedIndirectCommand obb_command{};
-    obb_command.firstIndex = _index_alloc->offset() / sizeof(uint32_t);
-    obb_command.firstInstance = 0;
-    obb_command.instanceCount = 0;
-    obb_command.indexCount = box_lines.size() * 2;
-    obb_command.vertexOffset = _vertex_alloc->offset() / sizeof(box_vertices[0]);
-    _obb_command->write(&obb_command);
+        _obb_command = _obb_commands->alloc();
+        VkDrawIndexedIndirectCommand obb_command{};
+        obb_command.firstIndex = _index_alloc->offset() / sizeof(uint32_t);
+        obb_command.firstInstance = 0;
+        obb_command.instanceCount = 0;
+        obb_command.indexCount = box_lines.size() * 2;
+        obb_command.vertexOffset = _vertex_alloc->offset() / sizeof(box_vertices[0]);
+        _obb_command->write(&obb_command);
 
-    rg->add_node(
-        {},
-        [&]() {
-            // TODO:
-            // remove the ->get call
-            VkDrawIndexedIndirectCommand obb_command{};
-            _obb_command->get(&obb_command);
-            obb_command.instanceCount = gpu_allocator->get_buffer("ObjectCullingData")->size() / sizeof(ObjectCullData);
-            _obb_command->write(&obb_command);
-        },
-        vkCmdDrawIndexedIndirect, gpu_allocator->get_buffer("OBBCommands")->buffer(), 0,
-        gpu_allocator->get_buffer("OBBCommands")->size() / sizeof(VkDrawIndexedIndirectCommand), sizeof(VkDrawIndexedIndirectCommand));
+        rg->add_node(
+            {},
+            [&]() {
+                // TODO:
+                // remove the ->get call
+                VkDrawIndexedIndirectCommand obb_command{};
+                _obb_command->get(&obb_command);
+                obb_command.instanceCount = gpu_allocator->get_buffer("ObjectCullingData")->size() / sizeof(ObjectCullData);
+                _obb_command->write(&obb_command);
+            },
+            vkCmdDrawIndexedIndirect, gpu_allocator->get_buffer("OBBCommands")->buffer(), 0,
+            gpu_allocator->get_buffer("OBBCommands")->size() / sizeof(VkDrawIndexedIndirectCommand), sizeof(VkDrawIndexedIndirectCommand));
+    }
     rg->end_rendering();
 }

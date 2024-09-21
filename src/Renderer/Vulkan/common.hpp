@@ -44,6 +44,7 @@ struct Settings {
     uint32_t object_refresh_threads = 2;
     uint32_t object_bulk_create_threads = 2;
     uint32_t invalid_draws_refresh_threads = 0;
+    bool draw_bounding_boxes = false;
 };
 
 inline Settings* settings;
