@@ -82,7 +82,7 @@ void Object::refresh_culling_data() {
     data.instance_count = _instances.capacity();
     // FIXME:
     // pop and swap update
-    data.instances_offset = _objects_instance_ids_allocation->offset() / _objects_instance_ids_allocation->size();
+    data.instances_offset = _objects_instance_ids_allocation->offset() / sizeof(uint32_t);
     _object_culling_data_alloc->write(&data);
 }
 
