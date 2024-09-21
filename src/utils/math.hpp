@@ -134,9 +134,12 @@ class AABB {
     void update(glm::vec4 const& new_bounds);
     OBB toOBB(glm::quat const& rotation, glm::vec3 const& scale);
 
-  private:
+  protected:
     glm::vec3 _max{-MAXFLOAT};
     glm::vec3 _min{MAXFLOAT};
+    friend class Model;
+
+  private:
     glm::vec3 _length;
     glm::vec3 _centerpoint;
     bool length_cached = false;

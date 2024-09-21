@@ -106,9 +106,6 @@ Model::~Model() {
         }
         _draw_allocators->material_data->free(material_alloc);
     }
-    // TODO:
-    // cleanup fastgltf asset
-    //  delete _asset;
 }
 
 void Model::load_textures() {
@@ -490,6 +487,11 @@ void Model::Node::preallocate(Model* model, size_t count) {
 }
 
 void Model::animate(std::vector<InstanceAllocPair>& instances) {
+    _aabb._max = {-MAXFLOAT, -MAXFLOAT, -MAXFLOAT};
+    _aabb._min = {MAXFLOAT, MAXFLOAT, MAXFLOAT};
+    _aabb.length_cached = false;
+    _aabb.centerpoint_cached = false;
+
     size_t instance_index = 0;
     alignas(32) glm::mat4 identity(1.0f);
     // NOTE:
@@ -509,15 +511,18 @@ void Model::Node::animate(Model* model, glm::mat4 const& parent_animation_matrix
     if (_has_animation) {
         fast_trs_matrix(_animation_translation, _animation_rotation, _animation_scale, _animation_matrix);
         fast_mat4_mul(parent_animation_matrix, _animation_matrix, _animation_matrix);
+        // FIXME:
+        // This almost certainly breaks with multiple instances
         fast_mat4_mul(_instance_data.model_matrix, _animation_matrix, animated_transform);
-        // TODO:
-        // update AABB by animation matrix
     } else {
         _animation_matrix = parent_animation_matrix;
     }
     if (_mesh_index.has_value()) {
         if (model->_meshes[_mesh_index.value()].has_value()) {
-            for (uint32_t i = 0; i < model->_meshes[_mesh_index.value()].value()->_primitives.size(); ++i) {
+            Mesh* mesh = model->_meshes[_mesh_index.value()].value();
+            _model->_aabb.update(_animation_matrix * glm::vec4(mesh->_aabb.max(), 1.0f));
+            _model->_aabb.update(_animation_matrix * glm::vec4(mesh->_aabb.min(), 1.0f));
+            for (uint32_t i = 0; i < mesh->_primitives.size(); ++i) {
                 // FIXME:
                 // An animated node's children won't get the animation
                 if (_has_animation) {

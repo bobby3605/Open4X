@@ -9,6 +9,6 @@
         ,"object_refresh_threads": 15
         ,"object_bulk_create_threads": 0
         ,"invalid_draws_refresh_threads": 4
-        ,"draw_bounding_boxes": false
+        ,"draw_bounding_boxes": true
     }
 }

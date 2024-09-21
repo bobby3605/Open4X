@@ -61,7 +61,7 @@ OBB AABB::toOBB(glm::quat const& rotation, glm::vec3 const& scale) {
     // this converts directionV to +y space,
     // which is used for frustum culling calculations (I think)
     // Ideally, the rotation quaternion would be directly passed to frustum culling
-    obb.directionV *= -1;
+    //    obb.directionV *= -1;
     obb.directionW = rotation * forward_vector;
     return obb;
 }

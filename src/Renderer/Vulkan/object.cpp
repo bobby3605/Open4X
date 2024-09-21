@@ -73,8 +73,6 @@ void Object::scale(glm::vec3 const& new_scale) {
 
 void Object::refresh_culling_data() {
     ObjectCullData data{};
-    // TODO:
-    // Support animations
     data.obb = _model->aabb().toOBB(rotation(), scale());
     glm::vec3 position_offset = _model->aabb().centerpoint() * scale();
     data.obb.center = position() - position_offset;
@@ -112,7 +110,10 @@ void Object::refresh_instance_data() {
     }
 }
 
-void Object::refresh_animations() { _model->animate(_instances); }
+void Object::refresh_animations() {
+    _model->animate(_instances);
+    refresh_culling_data();
+}
 
 void Object::register_invalid_matrices() {
     // Only register invalid once per update_instance_data call
