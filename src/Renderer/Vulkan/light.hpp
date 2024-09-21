@@ -4,7 +4,9 @@
 
 class Light : public Object {
   public:
-    Light(ContiguousFixedAllocator<GPUAllocation>* light_allocator, Model* model, safe_vector<Object*>& invalid_objects);
+    Light(ContiguousFixedAllocator<GPUAllocation>* light_allocator, Model* model, safe_vector<Object*>& invalid_objects,
+          LinearAllocator<GPUAllocation>* object_instance_ids_allocator,
+          ContiguousFixedAllocator<GPUAllocation>* object_culling_data_allocator);
     ~Light();
     glm::vec3 const& color() { return _light_data.color; }
     void color(glm::vec3 const& new_color);

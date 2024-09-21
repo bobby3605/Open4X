@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <glm/glm.hpp>
 #include <unordered_map>
 #include <vector>
 #include <vulkan/vulkan.h>
@@ -46,6 +47,19 @@ struct Settings {
 };
 
 inline Settings* settings;
+
+inline static const glm::vec3 up_vector = glm::vec3(0.f, -1.0f, 0.f);
+inline static const glm::vec3 forward_vector = glm::vec3(0.0f, 0.0f, 1.0f);
+inline static const glm::vec3 right_vector = glm::vec3(1.0f, 0.0, 0.0f);
+
+struct Plane {
+    glm::vec3 normal;
+    float distance;
+};
+
+struct Frustum {
+    Plane planes[6];
+};
 
 std::string get_file_extension(std::string file_path);
 

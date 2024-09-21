@@ -5,6 +5,7 @@
 #include "draw.hpp"
 #include "globals.hpp"
 #include "memory_manager.hpp"
+#include "object.hpp"
 #include <cstdint>
 #include <vulkan/vulkan_core.h>
 
@@ -24,7 +25,6 @@ Renderer::~Renderer() {
     Device::device->command_pools()->release_pool(_command_pool);
     vkDeviceWaitIdle(Device::device->vk_device());
     delete rg;
-    gpu_allocator->get_buffer("CulledInstanceIndices")->flush_copies();
     delete gpu_allocator;
     delete MemoryManager::memory_manager;
     delete Device::device;
@@ -91,6 +91,9 @@ void Renderer::create_data_buffers() {
 
     gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "CulledDrawCommands");
+
+    gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "VisibilityBuffer");
 }
 
 bool Renderer::render() {
@@ -105,11 +108,12 @@ bool Renderer::render() {
     match_size("InstanceIndices", "CulledInstanceIndices");
     match_size("MaterialIndices", "CulledMaterialIndices");
     // match_size("indirect_count", "CulledIndirectCount");
+    match_size("InstanceIndices", "VisibilityBuffer");
     match_size("InstanceIndices", "PrefixSum");
     match_size("InstanceIndices", "PartialSums");
     match_size("InstanceIndices", "ActiveLanes");
     match_size("indirect_commands", "CulledDrawCommands");
-    PtrWriter writer(rg->get_push_constant("frustum_consts"));
+    PtrWriter writer(rg->get_push_constant("instance_count"));
     writer.write(gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t));
     return rg->render();
 }
@@ -149,18 +153,33 @@ void Renderer::create_rendergraph() {
     specData.local_size_x = Device::device->max_compute_workgroup_invocations();
     specData.subgroup_size = Device::device->max_subgroup_size();
 
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                       VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+    rg->compute_pass(baseShaderPath + "frustum_cull_objects.comp", &specData);
+
+    rg->add_dynamic_node({}, [&](RenderNode& node) {
+        node.op = [&](VkCommandBuffer cmd_buffer) {
+            vkCmdDispatch(cmd_buffer,
+                          get_group_count(gpu_allocator->get_buffer("ObjectCullingData")->size() / sizeof(ObjectCullData),
+                                          Device::device->max_compute_workgroup_invocations()),
+                          1, 1);
+        };
+    });
+    rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                       VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+
     // ensure previous frame vertex read completed before writing
     rg->memory_barrier(VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
-    rg->compute_pass(baseShaderPath + "cull_frustum_pass.comp", &specData);
+    rg->compute_pass(baseShaderPath + "cull_visibility_buffer.comp", &specData);
     // TODO:
     // Put this into compute_pass
     rg->add_dynamic_node({}, [&](RenderNode& node) {
         node.op = [&](VkCommandBuffer cmd_buffer) {
-            vkCmdDispatch(
-                cmd_buffer,
-                get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size(), Device::device->max_compute_workgroup_invocations()),
-                1, 1);
+            vkCmdDispatch(cmd_buffer,
+                          get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t),
+                                          Device::device->max_compute_workgroup_invocations()),
+                          1, 1);
         };
     });
 
@@ -172,10 +191,10 @@ void Renderer::create_rendergraph() {
 
     rg->add_dynamic_node({}, [&](RenderNode& node) {
         node.op = [&](VkCommandBuffer cmd_buffer) {
-            vkCmdDispatch(
-                cmd_buffer,
-                get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size(), Device::device->max_compute_workgroup_invocations()),
-                1, 1);
+            vkCmdDispatch(cmd_buffer,
+                          get_group_count(gpu_allocator->get_buffer("InstanceIndices")->size() / sizeof(uint32_t),
+                                          Device::device->max_compute_workgroup_invocations()),
+                          1, 1);
         };
     });
 
@@ -195,11 +214,11 @@ void Renderer::create_rendergraph() {
     rg->memory_barrier(VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_COPY_BIT,
                        VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
-    rg->compute_pass(baseShaderPath + "cull_draw_pass.comp", &specData);
+    rg->compute_pass(baseShaderPath + "cull_draws.comp", &specData);
     rg->add_dynamic_node({}, [&](RenderNode& node) {
         node.op = [&](VkCommandBuffer cmd_buffer) {
             vkCmdDispatch(cmd_buffer,
-                          get_group_count(gpu_allocator->get_buffer("indirect_commands")->size(),
+                          get_group_count(gpu_allocator->get_buffer("indirect_commands")->size() / sizeof(VkDrawIndexedIndirectCommand),
                                           Device::device->max_compute_workgroup_invocations()),
                           1, 1);
         };

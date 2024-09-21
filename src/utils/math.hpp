@@ -109,7 +109,20 @@ inline void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotat
     trs[3][3] = 1;
 }
 
-class NewAABB {
+struct OBB {
+    glm::vec3 center;
+    uint32_t pad;
+    glm::vec3 half_extents;
+    uint32_t pad1;
+    glm::vec3 directionU;
+    uint32_t pad2;
+    glm::vec3 directionV;
+    uint32_t pad3;
+    glm::vec3 directionW;
+    uint32_t pad4;
+};
+
+class AABB {
   public:
     glm::vec3 max() { return _max; }
     glm::vec3 min() { return _min; }
@@ -117,8 +130,9 @@ class NewAABB {
     glm::vec3 centerpoint();
 
     void update(glm::vec3 const& new_bounds);
-    void update(NewAABB const& new_bounds);
+    void update(AABB const& new_bounds);
     void update(glm::vec4 const& new_bounds);
+    OBB toOBB(glm::quat const& rotation, glm::vec3 const& scale);
 
   private:
     glm::vec3 _max{-MAXFLOAT};

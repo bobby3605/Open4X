@@ -1,5 +1,6 @@
 #include "camera.hpp"
 #include "window.hpp"
+#include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
@@ -7,7 +8,7 @@ Camera::Camera(float vertical_fov, float aspect_ratio, float near, float far) : 
     update_projection(vertical_fov, aspect_ratio, near, far);
 }
 
-void Camera::update_projection(float vertical_fov, float aspect_ratio, float near, float far){
+void Camera::update_projection(float vertical_fov, float aspect_ratio, float near, float far) {
     _instance_data_invalid = true;
     // perspective projection
     assert(glm::abs(aspect_ratio - std::numeric_limits<float>::epsilon()) > 0.0f);
@@ -26,8 +27,36 @@ glm::mat4 const& Camera::proj_view() {
     if (_instance_data_invalid) {
         refresh_instance_data();
         _proj_view = _proj * glm::inverse(_object_matrix);
+        update_frustum();
     }
     return _proj_view;
+}
+
+void Camera::update_frustum() {
+    // http://www.lighthouse3d.com/tutorials/view-frustum-culling/clip-space-approach-extracting-the-planes/
+    // Lighthouse 3d is a little confusing, and makes it seem like you want the MVP of the camera, or possibly the object,
+    // but the following says to use the projView matrix
+    // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter6/frustum.html
+
+    glm::vec4 row1 = glm::row(_proj_view, 0);
+    glm::vec4 row2 = glm::row(_proj_view, 1);
+    glm::vec4 row3 = glm::row(_proj_view, 2);
+    glm::vec4 row4 = glm::row(_proj_view, 3);
+
+    auto plane_from_vec4 = [](glm::vec4 vec) {
+        Plane p;
+        p.normal = vec;
+        float length = glm::length(p.normal);
+        p.normal = glm::normalize(p.normal);
+        p.distance = vec.w / length;
+        return p;
+    };
+    _frustum.planes[0] = plane_from_vec4(row4 + row1);
+    _frustum.planes[1] = plane_from_vec4(row4 - row1);
+    _frustum.planes[2] = plane_from_vec4(row4 + row2);
+    _frustum.planes[3] = plane_from_vec4(row4 - row2);
+    _frustum.planes[4] = plane_from_vec4(row4 + row3);
+    _frustum.planes[5] = plane_from_vec4(row4 - row3);
 }
 
 // Define roll/pitch/yaw ordering

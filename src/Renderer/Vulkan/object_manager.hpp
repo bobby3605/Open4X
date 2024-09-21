@@ -39,6 +39,8 @@ class ObjectManager {
     ChunkProcessor<Object*>* _bulk_objects_processor;
     Model* _bulk_add_model;
     ContiguousFixedAllocator<GPUAllocation>* _light_allocator;
+    LinearAllocator<GPUAllocation>* _object_instance_ids_allocator;
+    ContiguousFixedAllocator<GPUAllocation>* _object_culling_data_allocator;
 
     std::mt19937 _mt;
     std::uniform_real_distribution<float> _distribution;

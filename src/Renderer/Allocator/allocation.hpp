@@ -61,6 +61,7 @@ class SubAllocation : Allocation<SubAllocation<AllocatorT, ParentAllocationT>> {
     // Offset into the parent
     size_t _offset = 0;
     size_t _size = 0;
+    ParentAllocationT* const parent() const { return _parent; }
 
   protected:
     ParentAllocationT* _parent = nullptr;
@@ -127,6 +128,7 @@ class GPUAllocation : Allocation<GPUAllocation> {
     VkBuffer const& buffer() const { return _buffer; }
     void write(size_t const& dst_offset, const void* src_data, size_t const& byte_size);
     void flush_copies();
+    const void* mapped() const { return _mapped; }
 
   protected:
     friend class GPUAllocator;

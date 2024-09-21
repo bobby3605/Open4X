@@ -1,7 +1,9 @@
 #include "light.hpp"
 
-Light::Light(ContiguousFixedAllocator<GPUAllocation>* light_allocator, Model* model, safe_vector<Object*>& invalid_objects)
-    : Object(model, invalid_objects), _light_allocator(light_allocator) {
+Light::Light(ContiguousFixedAllocator<GPUAllocation>* light_allocator, Model* model, safe_vector<Object*>& invalid_objects,
+             LinearAllocator<GPUAllocation>* object_instance_ids_allocator,
+             ContiguousFixedAllocator<GPUAllocation>* object_culling_data_allocator)
+    : Object(model, invalid_objects, object_instance_ids_allocator, object_culling_data_allocator), _light_allocator(light_allocator) {
     _light_alloc = _light_allocator->alloc();
     write_light();
     refresh_instance_data();

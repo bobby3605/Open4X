@@ -1,4 +1,6 @@
 #include "open4x.hpp"
+#include "Renderer/Allocator/allocation.hpp"
+#include "Renderer/Allocator/base_allocator.hpp"
 #include "Renderer/Allocator/sub_allocator.hpp"
 #include "Renderer/Vulkan/camera.hpp"
 #include "Renderer/Vulkan/common.hpp"
@@ -72,27 +74,11 @@ Open4X::~Open4X() {
     delete Window::window;
 }
 
-void set_frustum_consts(float const& vertical_fov, float const& aspect_ratio, float const& near_clip, float const& far_clip,
-                        RenderGraph* rg) {
-    PtrWriter writer(rg->get_push_constant("frustum_consts") + sizeof(uint));
-    writer.write(near_clip);
-    writer.write(far_clip);
-    writer.write(aspect_ratio);
-
-    float vfov_rad = vertical_fov * (glm::pi<double>() / 360.0);
-    float tang = glm::tan(vfov_rad);
-
-    float angle_X = glm::atan(tang * aspect_ratio);
-    writer.write(1.0f / glm::cos(angle_X));
-    writer.write(1.0f / glm::cos(vfov_rad));
-    writer.write(tang);
-}
-
 void set_frustum_cam_consts(Camera* cam, RenderGraph* rg) {
     PtrWriter writer(rg->get_push_constant("frustum_consts") + sizeof(uint) + 6 * sizeof(float));
-    writer.write(glm::normalize(cam->rotation() * Camera::right_vector));
-    writer.write(glm::normalize(cam->rotation() * Camera::up_vector));
-    writer.write(glm::normalize(cam->rotation() * Camera::forward_vector));
+    writer.write(glm::normalize(cam->rotation() * right_vector));
+    writer.write(glm::normalize(cam->rotation() * up_vector));
+    writer.write(glm::normalize(cam->rotation() * forward_vector));
     writer.write(cam->position());
 }
 
@@ -202,7 +188,6 @@ void Open4X::run() {
     float aspect_ratio = (float)extent.width / (float)extent.height;
 
     Camera cam(vertical_fov, aspect_ratio, near, far);
-    set_frustum_consts(vertical_fov, aspect_ratio, near, far, renderer->rg);
 
     FixedAllocator<GPUAllocation>* shader_globals_allocator = new FixedAllocator(
         sizeof(ShaderGlobals),
@@ -225,6 +210,7 @@ void Open4X::run() {
 
     float title_frame_time = 0.0f;
     std::chrono::time_point<std::chrono::system_clock> animation_base_time = std::chrono::high_resolution_clock::now();
+    GPUAllocation* prefix_sum_buffer = gpu_allocator->get_buffer("PrefixSum");
     while (!glfwWindowShouldClose(Window::window->glfw_window())) {
         auto current_time = std::chrono::high_resolution_clock::now();
         float frame_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
@@ -256,13 +242,17 @@ void Open4X::run() {
         _object_manager->refresh_animated_objects();
         _model_manager->refresh_invalid_draws();
         cam.update_transform(frame_time);
-        set_frustum_cam_consts(&cam, renderer->rg);
         // TODO
         // cache camera matrix
         shader_globals.proj_view = cam.proj_view();
         shader_globals.cam_pos = cam.position();
         globals_alloc->write(&shader_globals);
         renderer->rg->set_push_constant("triangle_frag", _object_manager->light_count());
+        // TODO:
+        // set push constant data by variable name inside the push constant
+        PtrWriter frustum_data(renderer->rg->get_push_constant("frustum_data"));
+        frustum_data.write(cam.frustum());
+        frustum_data.write((uint32_t)_object_manager->object_count());
 
         // returns true when swapchain was resized
         if (renderer->render()) {
@@ -270,14 +260,15 @@ void Open4X::run() {
             aspect_ratio = (float)extent.width / (float)extent.height;
             // adjust perspective projection matrix
             cam.update_projection(vertical_fov, aspect_ratio, near, far);
-            set_frustum_consts(vertical_fov, aspect_ratio, near, far, renderer->rg);
         }
         if (settings->show_fps) {
             std::stringstream title;
+            uint32_t objects_drawn =
+                *(reinterpret_cast<const uint32_t*>(prefix_sum_buffer->mapped()) + (prefix_sum_buffer->size() / sizeof(uint32_t)) - 1);
             title << "Objects: " << _object_manager->object_count() << " "
                   << "Frametime: " << std::fixed << std::setprecision(2) << (title_frame_time * 1000) << "ms"
                   << " "
-                  << "Framerate: " << 1.0 / title_frame_time;
+                  << "Framerate: " << 1.0 / title_frame_time << " instances drawn: " << objects_drawn;
             glfwSetWindowTitle(Window::window->glfw_window(), title.str().c_str());
         }
     }

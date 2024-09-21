@@ -3,10 +3,19 @@
 #include "model.hpp"
 #include <glm/gtx/quaternion.hpp>
 
+struct ObjectCullData {
+    OBB obb;
+    uint32_t instances_offset;
+    uint32_t instance_count;
+    uint32_t pad2;
+    uint32_t pad3;
+};
+
 class Object {
   public:
     Object(safe_vector<Object*>& invalid_objects);
-    Object(Model* model, safe_vector<Object*>& invalid_objects);
+    Object(Model* model, safe_vector<Object*>& invalid_objects, LinearAllocator<GPUAllocation>* object_instance_ids_allocator,
+           ContiguousFixedAllocator<GPUAllocation>* object_culling_data_allocator);
     ~Object();
 
     glm::vec3 const& position() { return _position; }
@@ -17,6 +26,7 @@ class Object {
     void rotation(glm::quat const& new_rotation);
     void rotation_euler(float pitch, float yaw, float roll);
     void scale(glm::vec3 const& new_scale);
+    void refresh_culling_data();
     void register_invalid_matrices();
     void refresh_instance_data();
     void refresh_animations();
@@ -33,6 +43,10 @@ class Object {
     std::vector<InstanceAllocPair> _instances;
 
     safe_vector<Object*>& _invalid_objects;
+    LinearAllocator<GPUAllocation>* _object_instance_ids_allocator;
+    SubAllocation<LinearAllocator, GPUAllocation>* _objects_instance_ids_allocation;
+    ContiguousFixedAllocator<GPUAllocation>* _object_culling_data_allocator;
+    SubAllocation<ContiguousFixedAllocator, GPUAllocation>* _object_culling_data_alloc;
 
     bool _t_invalid = false;
     bool _rs_invalid = false;

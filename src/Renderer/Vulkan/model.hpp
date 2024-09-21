@@ -36,12 +36,13 @@ class Model {
     void add_instance(std::vector<InstanceAllocPair>& instances);
     void remove_instance(std::vector<InstanceAllocPair>& instances);
     void preallocate(size_t count);
-    NewAABB& aabb() { return _aabb; }
+    AABB& aabb() { return _aabb; }
     std::string const& path() { return _path; }
     Texture const* get_texture(size_t image_index) { return _textures[image_index]; }
     void update_animations(uint64_t const& animation_time_ms);
     void animate(std::vector<InstanceAllocPair>& instances);
     bool const& has_animations() const { return _has_animations; }
+    size_t const& total_instance_count() const { return _total_instance_data_count; }
 
     class Scene {
       public:
@@ -109,7 +110,7 @@ class Model {
             // char* and a byte size
             std::vector<NewVertex> _vertices;
             std::vector<uint32_t> _indices;
-            NewAABB _aabb;
+            AABB _aabb;
 
           public:
             std::vector<NewVertex> const& vertices() const { return _vertices; }
@@ -128,7 +129,7 @@ class Model {
 
       protected:
         std::vector<Primitive> _primitives;
-        NewAABB _aabb;
+        AABB _aabb;
 
       public:
         std::vector<Primitive> const& primitives() const { return _primitives; }
@@ -147,7 +148,7 @@ class Model {
     std::vector<std::optional<Mesh*>> _meshes;
     SubAllocation<FixedAllocator, GPUAllocation>* _default_material;
     safe_vector<Draw*>& _invalid_draws;
-    NewAABB _aabb;
+    AABB _aabb;
 
   private:
     // TODO

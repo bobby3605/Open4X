@@ -5,6 +5,7 @@
 #include "object.hpp"
 #include <algorithm>
 #include <thread>
+#include <vulkan/vulkan_core.h>
 
 ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, settings->rand_limit) {
     // Using more threads than supported by the hardware would only slow things down
@@ -12,11 +13,20 @@ ObjectManager::ObjectManager() : _mt(time(NULL)), _distribution(0, settings->ran
     _invalid_objects_processor = new ChunkProcessor<Object*, safe_vector>(_invalid_objects, num_threads,
                                                                           [&](size_t i) { _invalid_objects[i]->refresh_instance_data(); });
 
+    _object_instance_ids_allocator = new LinearAllocator(
+        gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "ObjectInstanceIDs"));
+
+    _object_culling_data_allocator = new ContiguousFixedAllocator(
+        sizeof(ObjectCullData),
+        gpu_allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, "ObjectCullingData"));
+
     _bulk_objects_processor = new ChunkProcessor<Object*>(_objects, settings->object_bulk_create_threads, [&](size_t i) {
         // NOTE:
         // _objects has to be a std::vector<Object*>, otherwise bulk add will fail,
         // because objects can have varying sizes (ex: _instances gets alloced after the constructor)
-        _objects[i] = new Object(_bulk_add_model, _invalid_objects);
+        _objects[i] = new Object(_bulk_add_model, _invalid_objects, _object_instance_ids_allocator, _object_culling_data_allocator);
     });
 
     _light_allocator = new ContiguousFixedAllocator(
@@ -33,7 +43,7 @@ ObjectManager::~ObjectManager() {
 }
 
 size_t ObjectManager::add_object(Model* model) {
-    _objects.push_back(new Object(model, _invalid_objects));
+    _objects.push_back(new Object(model, _invalid_objects, _object_instance_ids_allocator, _object_culling_data_allocator));
     if (model->has_animations()) {
         _animated_objects.push_back(_objects.back());
     }
@@ -75,11 +85,13 @@ void ObjectManager::refresh_animated_objects() {
 void ObjectManager::preallocate(size_t const& count) {
     _invalid_objects.reserve(count);
     _objects.resize(count);
+    _object_culling_data_allocator->preallocate(count);
 }
 
 void ObjectManager::create_n_objects(Model* model, size_t const& count) {
     auto prealloc_start_time = std::chrono::high_resolution_clock::now();
     model->preallocate(count);
+    _object_instance_ids_allocator->preallocate(model->total_instance_count() * sizeof(uint32_t));
     // NOTE:
     // _objects must be prealloced before bulk slicer add
     // resize must be used because insert/emplace are not thread safe,
@@ -110,7 +122,7 @@ void ObjectManager::create_n_objects(Model* model, size_t const& count) {
 }
 
 size_t ObjectManager::add_light(Model* model) {
-    _lights.push_back(new Light(_light_allocator, model, _invalid_objects));
+    _lights.push_back(new Light(_light_allocator, model, _invalid_objects, _object_instance_ids_allocator, _object_culling_data_allocator));
     return _lights.size() - 1;
 }
 Light* ObjectManager::get_light(size_t const& light_id) {

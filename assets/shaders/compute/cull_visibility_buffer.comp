@@ -1,0 +1,75 @@
+#version 460
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 1;
+layout(constant_id = 1) const uint SUBGROUP_SIZE = 32;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct InstanceData {
+    mat4 model_matrix;
+};
+
+layout(push_constant) uniform instance_count {
+    uint totalInstanceCount;
+};
+
+layout(set = 0, binding = 0) readonly buffer VisibilityBuffer { uint visibilityBuffer[]; };
+layout(set = 0, binding = 1) buffer PrefixSum { uint prefixSum[]; };
+layout(set = 0, binding = 2) buffer PartialSums { uint partialSums[]; };
+layout(set = 0, binding = 3) writeonly buffer ActiveLanes { uint activeLanes[]; };
+
+// Prefix sum implementation from
+// https://cachemiss.xyz/blog/parallel-reduce-and-scan-on-the-GPU
+shared uint sdata[SUBGROUP_SIZE];
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    // TODO:
+    // pack bools in visibility buffer
+    bool laneActive = index < totalInstanceCount && (visibilityBuffer[index] == 1);
+    uvec4 ballot = subgroupBallot(laneActive);
+    // {x,y,z,w}
+    // {x,y,.,.}
+    // x = 0b0101111111...
+    // y = 0b111010000... 32 bits long
+    uint sum = subgroupBallotInclusiveBitCount(ballot);
+    // NOTE:
+    // subgroup size needs to be >= 32
+    if (((gl_SubgroupInvocationID + 1) % 32) == 0) {
+        activeLanes[index / 32] = ballot[gl_SubgroupInvocationID / 32];
+        // activeLanes[0] = x
+        // activeLanes[1] = y
+    }
+
+    if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) {
+        sdata[gl_SubgroupID] = sum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    if (gl_SubgroupID == 0) {
+        uint warpSum = gl_SubgroupInvocationID < gl_NumSubgroups ? sdata[gl_SubgroupInvocationID] : 0;
+        warpSum = subgroupInclusiveAdd(warpSum);
+        sdata[gl_SubgroupInvocationID] = warpSum;
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    uint blockSum = 0;
+    if (gl_SubgroupID > 0) {
+        blockSum = sdata[gl_SubgroupID - 1];
+    }
+
+    sum += blockSum;
+
+    if (gl_GlobalInvocationID.x < totalInstanceCount) {
+        prefixSum[gl_GlobalInvocationID.x] = sum;
+    }
+
+    if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+        partialSums[gl_WorkGroupID.x] = sum;
+    }
+}

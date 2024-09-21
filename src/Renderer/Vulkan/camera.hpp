@@ -1,5 +1,6 @@
 #ifndef CAMERA_H_
 #define CAMERA_H_
+#include "common.hpp"
 #include "object.hpp"
 #include <GLFW/glfw3.h>
 
@@ -9,14 +10,13 @@ class Camera : public Object {
     void update_transform(float frame_time);
     void update_projection(float vertical_fov, float aspect_ratio, float near, float far);
     glm::mat4 const& proj_view();
-
-    inline static const glm::vec3 up_vector = glm::vec3(0.f, -1.0f, 0.f);
-    inline static const glm::vec3 forward_vector = glm::vec3(0.0f, 0.0f, 1.0f);
-    inline static const glm::vec3 right_vector = glm::vec3(1.0f, 0.0, 0.0f);
+    Frustum const& frustum() { return _frustum; };
 
   private:
     glm::mat4 _proj{0.0f};
     glm::mat4 _proj_view;
+    void update_frustum();
+    Frustum _frustum{};
     struct KeyMappings {
         static const inline int move_left = GLFW_KEY_A;
         static const inline int move_right = GLFW_KEY_D;

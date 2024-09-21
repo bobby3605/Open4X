@@ -1,0 +1,114 @@
+#version 460
+
+layout(constant_id = 0) const uint LOCAL_SIZE_X = 0;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+struct OBB {
+    vec3 center;
+    vec3 half_extents;
+    vec3 directionU;
+    vec3 directionV;
+    vec3 directionW;
+};
+
+struct ObjectCullData {
+    OBB obb;
+    uint instances_offset;
+    uint instance_count;
+};
+
+struct Plane {
+    vec3 normal;
+    float distance;
+};
+
+struct Frustum {
+    // NOTE:
+    // This could be 4, because testing the near and far planes might be irrelevant
+    // TODO:
+    // Test to see if there's a significant improvement by skipping the near and far planes
+    Plane planes[6];
+};
+
+layout(push_constant) uniform frustum_data {
+    Frustum frustum;
+    uint totalObjectCount;
+};
+
+layout(set = 0, binding = 0) readonly buffer ObjectCullingData { ObjectCullData objects[]; };
+layout(set = 0, binding = 1) writeonly buffer VisibilityBuffer { uint visibilityBuffer[]; };
+layout(set = 0, binding = 2) readonly buffer ObjectInstanceIDs { uint objectInstanceIDs[]; };
+
+vec3 get_p_vertex(vec3 normal, vec3 minVec, vec3 maxVec) {
+    vec3 p = minVec;
+    if (normal.x >= 0) {
+        p.x = maxVec.x;
+    }
+    if (normal.y >= 0) {
+        p.y = maxVec.y;
+    }
+    if (normal.z >= 0) {
+        p.z = maxVec.z;
+    }
+    return p;
+}
+
+vec3 get_n_vertex(vec3 normal, vec3 minVec, vec3 maxVec) {
+    vec3 n = maxVec;
+    if (normal.x >= 0) {
+        n.x = minVec.x;
+    }
+    if (normal.y >= 0) {
+        n.y = minVec.y;
+    }
+    if (normal.z >= 0) {
+        n.z = minVec.z;
+    }
+    return n;
+}
+
+vec3 projectNormalized(vec3 u, vec3 v) { return dot(v, u) * v; }
+
+float planeDistance(Plane p, vec3 x) { return p.distance + dot(p.normal, x); }
+
+uint pnTest(OBB obb) {
+    // http://www.lighthouse3d.com/tutorials/view-frustum-culling/geometric-approach-testing-boxes-ii/
+    vec3 normal;
+    uint result = 2;
+    vec3 minVec = obb.center - obb.half_extents;
+    vec3 maxVec = obb.center + obb.half_extents;
+    for (uint i = 0; i < 6; ++i) {
+        Plane p = frustum.planes[i];
+        normal.x = projectNormalized(p.normal, obb.directionU).x;
+        normal.y = projectNormalized(p.normal, obb.directionV).y;
+        normal.z = projectNormalized(p.normal, obb.directionW).z;
+
+        if (planeDistance(p, get_p_vertex(normal, minVec, maxVec)) < 0) {
+            return 0;
+        } else if (planeDistance(p, get_n_vertex(normal, minVec, maxVec)) < 0) {
+            result = 1;
+        }
+    }
+    return result;
+}
+
+void main() {
+    // Per object
+    uint index = gl_GlobalInvocationID.x;
+    if (index < totalObjectCount) {
+        ObjectCullData object = objects[index];
+        bool visible = pnTest(object.obb) > 0;
+        // TODO
+        // Improve this
+        // Only fast for low instance/primitive count models
+        // TODO
+        // Save memory by packing bools
+        //
+        // If an object is visible, set the visibility of all instances that make it up to true,
+        // otherwise set those instances to false
+        for (uint i = 0; i < object.instance_count; ++i) {
+            visibilityBuffer[objectInstanceIDs[object.instances_offset + i]] = uint(visible);
+        }
+
+    }
+}

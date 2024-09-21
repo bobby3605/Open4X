@@ -64,6 +64,13 @@ template <typename ParentAllocationT> class LinearAllocator {
         // Auto sort and combine free blocks
         _free_blocks.push_back(alloc);
     }
+
+    void preallocate(size_t const& byte_size) {
+        SubAllocation<LinearAllocator, ParentAllocationT>* block =
+            new SubAllocation<LinearAllocator, ParentAllocationT>(_parent->size(), byte_size, this, _parent);
+        free(block);
+        _parent->realloc(_parent->size() + byte_size);
+    }
 };
 
 template <typename ParentAllocationT> class FixedAllocator {
