@@ -132,7 +132,7 @@ class AABB {
     void update(glm::vec3 const& new_bounds);
     void update(AABB const& new_bounds);
     void update(glm::vec4 const& new_bounds);
-    OBB toOBB(glm::quat const& rotation, glm::vec3 const& scale);
+    OBB toOBB(glm::mat4 const& trs);
 
   protected:
     glm::vec3 _max{-MAXFLOAT};

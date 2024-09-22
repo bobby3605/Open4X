@@ -73,10 +73,7 @@ void Object::scale(glm::vec3 const& new_scale) {
 
 void Object::refresh_culling_data() {
     ObjectCullData data{};
-    data.obb = _model->aabb().toOBB(rotation(), scale());
-    glm::vec3 position_offset = _model->aabb().centerpoint() * scale();
-    data.obb.center = position() - position_offset;
-
+    data.obb = _model->aabb().toOBB(_object_matrix);
     data.instance_count = _instances.capacity();
     // FIXME:
     // pop and swap update

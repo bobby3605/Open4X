@@ -48,20 +48,26 @@ glm::vec3 AABB::centerpoint() {
     return _centerpoint;
 }
 
-OBB AABB::toOBB(glm::quat const& rotation, glm::vec3 const& scale) {
-    glm::mat3 rot_matrix = glm::toMat3(rotation);
+OBB AABB::toOBB(glm::mat4 const& trs) {
+    // https://bruop.github.io/improved_frustum_culling/
+    glm::vec3 corners[] = {
+        {_min.x, _min.y, _min.z},
+        {_max.x, _min.y, _min.z},
+        {_min.x, _max.y, _min.z},
+        {_min.x, _min.y, _max.z},
+    };
+    for (size_t corner_idx = 0; corner_idx < 4; corner_idx++) {
+        corners[corner_idx] = trs * glm::vec4(corners[corner_idx], 1.0f);
+    }
     OBB obb;
-    obb.center = ((max() + min()) * 0.5f) * scale;
-    obb.half_extents = ((max() - min()) * 0.5f) * scale;
-    obb.directionU = rot_matrix * right_vector;
-    obb.directionV = rot_matrix * up_vector;
-    // FIXME:
-    // Get rid of the * -1
-    // upVector is in -y space
-    // but rotation is in +y space
-    // this converts directionV to +y space,
-    // which is used for frustum culling calculations (I think)
-    // Ideally, the rotation quaternion would be directly passed to frustum culling
-    obb.directionW = rot_matrix * forward_vector;
+    obb.directionU = corners[1] - corners[0];
+    obb.directionV = corners[2] - corners[0];
+    obb.directionW = corners[3] - corners[0];
+    obb.center = corners[0] + 0.5f * (obb.directionU + obb.directionV + obb.directionW);
+    obb.half_extents = {glm::length(obb.directionU), glm::length(obb.directionV), glm::length(obb.directionW)};
+    obb.directionU = obb.directionU / obb.half_extents.x;
+    obb.directionV = obb.directionV / obb.half_extents.y;
+    obb.directionW = obb.directionW / obb.half_extents.z;
+    obb.half_extents *= 0.5f;
     return obb;
 }
