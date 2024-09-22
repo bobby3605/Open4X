@@ -1,5 +1,7 @@
 #include "math.hpp"
 #include "../Renderer/Vulkan/common.hpp"
+#include <glm/gtx/string_cast.hpp>
+#include <iostream>
 
 void AABB::update(glm::vec3 const& new_bounds) {
     _max.x = glm::max(_max.x, new_bounds.x);
@@ -63,6 +65,16 @@ OBB AABB::toOBB(glm::mat4 const& trs) {
     obb.directionU = corners[1] - corners[0];
     obb.directionV = corners[2] - corners[0];
     obb.directionW = corners[3] - corners[0];
+    // Case when model is 2D or 1D
+    if (glm::length(obb.directionU) == 0) {
+        obb.directionU = right_vector * 0.001f;
+    }
+    if (glm::length(obb.directionV) == 0) {
+        obb.directionV = up_vector * 0.001f;
+    }
+    if (glm::length(obb.directionW) == 0) {
+        obb.directionW = forward_vector * 0.001f;
+    }
     obb.center = corners[0] + 0.5f * (obb.directionU + obb.directionV + obb.directionW);
     obb.half_extents = {glm::length(obb.directionU), glm::length(obb.directionV), glm::length(obb.directionW)};
     obb.directionU = obb.directionU / obb.half_extents.x;
