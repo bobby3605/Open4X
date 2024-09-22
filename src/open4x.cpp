@@ -120,6 +120,7 @@ void Open4X::run() {
 
     engine_obj->scale({0.01, 0.01, 0.01});
     engine_obj->position({5, 0, 0});
+    engine_obj->rotation(glm::vec3{0, 0, 45});
 
     Model* simple_texture_model = _model_manager->get_model(assets_base_path + "simple_texture.gltf");
     size_t simple_texture_id = _object_manager->add_object(simple_texture_model);

@@ -62,46 +62,58 @@ inline void fast_mat4_mul(glm::mat4 const& m1, glm::mat4 const& m2, glm::mat4& d
 
 inline void fast_t_matrix(glm::vec3 const& translation, glm::mat4& trs) {
     if constexpr (0) {
-        trs[3][0] = translation.x;
-        trs[3][1] = translation.y;
-        trs[3][2] = translation.z;
+        if constexpr (0) {
+            trs[3][0] = translation.x;
+            trs[3][1] = translation.y;
+            trs[3][2] = translation.z;
+        } else {
+            memcpy(&trs[3][0], &translation, sizeof(glm::vec3));
+        }
     } else {
-        memcpy(&trs[3][0], &translation, sizeof(glm::vec3));
+        trs = glm::translate(glm::mat4(1.0f), translation) * trs;
     }
 }
 
 inline void fast_r_matrix(glm::quat const& rotation, glm::mat4& trs) {
-    glm::mat3 rotation_3x3 = glm::toMat3(rotation);
     if constexpr (0) {
-        trs[0][0] = rotation_3x3[0][0];
-        trs[0][1] = rotation_3x3[0][1];
-        trs[0][2] = rotation_3x3[0][2];
-        trs[1][0] = rotation_3x3[1][0];
-        trs[1][1] = rotation_3x3[1][1];
-        trs[1][2] = rotation_3x3[1][2];
-        trs[2][0] = rotation_3x3[2][0];
-        trs[2][1] = rotation_3x3[2][1];
-        trs[2][2] = rotation_3x3[2][2];
-    } else if constexpr (1) {
-        memcpy(&trs[0][0], &rotation_3x3[0][0], sizeof(glm::vec3));
-        memcpy(&trs[1][0], &rotation_3x3[1][0], sizeof(glm::vec3));
-        memcpy(&trs[2][0], &rotation_3x3[2][0], sizeof(glm::vec3));
+        glm::mat3 rotation_3x3 = glm::toMat3(rotation);
+        if constexpr (0) {
+            trs[0][0] = rotation_3x3[0][0];
+            trs[0][1] = rotation_3x3[0][1];
+            trs[0][2] = rotation_3x3[0][2];
+            trs[1][0] = rotation_3x3[1][0];
+            trs[1][1] = rotation_3x3[1][1];
+            trs[1][2] = rotation_3x3[1][2];
+            trs[2][0] = rotation_3x3[2][0];
+            trs[2][1] = rotation_3x3[2][1];
+            trs[2][2] = rotation_3x3[2][2];
+        } else if constexpr (1) {
+            memcpy(&trs[0][0], &rotation_3x3[0][0], sizeof(glm::vec3));
+            memcpy(&trs[1][0], &rotation_3x3[1][0], sizeof(glm::vec3));
+            memcpy(&trs[2][0], &rotation_3x3[2][0], sizeof(glm::vec3));
+        } else {
+            memcpy(&trs[0][0], &rotation_3x3[0][0], sizeof(glm::vec3) * 3);
+        }
     } else {
-        memcpy(&trs[0][0], &rotation_3x3[0][0], sizeof(glm::vec3) * 3);
+        trs = glm::toMat4(rotation) * trs;
     }
 }
 
 inline void fast_s_matrix(glm::vec3 const& scale, glm::mat4& trs) {
-    trs[0][0] *= scale.x;
-    trs[1][1] *= scale.y;
-    trs[2][2] *= scale.z;
+    if constexpr (0) {
+        trs[0][0] *= scale.x;
+        trs[1][1] *= scale.y;
+        trs[2][2] *= scale.z;
+    } else {
+        trs = glm::scale(glm::mat4(1.0f), scale);
+    }
 }
 
 inline void fast_trs_matrix(glm::vec3 const& translation, glm::quat const& rotation, glm::vec3 const& scale, glm::mat4& trs) {
     // Manually copying and setting object matrix because multiplying mat4 is slow
+    fast_s_matrix(scale, trs);
     fast_r_matrix(rotation, trs);
     fast_t_matrix(translation, trs);
-    fast_s_matrix(scale, trs);
 
     trs[0][3] = 0;
     trs[1][3] = 0;

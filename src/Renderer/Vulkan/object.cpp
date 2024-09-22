@@ -83,19 +83,15 @@ void Object::refresh_culling_data() {
 
 void Object::refresh_instance_data() {
     if (_instance_data_invalid) {
-        if (_rs_invalid) {
-            fast_r_matrix(_rotation, _object_matrix);
-            fast_s_matrix(_scale, _object_matrix);
+        fast_s_matrix(_scale, _object_matrix);
+        fast_r_matrix(_rotation, _object_matrix);
+        glm::vec3 position_offset{0.0f, 0.0f, 0.0f};
+        if (_model != nullptr) {
+            // NOTE:
+            // Correct the position by the centerpoint and scale of the model
+            position_offset = _model->aabb().centerpoint() * scale();
         }
-        if (_t_invalid) {
-            glm::vec3 position_offset{0.0f, 0.0f, 0.0f};
-            if (_model != nullptr) {
-                // NOTE:
-                // Correct the position by the centerpoint and scale of the model
-                position_offset = _model->aabb().centerpoint() * scale();
-            }
-            fast_t_matrix(_position - position_offset, _object_matrix);
-        }
+        fast_t_matrix(_position - position_offset, _object_matrix);
         if (_model != nullptr) {
             _model->write_instance_data(_object_matrix, _instances);
             refresh_culling_data();
