@@ -62,6 +62,7 @@ class Device {
     VkPhysicalDeviceVulkan13Features vk13_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
     VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
+    VkPhysicalDeviceShaderObjectFeaturesEXT shader_object_features{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT};
 
     static constexpr std::array<const char*, 1> validation_layers = {"VK_LAYER_KHRONOS_validation"};
     static constexpr VkValidationFeatureEnableEXT enabled_validation_features[] = {
@@ -78,7 +79,7 @@ class Device {
     void create_instance();
     VkSurfaceKHR _surface;
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    std::vector<const char*> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    std::vector<const char*> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_SHADER_OBJECT_EXTENSION_NAME};
     bool _use_descriptor_buffers = false;
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);

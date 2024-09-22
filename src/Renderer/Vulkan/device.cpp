@@ -1,8 +1,9 @@
+#include <algorithm>
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
-#include "device.hpp"
 #include "common.hpp"
+#include "device.hpp"
 #include "window.hpp"
 #include <iostream>
 #include <set>
@@ -288,11 +289,14 @@ void Device::set_required_features() {
     // descriptor buffers are dead in the water for development
     descriptor_buffer_features.descriptorBufferCaptureReplay = VK_FALSE; // use_descriptor_buffers ? VK_TRUE : VK_FALSE;
 
+    shader_object_features.shaderObject = VK_TRUE;
+
     device_features.pNext = &vk11_features;
     vk11_features.pNext = &vk12_features;
     vk12_features.pNext = &vk13_features;
+    vk13_features.pNext = &shader_object_features;
     if (use_descriptor_buffers()) {
-        vk13_features.pNext = &descriptor_buffer_features;
+        shader_object_features.pNext = &descriptor_buffer_features;
     }
 }
 
@@ -313,8 +317,12 @@ void Device::set_required_features() {
 #define compdb(feature_name) comp_check(descriptor_buffer_features, feature_name)
 
 bool Device::check_features(VkPhysicalDevice device) {
+
+    VkPhysicalDeviceShaderObjectFeaturesEXT shader_object_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
+
     VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features_check{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT};
+    descriptor_buffer_features_check.pNext = &shader_object_features_check;
 
     VkPhysicalDeviceVulkan13Features vk13_features_check{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
     vk13_features_check.pNext = &descriptor_buffer_features_check;
@@ -344,8 +352,10 @@ bool Device::check_features(VkPhysicalDevice device) {
 
     bool descriptor_buffer_features_available = compdb(descriptorBuffer); //&& compdb(descriptorBufferCaptureReplay);
 
+    bool shader_object_features_available = comp_check(shader_object_features, shaderObject);
+
     return device_features_available && vk11_features_available && vk12_features_available && vk13_features_available &&
-           descriptor_buffer_features_available;
+           descriptor_buffer_features_available && shader_object_features_available;
 }
 
 bool Device::is_device_suitable(VkPhysicalDevice device) {
@@ -359,7 +369,13 @@ bool Device::is_device_suitable(VkPhysicalDevice device) {
         swap_chain_adequate = !swap_chain_support.formats.empty() && !swap_chain_support.presentModes.empty();
     }
 
-    return indices.is_complete() && extensions_supported && swap_chain_adequate && check_features(device);
+    VkPhysicalDeviceVulkan13Properties vk13_properties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES};
+    VkPhysicalDeviceProperties2 properties2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    properties2.pNext = &vk13_properties;
+    vkGetPhysicalDeviceProperties2(device, &properties2);
+
+    return indices.is_complete() && (true || extensions_supported) && (true || swap_chain_adequate) && check_features(device) &&
+           vk13_properties.maxSubgroupSize >= 32;
 }
 
 VkSampleCountFlagBits get_max_usable_sample_count(VkPhysicalDeviceProperties props) {
