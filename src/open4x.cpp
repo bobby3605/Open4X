@@ -147,7 +147,7 @@ void Open4X::run() {
 
     a_beautiful_game_object->position({-2, -2, -2});
     a_beautiful_game_object->rotation_euler(180, 0, 0);
-    a_beautiful_game_object->scale({2, 2, 2});
+    a_beautiful_game_object->scale({5, 5, 5});
 
     Model* simple_animation = _model_manager->get_model(assets_base_path + "simple_animation.gltf");
     size_t simple_animation_id = _object_manager->add_object(simple_animation);
@@ -240,14 +240,10 @@ void Open4X::run() {
         _object_manager->refresh_animated_objects();
         _model_manager->refresh_invalid_draws();
         cam.update_transform(frame_time);
-        // TODO
-        // cache camera matrix
         shader_globals.proj_view = cam.proj_view();
         shader_globals.cam_pos = cam.position();
         globals_alloc->write(&shader_globals);
         renderer->rg->set_push_constant("triangle_frag", "light_count", _object_manager->light_count());
-        // TODO:
-        // set push constant data by variable name inside the push constant
         renderer->rg->set_push_constant("frustum_data", "frustum", cam.frustum());
         renderer->rg->set_push_constant("frustum_data", "totalObjectCount", (uint32_t)_object_manager->object_count());
 
