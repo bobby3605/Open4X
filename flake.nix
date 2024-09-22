@@ -24,6 +24,7 @@
         spirv-cross
         spirv-tools
         glslang-shared
+        vulkan-tools
       ];
       shellHook = ''
         exec zsh
