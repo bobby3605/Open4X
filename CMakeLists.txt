@@ -21,6 +21,8 @@ file(GLOB SOURCES
   src/Renderer/Vulkan/*.cpp
   src/Renderer/Allocator/*.hpp
   src/Renderer/Allocator/*.cpp
+  src/ecs/*.hpp
+  src/ecs/*.cpp
   src/utils/*.hpp
   src/utils/*.cpp
   )

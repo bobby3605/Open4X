@@ -7,6 +7,7 @@
 #include "Renderer/Vulkan/object_manager.hpp"
 #include "Renderer/Vulkan/rendergraph.hpp"
 #include "Renderer/Vulkan/window.hpp"
+#include "ecs/ecs.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 #include "rapidjson/stream.h"
@@ -105,6 +106,25 @@ void Open4X::load_settings() {
 
 void Open4X::run() {
     std::string assets_base_path = std::filesystem::current_path().string() + "/assets/glTF/";
+
+    auto ecs_start = std::chrono::high_resolution_clock::now();
+    ECS ecs;
+    std::vector<uint32_t> box_entities = ecs.add_entities(settings->extra_object_count);
+    ECS::Component* matrix_component = ecs.register_component("matrix");
+    matrix_component->reserve<MatrixComponent>(settings->extra_object_count);
+    matrix_component->add_entities(box_entities);
+    MatrixComponent* matrix_component_data = reinterpret_cast<MatrixComponent*>(matrix_component->data);
+    glm::mat4 identity_matrix{1.0f};
+    for (const uint32_t& entity : box_entities) {
+        if (entity != -1) {
+            matrix_component_data[matrix_component->sparse[entity]].model_matrix = identity_matrix;
+        }
+    }
+
+    std::cout
+        << "ecs time: "
+        << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() - ecs_start).count()
+        << "ms" << std::endl;
 
     // NOTE:
     // GPU buffers don't exist until you allocate from them,
