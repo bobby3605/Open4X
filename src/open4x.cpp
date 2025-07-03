@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <entt/entt.hpp>
 #include <filesystem>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/gtc/constants.hpp>

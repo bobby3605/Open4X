@@ -37,4 +37,6 @@ target_include_directories("${PROJECT_NAME}" PUBLIC
   external/fastgltf
 )
 
-target_link_libraries("${PROJECT_NAME}" PUBLIC vulkan glfw glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt spirv-cross-glsl spirv-cross-core GPUOpen::VulkanMemoryAllocator fastgltf)
+find_package(EnTT CONFIG REQUIRED)
+
+target_link_libraries("${PROJECT_NAME}" PUBLIC vulkan glfw glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt spirv-cross-glsl spirv-cross-core GPUOpen::VulkanMemoryAllocator fastgltf EnTT::EnTT)

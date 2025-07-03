@@ -25,11 +25,12 @@
         spirv-tools
         glslang-shared
         vulkan-tools
+        entt
       ];
       shellHook = ''
+        export CMAKE_PREFIX_PATH=${pkgs.entt}:$CMAKE_PREFIX_PATH
         exec zsh
       '';
-
     };
   };
 }
