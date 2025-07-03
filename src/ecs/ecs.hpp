@@ -14,6 +14,11 @@ struct MatrixComponent {
     alignas(32) glm::mat4 model_matrix;
 };
 
+struct ArrayViewComponent {
+    uint32_t offset = 0;
+    uint32_t size = 0;
+};
+
 struct sparse_set {
     uint32_t size = 0;
     uint32_t capacity = 0;
@@ -30,6 +35,7 @@ struct ECS {
         uint32_t capacity = 0;
         uint32_t* sparse = nullptr;
         void* data = nullptr;
+        void* specialization_data = nullptr;
         template <typename T> void reserve(uint32_t const& new_capacity) {
             if (new_capacity > capacity) {
                 if (data == nullptr) {

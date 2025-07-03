@@ -126,6 +126,18 @@ void Open4X::run() {
         << std::chrono::duration<float, std::chrono::milliseconds::period>(std::chrono::high_resolution_clock::now() - ecs_start).count()
         << "ms" << std::endl;
 
+    uint32_t primitive_count = 1;
+    std::vector<uint32_t> primitive_entities = ecs.add_entities(primitive_count);
+    ECS::Component* vertex_component = ecs.register_component("vertex");
+    vertex_component->reserve<ArrayViewComponent>(primitive_count);
+    vertex_component->add_entities(primitive_entities);
+    uint32_t vertex_count = 1;
+    vertex_component->specialization_data = malloc(vertex_count * sizeof(Vertex));
+    ArrayViewComponent* vertex_components = reinterpret_cast<ArrayViewComponent*>(vertex_component->data);
+    vertex_components[0].offset = 0;
+    vertex_components[0].size = 1;
+    reinterpret_cast<Vertex*>(vertex_component->specialization_data)[0].pos = {0, 0, 0};
+
     // NOTE:
     // GPU buffers don't exist until you allocate from them,
     // so the engine runs without any models/objects allocated,

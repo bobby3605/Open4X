@@ -160,6 +160,7 @@ void Device::create_instance() {
 
         create_info.pNext = nullptr;
     }
+
     check_result(vkCreateInstance(&create_info, nullptr, &_instance), "failed to create instance");
     if (enable_validation_layers) {
         setup_debug_messenger(debug_create_info);
