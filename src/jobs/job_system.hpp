@@ -11,6 +11,9 @@ class JobSystem {
     std::vector<JobQueue*> job_queues;
     std::vector<Worker*> workers;
     void stop();
+
+  private:
+    bool stopped = false;
 };
 
 #endif // JOBS_H_

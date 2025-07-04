@@ -9,12 +9,16 @@ class JobQueue {
     void push(Job* job);
     Job* pop();
     Job* steal();
-    size_t size() const { return _queue.size(); }
+    const size_t jobs_mask;
+    void wait_nonempty() const;
 
   private:
-    std::atomic<size_t> _bottom = 0;
     std::atomic<size_t> _top = 0;
-    std::vector<Job*> _queue;
+    std::vector<Job*> _jobs;
+
+  protected:
+    std::atomic<size_t> _bottom = 0;
+    friend class JobSystem;
 };
 
 #endif // JOB_QUEUE_H_

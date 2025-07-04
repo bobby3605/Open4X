@@ -4,7 +4,7 @@
 
 class Job {
   public:
-    typedef void (*JobFunction)(const void*);
+    typedef void (*JobFunction)(void* const);
     JobFunction function;
     Job* parent = nullptr;
     std::atomic<size_t> unfinished_dependencies;
