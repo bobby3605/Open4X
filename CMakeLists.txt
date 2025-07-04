@@ -12,7 +12,7 @@ set(PROJECT_NAME Open4X)
 set(COMPILE_FLAGS "-march=native -mavx2")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
-project("${PROJECT_NAME}")
+project(${PROJECT_NAME})
 
 file(GLOB SOURCES
   src/*.hpp
@@ -23,20 +23,23 @@ file(GLOB SOURCES
   src/Renderer/Allocator/*.cpp
   src/utils/*.hpp
   src/utils/*.cpp
+  src/ecs/*.hpp
+  src/ecs/*.cpp
+  src/jobs/*.hpp
+  src/jobs/*.cpp
   )
 
-add_executable("${PROJECT_NAME}" ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 add_subdirectory(external/VulkanMemoryAllocator/VulkanMemoryAllocator/)
 add_subdirectory(external/fastgltf/fastgltf/)
 
-target_include_directories("${PROJECT_NAME}" PUBLIC
+find_package(EnTT CONFIG REQUIRED)
+target_include_directories(${PROJECT_NAME} PUBLIC
   external/rapidjson/rapidjson/include
   external/stb
   external/VulkanMemoryAllocator
   external/fastgltf
 )
 
-find_package(EnTT CONFIG REQUIRED)
-
-target_link_libraries("${PROJECT_NAME}" PUBLIC vulkan glfw glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt spirv-cross-glsl spirv-cross-core GPUOpen::VulkanMemoryAllocator fastgltf EnTT::EnTT)
+target_link_libraries(${PROJECT_NAME} PUBLIC vulkan glfw glslang glslang-default-resource-limits SPIRV SPIRV-Tools-opt spirv-cross-glsl spirv-cross-core GPUOpen::VulkanMemoryAllocator fastgltf EnTT::EnTT)

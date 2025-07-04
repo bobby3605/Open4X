@@ -105,12 +105,18 @@ void Open4X::load_settings() {
 }
 
 void Open4X::run() {
+
+    entt::registry registry;
+
+    auto entity = registry.create();
+
     std::string assets_base_path = std::filesystem::current_path().string() + "/assets/glTF/";
 
     // NOTE:
     // GPU buffers don't exist until you allocate from them,
     // so the engine runs without any models/objects allocated,
     // then there are validation errors for missing buffers
+    //
 
     Model* box_model = _model_manager->get_model(assets_base_path + "Box.gltf");
     _object_manager->create_n_objects(box_model, settings->extra_object_count);
